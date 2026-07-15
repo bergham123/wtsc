@@ -280,9 +280,19 @@ async function handleSaveSchedule(request, env) {
     
     if (action === 'remove') {
       yamlContent = removeSchedule(yamlContent);
-    } else if (action === 'add' || action === 'update') {
+    } else if (action === 'add') {
       if (!cron || !/^\S+\s+\S+\s+\S+\s+\S+\s+\S+$/.test(cron)) {
         return jsonResponse({ ok: false, error: "cron must have 5 space-separated fields" }, 400);
+      }
+      // إضافة جديدة (حتى لو كانت موجودة سنستبدلها)
+      yamlContent = setCron(yamlContent, cron);
+    } else if (action === 'update') {
+      if (!cron || !/^\S+\s+\S+\s+\S+\s+\S+\s+\S+$/.test(cron)) {
+        return jsonResponse({ ok: false, error: "cron must have 5 space-separated fields" }, 400);
+      }
+      // التحقق من وجود جدولة حالية
+      if (!hasSchedule(yamlContent)) {
+        return jsonResponse({ ok: false, error: "لا توجد جدولة حالية لتحديثها. استخدم زر 'انشاء' أولاً." }, 400);
       }
       yamlContent = setCron(yamlContent, cron);
     } else {
@@ -891,16 +901,17 @@ const HTML_PAGE = [
   '      <div id="scheduleControls">',
   '        <div class="schedule-row">',
   '          <label>الساعة (0-23)',
-  '            <input type="number" id="hourInput" min="0" max="23" value="9" />',
+  '            <input type="number" id="hourInput" min="0" max="23" value="10" />',
   '          </label>',
   '          <label>الدقيقة (0-59)',
   '            <input type="number" id="minuteInput" min="0" max="59" value="0" />',
   '          </label>',
   '        </div>',
   '        <div class="btn-row">',
-  '          <button class="btn btn-secondary" id="loadScheduleBtn">📥 تحميل الحالي</button>',
-  '          <button class="btn btn-success" id="addScheduleBtn">➕ إضافة / تحديث</button>',
-  '          <button class="btn btn-danger" id="removeScheduleBtn">🗑️ حذف الجدولة</button>',
+  '          <button class="btn btn-secondary" id="loadScheduleBtn">📥 تحميل حالي</button>',
+  '          <button class="btn btn-success" id="updateScheduleBtn">🔄 تحديت</button>',
+  '          <button class="btn btn-danger" id="removeScheduleBtn">🗑️ حدف</button>',
+  '          <button class="btn btn-warning" id="addScheduleBtn">➕ انشاء</button>',
   '        </div>',
   '        <div class="status" id="scheduleStatus"></div>',
   '      </div>',
@@ -1191,7 +1202,8 @@ const HTML_PAGE = [
   '  }',
   '}',
   'document.getElementById("loadScheduleBtn").onclick = loadSchedule;',
-  'document.getElementById("addScheduleBtn").onclick = async function() {',
+  '// زر "تحديت" (تحديث الجدولة الحالية)',
+  'document.getElementById("updateScheduleBtn").onclick = async function() {',
   '  const hour = parseInt(hourInput.value, 10);',
   '  const minute = parseInt(minuteInput.value, 10);',
   '  if (isNaN(hour) || hour < 0 || hour > 23 || isNaN(minute) || minute < 0 || minute > 59) {',
@@ -1199,21 +1211,22 @@ const HTML_PAGE = [
   '    return;',
   '  }',
   '  const cron = minute + " " + hour + " * * *";',
-  '  setStatus(scheduleStatus, "جاري الحفظ...", "");',
+  '  setStatus(scheduleStatus, "جاري التحديث...", "");',
   '  try {',
   '    const res = await fetch("/api/schedule", {',
   '      method: "POST",',
   '      headers: { "Content-Type": "application/json" },',
-  '      body: JSON.stringify({ action: "add", cron: cron })',
+  '      body: JSON.stringify({ action: "update", cron: cron })',
   '    });',
   '    const data = await res.json();',
   '    if (!data.ok) throw new Error(data.error || "خطأ");',
   '    setStatus(scheduleStatus, "تم تحديث الجدولة ✓ (" + cron + " UTC)", "ok");',
-  '    loadSchedule(); // إعادة تحميل الحالة',
+  '    loadSchedule();',
   '  } catch (err) {',
   '    setStatus(scheduleStatus, "خطأ: " + err.message, "err");',
   '  }',
   '};',
+  '// زر "حدف" (حذف الجدولة)',
   'document.getElementById("removeScheduleBtn").onclick = async function() {',
   '  if (!confirm("هل أنت متأكد من حذف الجدولة؟")) return;',
   '  setStatus(scheduleStatus, "جاري الحذف...", "");',
@@ -1226,7 +1239,31 @@ const HTML_PAGE = [
   '    const data = await res.json();',
   '    if (!data.ok) throw new Error(data.error || "خطأ");',
   '    setStatus(scheduleStatus, "تم حذف الجدولة ✓", "ok");',
-  '    loadSchedule(); // إعادة تحميل الحالة',
+  '    loadSchedule();',
+  '  } catch (err) {',
+  '    setStatus(scheduleStatus, "خطأ: " + err.message, "err");',
+  '  }',
+  '};',
+  '// زر "انشاء" (إنشاء جدولة جديدة أو استبدال الموجودة)',
+  'document.getElementById("addScheduleBtn").onclick = async function() {',
+  '  const hour = parseInt(hourInput.value, 10);',
+  '  const minute = parseInt(minuteInput.value, 10);',
+  '  if (isNaN(hour) || hour < 0 || hour > 23 || isNaN(minute) || minute < 0 || minute > 59) {',
+  '    setStatus(scheduleStatus, "أدخل ساعة (0-23) ودقيقة (0-59) صحيحة", "err");',
+  '    return;',
+  '  }',
+  '  const cron = minute + " " + hour + " * * *";',
+  '  setStatus(scheduleStatus, "جاري الإنشاء...", "");',
+  '  try {',
+  '    const res = await fetch("/api/schedule", {',
+  '      method: "POST",',
+  '      headers: { "Content-Type": "application/json" },',
+  '      body: JSON.stringify({ action: "add", cron: cron })',
+  '    });',
+  '    const data = await res.json();',
+  '    if (!data.ok) throw new Error(data.error || "خطأ");',
+  '    setStatus(scheduleStatus, "تم إنشاء الجدولة ✓ (" + cron + " UTC)", "ok");',
+  '    loadSchedule();',
   '  } catch (err) {',
   '    setStatus(scheduleStatus, "خطأ: " + err.message, "err");',
   '  }',
