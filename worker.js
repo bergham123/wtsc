@@ -1,12 +1,11 @@
 /**
- * Cloudflare Worker - GitHub Manager Pro
+ * Cloudflare Worker - GitHub Manager Pro (بدون مصادقة)
  * --------------------------------------
  * - Messages: Load / Edit / Save
  * - Contacts: Load / Edit / Save
  * - Images: Preview & Upload to images/
  * - Logs: View logs from /logs/ folder
  * - Run Workflow: Trigger GitHub Actions
- * - Authentication: Email + Password (env vars)
  */
 
 function ghHeaders(env) {
@@ -173,17 +172,6 @@ async function handleGetLogContent(request, env) {
   }
 }
 
-// ========== دوال المصادقة ==========
-function checkAuth(request, env) {
-  const authHeader = request.headers.get("Authorization");
-  if (!authHeader || !authHeader.startsWith("Basic ")) {
-    return false;
-  }
-  const base64 = authHeader.split(" ")[1];
-  const [email, password] = atob(base64).split(":");
-  return email === env.ADMIN_EMAIL && password === env.ADMIN_PASSWORD;
-}
-
 // ========== باقي الدوال (Messages, Contacts, Images, Workflow) ==========
 function linesToJsonArray(text) {
   const items = text
@@ -286,7 +274,7 @@ async function handleUploadImage(request, env) {
   }
 }
 
-// ========== HTML الرئيسي (مكتوب باستخدام Array join لتجنب مشاكل backticks) ==========
+// ========== HTML الرئيسي (بدون مصادقة) ==========
 const HTML_PAGE = [
   '<!DOCTYPE html>',
   '<html lang="ar" dir="rtl">',
@@ -337,29 +325,6 @@ const HTML_PAGE = [
   '    letter-spacing: 0.5px;',
   '  }',
   '  .logo-text span { color: #6c8cff; }',
-  '  .user-area {',
-  '    display: flex;',
-  '    align-items: center;',
-  '    gap: 14px;',
-  '    font-size: 13px;',
-  '    background: #1e2533;',
-  '    padding: 8px 16px 8px 12px;',
-  '    border-radius: 40px;',
-  '    border: 1px solid #2f384a;',
-  '  }',
-  '  .user-email { color: #b0c4e8; }',
-  '  .logout-btn {',
-  '    background: none;',
-  '    border: none;',
-  '    color: #ff6b6b;',
-  '    cursor: pointer;',
-  '    font-size: 13px;',
-  '    font-weight: 600;',
-  '    padding: 4px 8px;',
-  '    border-radius: 6px;',
-  '    transition: 0.2s;',
-  '  }',
-  '  .logout-btn:hover { background: #2a1a1a; }',
   '  .grid {',
   '    display: grid;',
   '    grid-template-columns: 1fr 1fr;',
@@ -649,68 +614,15 @@ const HTML_PAGE = [
   '  }',
   '  .log-content .log-line .time { color: #6a8aaa; }',
   '  .log-content .log-line .emoji { margin: 0 4px; }',
-  '  .login-container {',
-  '    max-width: 400px;',
-  '    width: 100%;',
-  '    background: #141922;',
-  '    border-radius: 24px;',
-  '    padding: 40px 30px;',
-  '    border: 1px solid #2a303d;',
-  '    text-align: center;',
-  '  }',
-  '  .login-container .logo { font-size: 48px; margin-bottom: 10px; }',
-  '  .login-container h2 { margin-bottom: 24px; color: #eef2f9; }',
-  '  .login-container input {',
-  '    width: 100%;',
-  '    padding: 12px 16px;',
-  '    margin-bottom: 14px;',
-  '    background: #0e131f;',
-  '    border: 1px solid #2f384a;',
-  '    border-radius: 12px;',
-  '    color: white;',
-  '    font-size: 14px;',
-  '    direction: ltr;',
-  '  }',
-  '  .login-container input:focus {',
-  '    outline: none;',
-  '    border-color: #5a7cff;',
-  '  }',
-  '  .login-container .btn {',
-  '    width: 100%;',
-  '    justify-content: center;',
-  '    padding: 12px;',
-  '    font-size: 15px;',
-  '    background: #3a5a8a;',
-  '  }',
-  '  .login-container .btn:hover { background: #4d72a8; }',
-  '  .login-error {',
-  '    color: #ff6b6b;',
-  '    font-size: 13px;',
-  '    margin-top: 10px;',
-  '    min-height: 20px;',
-  '  }',
   '</style>',
   '</head>',
   '<body>',
-  '<!-- ===== واجهة تسجيل الدخول ===== -->',
-  '<div id="loginScreen" class="login-container" style="display:none;">',
-  '  <div class="logo">🔐</div>',
-  '  <h2>تسجيل الدخول</h2>',
-  '  <input type="email" id="loginEmail" placeholder="البريد الإلكتروني" dir="ltr" />',
-  '  <input type="password" id="loginPassword" placeholder="كلمة المرور" dir="ltr" />',
-  '  <button class="btn" id="loginBtn">دخول</button>',
-  '  <div id="loginError" class="login-error"></div>',
-  '</div>',
   '<!-- ===== الواجهة الرئيسية ===== -->',
-  '<div id="mainApp" class="container" style="display:none;">',
+  '<div id="mainApp" class="container">',
   '  <div class="header">',
   '    <div class="logo-area">',
   '      <span class="logo-icon">⚙️</span>',
   '      <div class="logo-text">مدير <span>GitHub</span></div>',
-  '    </div>',
-  '    <div class="user-area">',
-  '      <span class="user-email" id="userEmailDisplay">admin@example.com</span>',
-  '      <button class="logout-btn" id="logoutBtn">🚪 خروج</button>',
   '    </div>',
   '  </div>',
   '  <div class="grid">',
@@ -800,81 +712,11 @@ const HTML_PAGE = [
   '  el.textContent = msg;',
   '  el.className = "status" + (type ? " " + type : "");',
   '}',
-  '// ===== المصادقة =====',
-  'function checkAuth() {',
-  '  const auth = sessionStorage.getItem("auth");',
-  '  if (auth) {',
-  '    try {',
-  '      const data = JSON.parse(auth);',
-  '      if (data.email && data.password) return data;',
-  '    } catch(e) {}',
-  '  }',
-  '  return null;',
-  '}',
-  'function doLogin(email, password) {',
-  '  sessionStorage.setItem("auth", JSON.stringify({ email, password }));',
-  '  showApp();',
-  '}',
-  'function doLogout() {',
-  '  sessionStorage.removeItem("auth");',
-  '  showLogin();',
-  '}',
-  'function showLogin() {',
-  '  document.getElementById("loginScreen").style.display = "block";',
-  '  document.getElementById("mainApp").style.display = "none";',
-  '  document.getElementById("loginError").textContent = "";',
-  '}',
-  'function showApp() {',
-  '  const auth = checkAuth();',
-  '  if (!auth) { showLogin(); return; }',
-  '  document.getElementById("loginScreen").style.display = "none";',
-  '  document.getElementById("mainApp").style.display = "block";',
-  '  document.getElementById("userEmailDisplay").textContent = auth.email;',
-  '}',
-  'document.getElementById("loginBtn").onclick = function() {',
-  '  const email = document.getElementById("loginEmail").value.trim();',
-  '  const password = document.getElementById("loginPassword").value.trim();',
-  '  if (!email || !password) {',
-  '    document.getElementById("loginError").textContent = "الرجاء إدخال البريد وكلمة المرور";',
-  '    return;',
-  '  }',
-  '  fetch("/api/auth", {',
-  '    method: "POST",',
-  '    headers: { "Content-Type": "application/json" },',
-  '    body: JSON.stringify({ email, password })',
-  '  })',
-  '  .then(res => res.json())',
-  '  .then(data => {',
-  '    if (data.ok) { doLogin(email, password); }',
-  '    else { document.getElementById("loginError").textContent = data.error || "بيانات غير صحيحة"; }',
-  '  })',
-  '  .catch(() => { document.getElementById("loginError").textContent = "خطأ في الاتصال"; });',
-  '};',
-  'document.getElementById("loginPassword").addEventListener("keydown", (e) => { if (e.key === "Enter") document.getElementById("loginBtn").click(); });',
-  'document.getElementById("loginEmail").addEventListener("keydown", (e) => { if (e.key === "Enter") document.getElementById("loginBtn").click(); });',
-  'document.getElementById("logoutBtn").onclick = doLogout;',
-  'const auth = checkAuth();',
-  'if (auth) { showApp(); } else { showLogin(); }',
-  'function getHeaders() {',
-  '  const auth = checkAuth();',
-  '  return {',
-  '    "Content-Type": "application/json",',
-  '    "Authorization": "Basic " + btoa(auth.email + ":" + auth.password)',
-  '  };',
-  '}',
-  'async function apiCall(url, options = {}) {',
-  '  const headers = getHeaders();',
-  '  const res = await fetch(url, {',
-  '    ...options,',
-  '    headers: { ...headers, ...(options.headers || {}) }',
-  '  });',
-  '  if (res.status === 401) { doLogout(); throw new Error("انتهت الجلسة، الرجاء تسجيل الدخول مجدداً"); }',
-  '  return res;',
-  '}',
+  '// ===== الرسائل وجهات الاتصال =====',
   'async function loadFile(type, areaEl, statusEl) {',
   '  setStatus(statusEl, "جاري التحميل...", "");',
   '  try {',
-  '    const res = await apiCall("/api/load?type=" + type);',
+  '    const res = await fetch("/api/load?type=" + type);',
   '    const data = await res.json();',
   '    if (!data.ok) throw new Error(data.error || "خطأ غير معروف");',
   '    areaEl.value = data.text;',
@@ -886,8 +728,9 @@ const HTML_PAGE = [
   'async function saveFile(type, areaEl, statusEl) {',
   '  setStatus(statusEl, "جاري الحفظ...", "");',
   '  try {',
-  '    const res = await apiCall("/api/save", {',
+  '    const res = await fetch("/api/save", {',
   '      method: "POST",',
+  '      headers: { "Content-Type": "application/json" },',
   '      body: JSON.stringify({ type, text: areaEl.value })',
   '    });',
   '    const data = await res.json();',
@@ -901,6 +744,7 @@ const HTML_PAGE = [
   'document.getElementById("saveMessagesBtn").onclick = () => saveFile("messages", document.getElementById("messagesArea"), document.getElementById("messagesStatus"));',
   'document.getElementById("loadContactsBtn").onclick = () => loadFile("contacts", document.getElementById("contactsArea"), document.getElementById("contactsStatus"));',
   'document.getElementById("saveContactsBtn").onclick = () => saveFile("contacts", document.getElementById("contactsArea"), document.getElementById("contactsStatus"));',
+  '// ===== الصور مع المعاينة =====',
   'const imagesInput = document.getElementById("imagesInput");',
   'const previewArea = document.getElementById("imagePreviewArea");',
   'let selectedFiles = [];',
@@ -946,8 +790,9 @@ const HTML_PAGE = [
   '    listEl.appendChild(line);',
   '    try {',
   '      const base64 = await fileToBase64(file);',
-  '      const res = await apiCall("/api/upload-image", {',
+  '      const res = await fetch("/api/upload-image", {',
   '        method: "POST",',
+  '        headers: { "Content-Type": "application/json" },',
   '        body: JSON.stringify({ filename: file.name, dataBase64: base64 })',
   '      });',
   '      const data = await res.json();',
@@ -973,11 +818,12 @@ const HTML_PAGE = [
   '    reader.readAsDataURL(file);',
   '  });',
   '}',
+  '// ===== تشغيل الـ Workflow =====',
   'document.getElementById("runWorkflowBtn").onclick = async function() {',
   '  const statusEl = document.getElementById("workflowStatus");',
   '  setStatus(statusEl, "جاري التشغيل...", "");',
   '  try {',
-  '    const res = await apiCall("/api/run-workflow", { method: "POST" });',
+  '    const res = await fetch("/api/run-workflow", { method: "POST" });',
   '    const data = await res.json();',
   '    if (!data.ok) throw new Error(data.error || "خطأ غير معروف");',
   '    setStatus(statusEl, "تم التشغيل ✓", "ok");',
@@ -985,6 +831,7 @@ const HTML_PAGE = [
   '    setStatus(statusEl, "خطأ: " + err.message, "err");',
   '  }',
   '};',
+  '// ===== السجلات =====',
   'const logsModal = document.getElementById("logsModal");',
   'const logFilesList = document.getElementById("logFilesList");',
   'const logContent = document.getElementById("logContent");',
@@ -1004,7 +851,7 @@ const HTML_PAGE = [
   'async function loadLogFiles() {',
   '  setStatus(document.getElementById("logsStatus"), "جاري تحميل السجلات...", "");',
   '  try {',
-  '    const res = await apiCall("/api/logs");',
+  '    const res = await fetch("/api/logs");',
   '    const data = await res.json();',
   '    if (!data.ok) throw new Error(data.error || "خطأ");',
   '    logFilesList.innerHTML = "";',
@@ -1027,7 +874,7 @@ const HTML_PAGE = [
   'async function loadLogContent(filename) {',
   '  logContent.textContent = "جاري التحميل...";',
   '  try {',
-  '    const res = await apiCall("/api/log-content?file=" + encodeURIComponent(filename));',
+  '    const res = await fetch("/api/log-content?file=" + encodeURIComponent(filename));',
   '    const data = await res.json();',
   '    if (!data.ok) throw new Error(data.error || "خطأ");',
   '    const lines = data.content.split("\\n").filter(l => l.trim());',
@@ -1059,40 +906,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
-    // مسار المصادقة (غير محمي)
-    if (url.pathname === "/api/auth" && request.method === "POST") {
-      try {
-        const { email, password } = await request.json();
-        if (email === env.ADMIN_EMAIL && password === env.ADMIN_PASSWORD) {
-          return jsonResponse({ ok: true });
-        }
-        return jsonResponse({ ok: false, error: "بيانات غير صحيحة" }, 401);
-      } catch {
-        return jsonResponse({ ok: false, error: "طلب غير صحيح" }, 400);
-      }
-    }
-
-    // التحقق من المصادقة لباقي الطلبات
-    const authHeader = request.headers.get("Authorization");
-    let isAuthenticated = false;
-    if (authHeader && authHeader.startsWith("Basic ")) {
-      try {
-        const base64 = authHeader.split(" ")[1];
-        const [email, password] = atob(base64).split(":");
-        if (email === env.ADMIN_EMAIL && password === env.ADMIN_PASSWORD) {
-          isAuthenticated = true;
-        }
-      } catch(e) {}
-    }
-
-    if (!isAuthenticated && url.pathname !== "/api/auth") {
-      return new Response(HTML_PAGE, {
-        status: 401,
-        headers: { "Content-Type": "text/html; charset=utf-8" }
-      });
-    }
-
-    // ===== المسارات المحمية =====
+    // ===== المسارات =====
     if (url.pathname === "/" && request.method === "GET") {
       return new Response(HTML_PAGE, {
         headers: { "Content-Type": "text/html; charset=utf-8" },
