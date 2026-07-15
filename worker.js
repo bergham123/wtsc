@@ -1,9 +1,11 @@
 /**
- * Cloudflare Worker - GitHub JSON Editor
+ * Cloudflare Worker - GitHub JSON / Images / Schedule Editor
  * -----------------------------------------------------
- * - Serves a single HTML page (index) with:
- *    - Messages section: Load / Edit(textarea) / Save -> updates  message.json in the repo
- *    - Contacts section:  Load / Edit(textarea) / Save -> updates accounts.json in the repo
+ * - Serves a single HTML page with:
+ *    - Messages section: Load / Edit(textarea) / Save -> updates messages file in the repo
+ *    - Contacts section:  Load / Edit(textarea) / Save -> updates contacts file in the repo
+ *    - Images section: pick one or more images -> uploaded to images/ folder in the repo
+ *    - Schedule section: set hour/minute -> updates the cron line inside the workflow yaml file
  *    - Run Workflow button -> triggers a GitHub Actions workflow_dispatch (independent button)
  *
  * Required environment variables / secrets (set in Cloudflare dashboard or wrangler secrets):
@@ -11,9 +13,10 @@
  *    GITHUB_OWNER      -> GitHub username or org, e.g. "myuser"
  *    GITHUB_REPO       -> repo name, e.g. "my-repo"
  *    GITHUB_BRANCH     -> (optional) branch name, default "main"
- *    WORKFLOW_FILE     -> workflow file name inside .github/workflows/, e.g. "run.yml"
- *    MESSAGES_PATH     -> (optional) path of messages file in repo, default " message.json"
+ *    WORKFLOW_FILE     -> workflow file name inside .github/workflows/ (used for run + schedule), e.g. "send.yaml"
+ *    MESSAGES_PATH     -> (optional) path of messages file in repo, default "message.json"
  *    CONTACTS_PATH     -> (optional) path of contacts file in repo, default "accounts.json"
+ *    IMAGES_DIR        -> (optional) folder in repo where images are uploaded, default "images"
  */
 
 function ghHeaders(env) {
@@ -26,9 +29,19 @@ function ghHeaders(env) {
 }
 
 function getPath(env, type) {
-  if (type === "messages") return env.MESSAGES_PATH || " message.json";
+  if (type === "messages") return env.MESSAGES_PATH || "message.json";
   if (type === "contacts") return env.CONTACTS_PATH || "accounts.json";
   throw new Error("Unknown type: " + type);
+}
+
+function getWorkflowPath(env) {
+  const file = env.WORKFLOW_FILE || "send.yaml";
+  // Allow either just the filename ("send.yaml") or a full path
+  return file.includes("/") ? file : `.github/workflows/${file}`;
+}
+
+function getImagesDir(env) {
+  return (env.IMAGES_DIR || "images").replace(/^\/+|\/+$/g, "");
 }
 
 // Base64 helpers that support UTF-8 (Arabic text etc.)
@@ -54,12 +67,48 @@ async function githubGetFile(env, path) {
   return { content, sha: data.sha, exists: true };
 }
 
+// Like githubGetFile but returns raw base64 content untouched (for binary files / when we don't want UTF-8 decoding)
+async function githubGetFileRaw(env, path) {
+  const branch = env.GITHUB_BRANCH || "main";
+  const url = `https://api.github.com/repos/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/contents/${encodeURIComponent(path)}?ref=${branch}`;
+  const res = await fetch(url, { headers: ghHeaders(env) });
+  if (res.status === 404) {
+    return { sha: null, exists: false };
+  }
+  if (!res.ok) {
+    throw new Error(`GitHub GET error ${res.status}: ${await res.text()}`);
+  }
+  const data = await res.json();
+  return { sha: data.sha, exists: true, contentBase64: data.content };
+}
+
 async function githubPutFile(env, path, contentStr, sha, message) {
   const branch = env.GITHUB_BRANCH || "main";
   const url = `https://api.github.com/repos/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/contents/${encodeURIComponent(path)}`;
   const body = {
     message: message || `Update ${path} via web editor`,
     content: utf8ToBase64(contentStr),
+    branch,
+  };
+  if (sha) body.sha = sha;
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: ghHeaders(env),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    throw new Error(`GitHub PUT error ${res.status}: ${await res.text()}`);
+  }
+  return await res.json();
+}
+
+// Put a file where the content is ALREADY base64 (e.g. images / binary data)
+async function githubPutFileBase64(env, path, base64Content, sha, message) {
+  const branch = env.GITHUB_BRANCH || "main";
+  const url = `https://api.github.com/repos/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/contents/${encodeURIComponent(path)}`;
+  const body = {
+    message: message || `Add ${path} via web editor`,
+    content: base64Content,
     branch,
   };
   if (sha) body.sha = sha;
@@ -122,6 +171,8 @@ function jsonResponse(obj, status = 200) {
   });
 }
 
+// --- Messages / Contacts handlers ---
+
 async function handleLoad(request, env) {
   const url = new URL(request.url);
   const type = url.searchParams.get("type");
@@ -164,6 +215,83 @@ async function handleRunWorkflow(request, env) {
   try {
     await githubRunWorkflow(env);
     return jsonResponse({ ok: true });
+  } catch (err) {
+    return jsonResponse({ ok: false, error: String(err.message || err) }, 500);
+  }
+}
+
+// --- Image upload handler ---
+// Expects JSON: { filename: "photo.jpg", dataBase64: "<base64 without data: prefix>" }
+async function handleUploadImage(request, env) {
+  try {
+    const body = await request.json();
+    const { filename, dataBase64 } = body;
+    if (!filename || !dataBase64) {
+      return jsonResponse({ ok: false, error: "filename and dataBase64 are required" }, 400);
+    }
+    // sanitize filename (keep it simple, avoid path traversal)
+    const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const dir = getImagesDir(env);
+    const path = `${dir}/${Date.now()}_${safeName}`;
+
+    // check if a file already exists at that exact path (unlikely due to timestamp, but just in case)
+    const existing = await githubGetFileRaw(env, path);
+    const result = await githubPutFileBase64(
+      env,
+      path,
+      dataBase64,
+      existing.sha,
+      `Add image ${safeName} via web editor`
+    );
+    return jsonResponse({ ok: true, path, commit: result.commit && result.commit.sha });
+  } catch (err) {
+    return jsonResponse({ ok: false, error: String(err.message || err) }, 500);
+  }
+}
+
+// --- Schedule (cron) handlers ---
+// Reads the workflow yaml, extracts the first "- cron: '...'" line value
+function extractCron(yamlText) {
+  const match = yamlText.match(/-\s*cron:\s*'([^']*)'/);
+  return match ? match[1] : null;
+}
+
+function replaceCron(yamlText, newCron) {
+  if (!/-\s*cron:\s*'[^']*'/.test(yamlText)) {
+    throw new Error("Could not find a '- cron: \\'...\\'' line in the workflow file");
+  }
+  return yamlText.replace(/-\s*cron:\s*'[^']*'/, `- cron: '${newCron}'`);
+}
+
+async function handleLoadSchedule(request, env) {
+  try {
+    const path = getWorkflowPath(env);
+    const { content } = await githubGetFile(env, path);
+    const cron = extractCron(content);
+    return jsonResponse({ ok: true, cron });
+  } catch (err) {
+    return jsonResponse({ ok: false, error: String(err.message || err) }, 500);
+  }
+}
+
+async function handleSaveSchedule(request, env) {
+  try {
+    const body = await request.json();
+    const { cron } = body;
+    if (!cron || !/^\S+\s+\S+\s+\S+\s+\S+\s+\S+$/.test(cron)) {
+      return jsonResponse({ ok: false, error: "cron must have 5 space-separated fields, e.g. '0 9 * * *'" }, 400);
+    }
+    const path = getWorkflowPath(env);
+    const current = await githubGetFile(env, path);
+    const updatedYaml = replaceCron(current.content, cron);
+    const result = await githubPutFile(
+      env,
+      path,
+      updatedYaml,
+      current.sha,
+      `Update schedule to '${cron}' via web editor`
+    );
+    return jsonResponse({ ok: true, commit: result.commit && result.commit.sha });
   } catch (err) {
     return jsonResponse({ ok: false, error: String(err.message || err) }, 500);
   }
@@ -246,6 +374,7 @@ const HTML_PAGE = `<!DOCTYPE html>
     gap: 8px;
     margin-top: 10px;
     flex-wrap: wrap;
+    align-items: center;
   }
   button {
     background: var(--accent);
@@ -293,16 +422,50 @@ const HTML_PAGE = `<!DOCTYPE html>
     color: var(--muted);
     font-size: 12px;
   }
+  input[type="file"] {
+    color: var(--text);
+    font-size: 12px;
+  }
+  input[type="number"] {
+    width: 70px;
+    background: #0c0e12;
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 13px;
+  }
+  .sched-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .sched-row label {
+    font-size: 12px;
+    color: var(--muted);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .file-list {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--muted);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
 </style>
 </head>
 <body>
   <h1>محرر ملفات JSON على GitHub</h1>
-  <div class="sub">عدّل  message.json و accounts.json مباشرة من المستودع، وشغّل الـ workflow بزر منفصل.</div>
+  <div class="sub">عدّل الرسائل، الأرقام، الصور، وتوقيت التشغيل مباشرة من المستودع.</div>
 
   <div class="grid">
     <div class="panel">
       <h2>Messages</h2>
-      <div class="hint">كل رسالة فسطر وحدو (حتى 3 رسائل مثلا) — تلقائيًا كتتحول لـ JSON array</div>
+      <div class="hint">كل رسالة فسطر وحدو — تلقائيًا كتتحول لـ JSON array</div>
       <textarea id="messagesArea" placeholder="اكتب رسالة فكل سطر..."></textarea>
       <div class="btn-row">
         <button class="secondary" id="loadMessagesBtn">Load</button>
@@ -321,12 +484,41 @@ const HTML_PAGE = `<!DOCTYPE html>
       </div>
       <div class="status" id="contactsStatus"></div>
     </div>
+
+    <div class="panel">
+      <h2>Images</h2>
+      <div class="hint">تقدر تختار وحدة ولا بزاف ديال الصور، غادي يترفعو لـ images/ فالمستودع</div>
+      <input type="file" id="imagesInput" accept="image/*" multiple />
+      <div class="btn-row">
+        <button id="uploadImagesBtn">Upload</button>
+      </div>
+      <div class="status" id="imagesStatus"></div>
+      <div class="file-list" id="imagesList"></div>
+    </div>
+
+    <div class="panel">
+      <h2>توقيت التشغيل التلقائي (Schedule)</h2>
+      <div class="hint">حدد الساعة والدقيقة (UTC) لي بغيتي الـ workflow يتشغل فيها كل يوم</div>
+      <div class="sched-row">
+        <label>الساعة (0-23)
+          <input type="number" id="hourInput" min="0" max="23" value="9" />
+        </label>
+        <label>الدقيقة (0-59)
+          <input type="number" id="minuteInput" min="0" max="59" value="0" />
+        </label>
+      </div>
+      <div class="btn-row">
+        <button class="secondary" id="loadScheduleBtn">Load Current</button>
+        <button id="saveScheduleBtn">Save Schedule</button>
+      </div>
+      <div class="status" id="scheduleStatus"></div>
+    </div>
   </div>
 
   <div class="workflow-panel">
     <div>
       <h2>GitHub Actions Workflow</h2>
-      <div class="hint">هاد الزر خدامتو وحدو، مايتوقفش على messages ولا contacts</div>
+      <div class="hint">هاد الزر خدامتو وحدو، مايتوقفش على شي حاجة أخرى</div>
     </div>
     <div>
       <button id="runWorkflowBtn">▶ Run Workflow</button>
@@ -391,6 +583,101 @@ const HTML_PAGE = `<!DOCTYPE html>
       setStatus(workflowStatus, "خطأ: " + err.message, "err");
     }
   };
+
+  // --- Images ---
+  function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result; // data:<mime>;base64,XXXX
+        const base64 = result.split(",")[1];
+        resolve(base64);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  const imagesInput = document.getElementById("imagesInput");
+  const imagesStatus = document.getElementById("imagesStatus");
+  const imagesList = document.getElementById("imagesList");
+  document.getElementById("uploadImagesBtn").onclick = async () => {
+    const files = imagesInput.files;
+    if (!files || files.length === 0) {
+      setStatus(imagesStatus, "اختار شي صورة أولاً", "err");
+      return;
+    }
+    imagesList.innerHTML = "";
+    setStatus(imagesStatus, "كيترفع " + files.length + " ديال الصور...", "");
+    let successCount = 0;
+    for (const file of files) {
+      const line = document.createElement("div");
+      line.textContent = file.name + " ...";
+      imagesList.appendChild(line);
+      try {
+        const base64 = await fileToBase64(file);
+        const res = await fetch("/api/upload-image", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ filename: file.name, dataBase64: base64 }),
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || "خطأ غير معروف");
+        line.textContent = "✔ " + file.name + " -> " + data.path;
+        successCount++;
+      } catch (err) {
+        line.textContent = "✘ " + file.name + " : " + err.message;
+      }
+    }
+    setStatus(imagesStatus, successCount + "/" + files.length + " صورة تم رفعها", successCount === files.length ? "ok" : "err");
+  };
+
+  // --- Schedule ---
+  const hourInput = document.getElementById("hourInput");
+  const minuteInput = document.getElementById("minuteInput");
+  const scheduleStatus = document.getElementById("scheduleStatus");
+
+  document.getElementById("loadScheduleBtn").onclick = async () => {
+    setStatus(scheduleStatus, "كيتحمل...", "");
+    try {
+      const res = await fetch("/api/schedule");
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "خطأ غير معروف");
+      if (data.cron) {
+        const parts = data.cron.trim().split(/\s+/);
+        minuteInput.value = parts[0];
+        hourInput.value = parts[1];
+        setStatus(scheduleStatus, "الوقت الحالي: " + data.cron, "ok");
+      } else {
+        setStatus(scheduleStatus, "ماكاينش cron حاليًا فالملف", "err");
+      }
+    } catch (err) {
+      setStatus(scheduleStatus, "خطأ: " + err.message, "err");
+    }
+  };
+
+  document.getElementById("saveScheduleBtn").onclick = async () => {
+    const hour = parseInt(hourInput.value, 10);
+    const minute = parseInt(minuteInput.value, 10);
+    if (isNaN(hour) || hour < 0 || hour > 23 || isNaN(minute) || minute < 0 || minute > 59) {
+      setStatus(scheduleStatus, "دخل ساعة (0-23) ودقيقة (0-59) صحاح", "err");
+      return;
+    }
+    const cron = minute + " " + hour + " * * *";
+    setStatus(scheduleStatus, "كيتسجل...", "");
+    try {
+      const res = await fetch("/api/schedule", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cron }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "خطأ غير معروف");
+      setStatus(scheduleStatus, "تم تحديث التوقيت ✔ (" + cron + " UTC)", "ok");
+    } catch (err) {
+      setStatus(scheduleStatus, "خطأ: " + err.message, "err");
+    }
+  };
 </script>
 </body>
 </html>`;
@@ -415,6 +702,18 @@ export default {
 
     if (url.pathname === "/api/run-workflow" && request.method === "POST") {
       return handleRunWorkflow(request, env);
+    }
+
+    if (url.pathname === "/api/upload-image" && request.method === "POST") {
+      return handleUploadImage(request, env);
+    }
+
+    if (url.pathname === "/api/schedule" && request.method === "GET") {
+      return handleLoadSchedule(request, env);
+    }
+
+    if (url.pathname === "/api/schedule" && request.method === "POST") {
+      return handleSaveSchedule(request, env);
     }
 
     return new Response("Not found", { status: 404 });
