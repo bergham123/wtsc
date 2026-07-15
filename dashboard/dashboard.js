@@ -1,10 +1,7 @@
-// dashboard.js - نسخة مبسطة بلا توكن
 document.addEventListener('DOMContentLoaded', () => {
-    // نحيدو التحقق من التوكن
-    // نعرضو الحالة
     document.getElementById('status').textContent = 'System Ready ✅';
 
-    // Load buttons
+    // ربط الأحداث
     document.getElementById('loadAccounts').addEventListener('click', loadAccounts);
     document.getElementById('clearAccounts').addEventListener('click', () => document.getElementById('accounts').value = '');
     document.getElementById('loadMessages').addEventListener('click', loadMessages);
@@ -14,12 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('uploadImageBtn').addEventListener('click', uploadImage);
     document.getElementById('setScheduleBtn').addEventListener('click', setSchedule);
     document.getElementById('loadScheduleBtn').addEventListener('click', loadSchedule);
-    document.getElementById('logout').addEventListener('click', () => {
-        // مجرد توجيه للصفحة الرئيسية (أو نحيدو الزر)
-        window.location.href = 'index.html';
-    });
 
-    // تحميل البيانات عند بدء التشغيل
     loadAccounts();
     loadMessages();
     loadSchedule();
@@ -43,7 +35,7 @@ async function loadAccounts() {
         document.getElementById('accounts').value = data.join('\n');
         addLog('Accounts loaded ✅');
     } catch (err) {
-        addLog('Error loading accounts: ' + err.message);
+        addLog('❌ Error loading accounts: ' + err.message);
     }
 }
 
@@ -53,7 +45,7 @@ async function loadMessages() {
         document.getElementById('messages').value = data.join('\n');
         addLog('Messages loaded ✅');
     } catch (err) {
-        addLog('Error loading messages: ' + err.message);
+        addLog('❌ Error loading messages: ' + err.message);
     }
 }
 
@@ -63,7 +55,7 @@ async function loadSchedule() {
         document.getElementById('scheduleTime').value = data.time || '';
         document.getElementById('scheduleStatus').textContent = data.time ? `Current schedule: ${data.time}` : 'No schedule set';
     } catch (err) {
-        addLog('Error loading schedule: ' + err.message);
+        addLog('❌ Error loading schedule: ' + err.message);
     }
 }
 
