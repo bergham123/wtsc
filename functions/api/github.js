@@ -1,13 +1,8 @@
-// github.js - مُعدَّل لـ Cloudflare (يستقبل env)
 export function createGitHubClient(env) {
     const TOKEN = env.GITHUB_TOKEN;
     const OWNER = env.OWNER;
     const REPO = env.REPO;
     const API = `https://api.github.com/repos/${OWNER}/${REPO}`;
-
-    // Cloudflare Web APIs for Base64 encoding/decoding (supports UTF-8)
-    const encodeBase64 = (str) => btoa(unescape(encodeURIComponent(str)));
-    const decodeBase64 = (str) => decodeURIComponent(escape(atob(str.replace(/\n/g, ''))));
 
     async function getFile(path) {
         const res = await fetch(`${API}/contents/${path}`, {
@@ -18,13 +13,13 @@ export function createGitHubClient(env) {
         });
         if (!res.ok) throw new Error("Cannot read " + path);
         const file = await res.json();
-        const content = decodeBase64(file.content);
+        const content = atob(file.content); // استعمال atob بدل Buffer
         return { sha: file.sha, data: JSON.parse(content) };
     }
 
     async function updateFile(path, json, message = "Update File") {
         const current = await getFile(path);
-        const content = encodeBase64(JSON.stringify(json, null, 2));
+        const content = btoa(JSON.stringify(json, null, 2));
         const res = await fetch(`${API}/contents/${path}`, {
             method: "PUT",
             headers: {
@@ -80,13 +75,13 @@ export function createGitHubClient(env) {
         });
         if (!res.ok) throw new Error(`Cannot read ${path}`);
         const data = await res.json();
-        const content = decodeBase64(data.content);
+        const content = atob(data.content);
         return { sha: data.sha, content };
     }
 
     async function updateRawFile(path, content, message = "Update file") {
         const current = await getRawFile(path);
-        const base64 = encodeBase64(content);
+        const base64 = btoa(content);
         const res = await fetch(`${API}/contents/${path}`, {
             method: "PUT",
             headers: {
@@ -116,7 +111,7 @@ export function createGitHubClient(env) {
                 const data = await res.json();
                 sha = data.sha;
             }
-        } catch (e) { }
+        } catch (e) {}
         const body = {
             message,
             content: contentBase64,
