@@ -15,10 +15,27 @@ export async function onRequest(context) {
 
     const github = createGitHubClient(env);
     let users = [];
+
+    // حاول قراءة users.json، وإن لم يجد أنشئه بمستخدم افتراضي
     try {
-      users = await github.getUsers();
+      const file = await github.getFile('users.json');
+      users = file.data;
     } catch (error) {
-      return new Response(JSON.stringify({ error: 'Invalid credentials' }), { status: 401 });
+      // إذا كان الملف غير موجود، أنشئ مستخدم افتراضي
+      const defaultUser = {
+        username: 'admin',
+        email: 'admin@example.com',
+        password: 'admin123', // كلمة مرور نص عادي
+        createdAt: new Date().toISOString()
+      };
+      users = [defaultUser];
+      // احفظ الملف في GitHub
+      await github.updateFile('users.json', users, 'Create default users.json');
+    }
+
+    // تأكد من أن users مصفوفة
+    if (!Array.isArray(users)) {
+      users = [];
     }
 
     const user = users.find(u => u.email === email);
