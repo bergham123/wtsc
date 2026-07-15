@@ -14,10 +14,9 @@ export async function onRequest(context) {
     }
 
     const github = createGitHubClient(env);
-    let users = await github.getUsers(); // ترجع [] إذا غاب الملف
+    let users = await github.getUsers();
 
     if (!users || users.length === 0) {
-      // أنشئ مستخدم افتراضي
       users = [{
         username: 'admin',
         email: 'admin@example.com',
@@ -28,6 +27,7 @@ export async function onRequest(context) {
     }
 
     const user = users.find(u => u.email === email);
+    // مقارنة النص العادي
     if (!user || user.password !== password) {
       return new Response(JSON.stringify({ error: 'Invalid credentials' }), { status: 401 });
     }
