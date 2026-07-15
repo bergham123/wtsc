@@ -175,44 +175,35 @@ async function handleGetLogContent(request, env) {
 }
 
 // ========== دوال الجدولة (Schedule) ==========
-// قراءة ملف YAML واستخراج cron
 function extractCron(yamlText) {
   if (!yamlText) return null;
   const match = yamlText.match(/-\s*cron:\s*'([^']*)'/);
   return match ? match[1] : null;
 }
 
-// التحقق من وجود قسم schedule
 function hasSchedule(yamlText) {
   if (!yamlText) return false;
   return /schedule:/.test(yamlText);
 }
 
-// إضافة أو تحديث cron في ملف YAML
 function setCron(yamlText, newCron) {
   if (!yamlText) {
-    // إذا كان الملف فارغاً، أنشئ القسم الأساسي
     return "on:\n  schedule:\n    - cron: '" + newCron + "'\n  workflow_dispatch:";
   }
   
-  // إذا كان يوجد schedule، استبدل cron
   if (hasSchedule(yamlText)) {
     if (/- cron:/.test(yamlText)) {
       return yamlText.replace(/-\s*cron:\s*'[^']*'/, "- cron: '" + newCron + "'");
     } else {
-      // يوجد schedule لكن لا يوجد cron (حالة نادرة)
       return yamlText.replace(/schedule:/, "schedule:\n    - cron: '" + newCron + "'");
     }
   } else {
-    // لا يوجد schedule، أضفه بعد on:
     return yamlText.replace(/^on:/, "on:\n  schedule:\n    - cron: '" + newCron + "'");
   }
 }
 
-// حذف قسم schedule بالكامل
 function removeSchedule(yamlText) {
   if (!yamlText) return yamlText;
-  // إزالة الأسطر المتعلقة بـ schedule و cron
   const lines = yamlText.split("\n");
   let inSchedule = false;
   const result = [];
@@ -230,7 +221,6 @@ function removeSchedule(yamlText) {
       continue;
     }
     if (inSchedule && /^\s*\S/.test(line) && !/^\s*workflow_dispatch:/.test(line)) {
-      // بداية قسم جديد، ننهي الـ schedule
       inSchedule = false;
       result.push(line);
       continue;
@@ -260,7 +250,7 @@ async function handleLoadSchedule(request, env) {
 async function handleSaveSchedule(request, env) {
   try {
     const body = await request.json();
-    const { action, cron } = body; // action: 'add', 'update', 'remove'
+    const { action, cron } = body;
     const path = getWorkflowPath(env);
     const current = await githubGetFile(env, path);
     let yamlContent = current.content || "";
@@ -409,7 +399,7 @@ async function handleUploadImage(request, env) {
   }
 }
 
-// ========== HTML الرئيسي (مع الجدولة والإحصائيات) ==========
+// ========== HTML الرئيسي (مع الجدولة والإحصائيات) - جميع الأزرار مربوطة بشكل صحيح ==========
 const HTML_PAGE = [
   '<!DOCTYPE html>',
   '<html lang="ar" dir="rtl">',
@@ -916,6 +906,19 @@ const HTML_PAGE = [
   '    </div>',
   '    <div class="status" id="statsStatus"></div>',
   '  </div>',
+  '  <!-- شريط السجلات (أضفناه هنا) -->',
+  '  <div class="card" style="margin-top:22px;">',
+  '    <div class="card-header">',
+  '      <span class="icon">📋</span>',
+  '      <h2>سجلات التشغيل</h2>',
+  '    </div>',
+  '    <div class="card-hint">عرض سجلات الـ workflow من مجلد <code>logs/</code></div>',
+  '    <div class="btn-row">',
+  '      <button class="btn btn-secondary" id="viewLogsBtn">📂 عرض السجلات</button>',
+  '      <button class="btn btn-outline" id="refreshLogsBtn">🔄 تحديث</button>',
+  '    </div>',
+  '    <div class="status" id="logsStatus"></div>',
+  '  </div>',
   '  <!-- شريط الـ Workflow -->',
   '  <div class="workflow-bar">',
   '    <div class="left">',
@@ -1253,6 +1256,7 @@ const HTML_PAGE = [
   '}',
   'function drawChart(data) {',
   '  const canvas = document.getElementById("statsChart");',
+  '  if (!canvas) return;',
   '  const ctx = canvas.getContext("2d");',
   '  const width = canvas.parentElement.clientWidth || 600;',
   '  canvas.width = width;',
@@ -1350,9 +1354,6 @@ const HTML_PAGE = [
   '  window._statsData = data;',
   '  origRender(data);',
   '};',
-  '// ===== إضافة زر عرض السجلات في القائمة =====',
-  '// (أضفناه في الـ HTML)',
-  '// ===== تهيئة أولية =====',
   'console.log("مدير GitHub جاهز");',
   '</script>',
   '</body>',
