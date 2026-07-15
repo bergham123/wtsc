@@ -1,8 +1,6 @@
 name: WhatsApp Automation
 
 on:
-  schedule:
-    - cron: '40 20 * * *'   # هذا السطر سيتم تعديله بواسطة الكود
   workflow_dispatch:
   
 permissions:
