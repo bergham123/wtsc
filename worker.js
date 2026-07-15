@@ -1,3 +1,4 @@
+```javascript
 /**
  * Cloudflare Worker - GitHub Manager Pro
  * --------------------------------------
@@ -12,7 +13,7 @@
 // ========== المتغيرات البيئية المطلوبة ==========
 // GITHUB_TOKEN, GITHUB_OWNER, GITHUB_REPO, GITHUB_BRANCH (اختياري)
 // WORKFLOW_FILE, MESSAGES_PATH, CONTACTS_PATH, IMAGES_DIR
-// ADMIN_EMAIL, ADMIN_PASSWORD  <-- جديد
+// ADMIN_EMAIL, ADMIN_PASSWORD
 
 function ghHeaders(env) {
   return {
@@ -190,8 +191,6 @@ function checkAuth(request, env) {
 }
 
 // ========== باقي الدوال (Messages, Contacts, Images, Workflow) ==========
-// ... (نفس الكود السابق مع تعديلات طفيفة في الأسماء) ...
-
 function linesToJsonArray(text) {
   const items = text
     .split("\n")
@@ -221,7 +220,6 @@ function jsonResponse(obj, status = 200) {
   });
 }
 
-// ========== معالجات API ==========
 async function handleLoad(request, env) {
   const url = new URL(request.url);
   const type = url.searchParams.get("type");
@@ -294,7 +292,7 @@ async function handleUploadImage(request, env) {
   }
 }
 
-// ========== HTML الرئيسي (مع التعديلات) ==========
+// ========== HTML الرئيسي (مع String.raw) ==========
 const HTML_PAGE = String.raw`<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -1040,11 +1038,9 @@ function renderPreviews() {
     reader.onload = function(ev) {
       const div = document.createElement('div');
       div.className = 'image-preview-item';
-      div.innerHTML = \`
-        <img src="\${ev.target.result}" alt="\${file.name}" />
-        <span class="file-name">\${file.name}</span>
-        <button class="remove-img" data-index="\${index}">✕</button>
-      \`;
+      div.innerHTML = '<img src="' + ev.target.result + '" alt="' + file.name + '" />' +
+                      '<span class="file-name">' + file.name + '</span>' +
+                      '<button class="remove-img" data-index="' + index + '">✕</button>';
       previewArea.appendChild(div);
       div.querySelector('.remove-img').onclick = function() {
         selectedFiles.splice(index, 1);
@@ -1175,14 +1171,13 @@ async function loadLogContent(filename) {
     const lines = data.content.split('\n').filter(l => l.trim());
     let html = '';
     lines.forEach(line => {
-      // تلوين حسب الإيموجي
       let color = '#c8d8f0';
       if (line.includes('🚀')) color = '#6ac8ff';
       else if (line.includes('✅')) color = '#4cdb8c';
       else if (line.includes('⏳')) color = '#f0c060';
       else if (line.includes('❌') || line.includes('خطأ')) color = '#ff6b6b';
       else if (line.includes('📌')) color = '#b090d0';
-      html += `<div class="log-line" style="color:${color}">${line}</div>`;
+      html += '<div class="log-line" style="color:' + color + '">' + line + '</div>';
     });
     logContent.innerHTML = html || 'المحتوى فارغ';
   } catch (err) {
@@ -1203,10 +1198,9 @@ document.addEventListener('keydown', function(e) {
 // ========== معالج الـ Worker الرئيسي ==========
 export default {
   async fetch(request, env) {
-    // التحقق من المصادقة لجميع الطلبات (ما عدا صفحة تسجيل الدخول نفسها)
     const url = new URL(request.url);
-    
-    // السماح بطلبات المصادقة
+
+    // مسار المصادقة (غير محمي)
     if (url.pathname === "/api/auth" && request.method === "POST") {
       try {
         const { email, password } = await request.json();
@@ -1219,7 +1213,7 @@ export default {
       }
     }
 
-    // التحقق من المصادقة للصفحة الرئيسية والـ API
+    // التحقق من المصادقة لباقي الطلبات (بما فيها الصفحة الرئيسية)
     const authHeader = request.headers.get("Authorization");
     let isAuthenticated = false;
     if (authHeader && authHeader.startsWith("Basic ")) {
@@ -1232,18 +1226,9 @@ export default {
       } catch(e) {}
     }
 
-    // إذا لم يكن مصادقاً وأراد الوصول إلى أي مسار غير /api/auth
     if (!isAuthenticated && url.pathname !== "/api/auth") {
-      // نعيد صفحة تسجيل الدخول من الـ HTML ولكن مع إظهار شاشة الدخول
-      // نضيف script لتعطيل الـ main وإظهار login
-      const loginHTML = HTML_PAGE.replace(
-        'document.getElementById("loginScreen").style.display = "none";',
-        'document.getElementById("loginScreen").style.display = "block";'
-      ).replace(
-        'document.getElementById("mainApp").style.display = "none";',
-        'document.getElementById("mainApp").style.display = "none";'
-      );
-      return new Response(loginHTML, {
+      // نعيد صفحة تسجيل الدخول مع 401
+      return new Response(HTML_PAGE, {
         status: 401,
         headers: { "Content-Type": "text/html; charset=utf-8" }
       });
@@ -1283,3 +1268,4 @@ export default {
     return new Response("Not found", { status: 404 });
   },
 };
+```
