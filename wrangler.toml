@@ -7,7 +7,7 @@ compatibility_flags = ["nodejs_compat"]
 [vars]
 GITHUB_TOKEN = "your_token_here"
 OWNER = "bergham123"
-REPO = "whatsapp"
+REPO = "wtsc"
 # JWT_SECRET = "your_secret_here"
 
 # إعدادات النشر
