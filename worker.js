@@ -181,7 +181,7 @@ function checkAuth(request, env) {
   }
   const base64 = authHeader.split(" ")[1];
   const [email, password] = atob(base64).split(":");
-  return email === env.ADMIN_EMAIL && password === env.ADMIN_PASSWORD;
+  return email === "bergham1998@gmail.com" && password === "123123@@";
 }
 
 // ========== باقي الدوال (Messages, Contacts, Images, Workflow) ==========
