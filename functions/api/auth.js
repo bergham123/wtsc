@@ -1,4 +1,4 @@
-import jwt from 'jsonwebtoken';
+import { jwtVerify } from 'jose';
 
 export async function onRequest(context) {
   const { request, env } = context;
@@ -13,13 +13,16 @@ export async function onRequest(context) {
     }
 
     const token = authHeader.split(' ')[1];
-    const decoded = jwt.verify(token, env.JWT_SECRET);
+    const secret = new TextEncoder().encode(env.JWT_SECRET);
+    
+    // Verify the token using jose
+    const { payload } = await jwtVerify(token, secret);
 
     return new Response(JSON.stringify({
       valid: true,
       user: {
-        email: decoded.email,
-        username: decoded.username
+        email: payload.email,
+        username: payload.username
       }
     }), {
       status: 200,
