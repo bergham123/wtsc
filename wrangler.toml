@@ -1,7 +1,20 @@
-name = "wtscggg"
+name = "wtsc"
+main = "functions/_worker.js"   # إذا كنت تستخدم _worker.js، أو غيرها لـ functions/
 compatibility_date = "2024-01-01"
 compatibility_flags = ["nodejs_compat"]
 
-pages_build_output_dir = "dashboard"
+# متغيرات البيئة (ستُضاف أيضاً في لوحة Cloudflare)
+[vars]
+GITHUB_TOKEN = "your_token_here"
+OWNER = "bergham123"
+REPO = "whatsapp"
+JWT_SECRET = "your_secret_here"
+
+# إعدادات النشر
 [build]
-command = "npm install"
+command = ""
+cwd = ""
+watch_dir = "dashboard"
+
+[build.upload]
+format = "modules"
