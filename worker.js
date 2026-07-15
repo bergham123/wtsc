@@ -220,6 +220,26 @@ async function handleRunWorkflow(request, env) {
   }
 }
 
+// TEMPORARY diagnostic endpoint - shows exactly what the Worker sees (token hidden).
+// Remove this route once the issue is fixed, since it exposes owner/repo/paths.
+async function handleDebugEnv(request, env) {
+  const workflowFile = env.WORKFLOW_FILE || "";
+  return jsonResponse({
+    ok: true,
+    GITHUB_OWNER: env.GITHUB_OWNER || null,
+    GITHUB_REPO: env.GITHUB_REPO || null,
+    GITHUB_BRANCH: env.GITHUB_BRANCH || "main (default)",
+    WORKFLOW_FILE_raw: JSON.stringify(workflowFile), // JSON.stringify reveals hidden spaces
+    WORKFLOW_FILE_length: workflowFile.length,
+    MESSAGES_PATH: env.MESSAGES_PATH || null,
+    CONTACTS_PATH: env.CONTACTS_PATH || null,
+    IMAGES_DIR: env.IMAGES_DIR || null,
+    GITHUB_TOKEN_present: Boolean(env.GITHUB_TOKEN),
+    GITHUB_TOKEN_length: env.GITHUB_TOKEN ? env.GITHUB_TOKEN.length : 0,
+    dispatch_url_used: `https://api.github.com/repos/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/actions/workflows/${encodeURIComponent(workflowFile)}/dispatches`,
+  });
+}
+
 // --- Image upload handler ---
 // Expects JSON: { filename: "photo.jpg", dataBase64: "<base64 without data: prefix>" }
 async function handleUploadImage(request, env) {
