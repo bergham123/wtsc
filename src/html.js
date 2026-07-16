@@ -282,18 +282,17 @@ export const HTML_PAGE = `<!DOCTYPE html>
       <div class="status" id="statsStatus"></div>
     </div>
     <!-- Live Workflow Logs -->
-<div class="card" id="liveLogsCard" style="display: none;">
-  <div class="card-header">
-    <i class="fas fa-terminal"></i>
-    <h2>سجلات التشغيل المباشر</h2>
-    <span style="margin-right: auto; font-size: 12px; color: var(--text-muted);" id="liveLogsStatus">في انتظار التشغيل...</span>
-    <button class="btn" id="stopLiveLogsBtn" style="width: auto; padding: 6px 12px; font-size: 12px;"><i class="fas fa-stop"></i> إيقاف</button>
-  </div>
-  <div style="background: var(--bg-main); border-radius: 8px; padding: 12px; max-height: 400px; overflow-y: auto; font-family: 'Consolas', monospace; font-size: 12px; border: 1px solid var(--border-color); white-space: pre-wrap; word-break: break-all;" id="liveLogsContent">
-    انتظر بدء التشغيل...
-  </div>
-</div>
-
+    <div class="card" id="liveLogsCard" style="display: none;">
+      <div class="card-header">
+        <i class="fas fa-terminal"></i>
+        <h2>سجلات التشغيل المباشر</h2>
+        <span style="margin-right: auto; font-size: 12px; color: var(--text-muted);" id="liveLogsStatus">في انتظار التشغيل...</span>
+        <button class="btn" id="stopLiveLogsBtn" style="width: auto; padding: 6px 12px; font-size: 12px;"><i class="fas fa-stop"></i> إيقاف</button>
+      </div>
+      <div style="background: var(--bg-main); border-radius: 8px; padding: 12px; max-height: 400px; overflow-y: auto; font-family: 'Consolas', monospace; font-size: 12px; border: 1px solid var(--border-color); white-space: pre-wrap; word-break: break-all;" id="liveLogsContent">
+        انتظر بدء التشغيل...
+      </div>
+    </div>
 
     <div class="content-grid">
       <!-- Messages Card -->
@@ -426,12 +425,12 @@ async function loadImages() {
       const div = document.createElement('div');
       div.className = 'image-item';
       const img = document.createElement('img');
-      img.src = file.download_url || \`https://raw.githubusercontent.com/bergham123/wtsc/main/images/\${file.name}\`;
+      img.src = file.download_url || 'https://raw.githubusercontent.com/bergham123/wtsc/main/images/' + file.name;
       const deleteBtn = document.createElement('button');
       deleteBtn.className = 'delete-btn';
       deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
       deleteBtn.onclick = async () => {
-        if (!confirm(\`تأكيد حذف الصورة "\${file.name}"؟\`)) return;
+        if (!confirm('تأكيد حذف الصورة "' + file.name + '"؟')) return;
         try {
           const resDel = await fetch('/api/delete-image', {
             method: 'POST',
@@ -473,7 +472,7 @@ document.getElementById('uploadImagesBtn').onclick = async function() {
     }
     const remaining = 3 - currentCount;
     if (selectedFiles.length > remaining) {
-      setStatus(document.getElementById('imagesStatus'), \`يمكنك رفع \${remaining} صورة فقط (الحد الأقصى 3)\`, 'err');
+      setStatus(document.getElementById('imagesStatus'), 'يمكنك رفع ' + remaining + ' صورة فقط (الحد الأقصى 3)', 'err');
       return;
     }
   } catch (err) {
@@ -496,15 +495,83 @@ document.getElementById('uploadImagesBtn').onclick = async function() {
 
 loadImages();
 
+// ===== Live Logs =====
+let liveLogsInterval = null;
+let currentRunId = null;
+const liveLogsCard = document.getElementById('liveLogsCard');
+const liveLogsContent = document.getElementById('liveLogsContent');
+const liveLogsStatus = document.getElementById('liveLogsStatus');
+
+function stopLiveLogs() {
+  if (liveLogsInterval) {
+    clearInterval(liveLogsInterval);
+    liveLogsInterval = null;
+  }
+  liveLogsCard.style.display = 'none';
+  currentRunId = null;
+}
+
+document.getElementById('stopLiveLogsBtn').onclick = stopLiveLogs;
+
+async function fetchLiveLogs(runId) {
+  try {
+    const res = await fetch('/api/workflow-logs?run_id=' + runId);
+    const data = await res.json();
+    if (!data.ok) {
+      liveLogsStatus.textContent = 'خطأ: ' + data.error;
+      return;
+    }
+    if (data.status === 'pending') {
+      liveLogsContent.textContent = 'جاري تهيئة السجلات...';
+      liveLogsStatus.textContent = 'قيد الانتظار';
+      return;
+    }
+    if (data.logs) {
+      liveLogsContent.textContent = data.logs;
+      liveLogsContent.scrollTop = liveLogsContent.scrollHeight;
+      if (data.logs.includes('Complete') || data.logs.includes('Success') || data.logs.includes('Job completed')) {
+        liveLogsStatus.textContent = 'انتهى التشغيل ✓';
+        clearInterval(liveLogsInterval);
+        liveLogsInterval = null;
+      } else {
+        liveLogsStatus.textContent = 'جاري التشغيل...';
+      }
+    }
+  } catch (err) {
+    liveLogsStatus.textContent = 'خطأ: ' + err.message;
+  }
+}
+
+// تعديل زر التشغيل
 document.getElementById("runWorkflowBtn").onclick = async function() {
   const st = document.getElementById("workflowStatus");
   setStatus(st, "جاري التشغيل...", "");
+  
+  stopLiveLogs();
+  
   try {
     const res = await fetch("/api/run-workflow", { method: "POST" });
     const data = await res.json();
     if (!data.ok) throw new Error(data.error);
     setStatus(st, "تم التشغيل ✓", "ok");
-  } catch (err) { setStatus(st, "خطأ: " + err.message, "err"); }
+    
+    if (data.run_id) {
+      currentRunId = data.run_id;
+      liveLogsCard.style.display = 'block';
+      liveLogsContent.textContent = 'تم تشغيل الـ Workflow، جاري جلب السجلات...';
+      liveLogsStatus.textContent = 'بدء التحديث';
+      
+      await fetchLiveLogs(currentRunId);
+      if (liveLogsInterval) clearInterval(liveLogsInterval);
+      liveLogsInterval = setInterval(() => {
+        if (currentRunId) fetchLiveLogs(currentRunId);
+      }, 3000);
+    } else {
+      setStatus(st, "تم التشغيل ولكن لم يتم الحصول على run_id", "err");
+    }
+  } catch (err) {
+    setStatus(st, "خطأ: " + err.message, "err");
+  }
 };
 
 const logsModal = document.getElementById("logsModal");
@@ -638,91 +705,6 @@ document.getElementById("loadStatsBtn").onclick = async function() {
       }
     });
   } catch (err) { setStatus(st, "خطأ: " + err.message, "err"); }
-};
-// ===== Live Logs =====
-let liveLogsInterval = null;
-let currentRunId = null;
-const liveLogsCard = document.getElementById('liveLogsCard');
-const liveLogsContent = document.getElementById('liveLogsContent');
-const liveLogsStatus = document.getElementById('liveLogsStatus');
-
-function stopLiveLogs() {
-  if (liveLogsInterval) {
-    clearInterval(liveLogsInterval);
-    liveLogsInterval = null;
-  }
-  liveLogsCard.style.display = 'none';
-  currentRunId = null;
-}
-
-document.getElementById('stopLiveLogsBtn').onclick = stopLiveLogs;
-
-async function fetchLiveLogs(runId) {
-  try {
-    const res = await fetch(`/api/workflow-logs?run_id=${runId}`);
-    const data = await res.json();
-    if (!data.ok) {
-      liveLogsStatus.textContent = 'خطأ: ' + data.error;
-      return;
-    }
-    if (data.status === 'pending') {
-      liveLogsContent.textContent = 'جاري تهيئة السجلات...';
-      liveLogsStatus.textContent = 'قيد الانتظار';
-      return;
-    }
-    if (data.logs) {
-      // تحديث المحتوى مع تمرير تلقائي للأسفل
-      liveLogsContent.textContent = data.logs;
-      liveLogsContent.scrollTop = liveLogsContent.scrollHeight;
-      // نتحقق إذا كان السجل يحتوي على كلمة "completed" أو "success" لإنهاء التحديث
-      if (data.logs.includes('Complete') || data.logs.includes('Success') || data.logs.includes('Job completed')) {
-        liveLogsStatus.textContent = 'انتهى التشغيل ✓';
-        // يمكن إيقاف التحديث تلقائياً
-        clearInterval(liveLogsInterval);
-        liveLogsInterval = null;
-      } else {
-        liveLogsStatus.textContent = 'جاري التشغيل...';
-      }
-    }
-  } catch (err) {
-    liveLogsStatus.textContent = 'خطأ: ' + err.message;
-  }
-}
-
-// تعديل زر التشغيل
-const originalRun = document.getElementById("runWorkflowBtn").onclick;
-document.getElementById("runWorkflowBtn").onclick = async function() {
-  const st = document.getElementById("workflowStatus");
-  setStatus(st, "جاري التشغيل...", "");
-  
-  // إيقاف أي متابعة سابقة
-  stopLiveLogs();
-  
-  try {
-    const res = await fetch("/api/run-workflow", { method: "POST" });
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error);
-    setStatus(st, "تم التشغيل ✓", "ok");
-    
-    // بدء عرض السجلات المباشرة
-    if (data.run_id) {
-      currentRunId = data.run_id;
-      liveLogsCard.style.display = 'block';
-      liveLogsContent.textContent = 'تم تشغيل الـ Workflow، جاري جلب السجلات...';
-      liveLogsStatus.textContent = 'بدء التحديث';
-      
-      // جلب السجلات فوراً ثم كل 3 ثوانٍ
-      await fetchLiveLogs(currentRunId);
-      if (liveLogsInterval) clearInterval(liveLogsInterval);
-      liveLogsInterval = setInterval(() => {
-        if (currentRunId) fetchLiveLogs(currentRunId);
-      }, 3000);
-    } else {
-      setStatus(st, "تم التشغيل ولكن لم يتم الحصول على run_id", "err");
-    }
-  } catch (err) {
-    setStatus(st, "خطأ: " + err.message, "err");
-  }
 };
 </script>
 </body>
