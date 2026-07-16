@@ -2,6 +2,21 @@
 import { githubGetFile, githubPutFile } from './github.js';
 import { jsonResponse, getWorkflowPath } from './helpers.js';
 
+// دوال مساعدة لتحويل الوقت بين توقيت المستخدم (المغرب) و UTC (ناقص 2 ساعة)
+function userTimeToUTC(hour, minute) {
+  // نطرح 2 ساعة من الساعة المدخلة
+  let utcHour = hour - 2;
+  if (utcHour < 0) utcHour += 24;
+  return { hour: utcHour, minute };
+}
+
+function utcToUserTime(hour, minute) {
+  // نضيف 2 ساعة إلى الساعة المستخرجة من cron
+  let userHour = hour + 2;
+  if (userHour >= 24) userHour -= 24;
+  return { hour: userHour, minute };
+}
+
 export function extractCron(yamlText) {
   if (!yamlText) return null;
   const match = yamlText.match(/cron\s*:\s*['"]?([^'"\n]+)['"]?/);
@@ -14,6 +29,7 @@ export function hasSchedule(yamlText) {
 }
 
 export function setCron(yamlText, newCron) {
+  // نفس الكود السابق دون تغيير
   if (!yamlText || yamlText.trim() === "") {
     return "on:\n  schedule:\n    - cron: '" + newCron + "'\n  workflow_dispatch:";
   }
@@ -59,7 +75,19 @@ export async function handleLoadSchedule(request, env) {
     if (!exists || !content) return jsonResponse({ ok: true, cron: null, hasSchedule: false });
     const cron = extractCron(content);
     const hasSched = hasSchedule(content);
-    return jsonResponse({ ok: true, cron: cron, hasSchedule: hasSched });
+    let userCron = null;
+    if (cron) {
+      const parts = cron.trim().split(/\s+/);
+      if (parts.length >= 2) {
+        const minute = parseInt(parts[0], 10);
+        const hour = parseInt(parts[1], 10);
+        const userTime = utcToUserTime(hour, minute);
+        userCron = userTime.minute + " " + userTime.hour + " * * *";
+      } else {
+        userCron = cron; // fallback
+      }
+    }
+    return jsonResponse({ ok: true, cron: userCron, hasSchedule: hasSched, originalCron: cron });
   } catch (err) { return jsonResponse({ ok: false, error: String(err.message || err) }, 500); }
 }
 
@@ -77,12 +105,19 @@ export async function handleSaveSchedule(request, env) {
       if (!cron || !/^\S+\s+\S+\s+\S+\s+\S+\s+\S+$/.test(cron)) {
         return jsonResponse({ ok: false, error: "cron must have 5 space-separated fields" }, 400);
       }
-      yamlContent = setCron(yamlContent, cron);
+      // تحويل وقت المستخدم إلى UTC بطرح ساعتين
+      const parts = cron.trim().split(/\s+/);
+      const userMinute = parseInt(parts[0], 10);
+      const userHour = parseInt(parts[1], 10);
+      const utcTime = userTimeToUTC(userHour, userMinute);
+      const utcCron = utcTime.minute + " " + utcTime.hour + " " + parts.slice(2).join(" ");
+      
+      yamlContent = setCron(yamlContent, utcCron);
     } else {
       return jsonResponse({ ok: false, error: "Invalid action" }, 400);
     }
     
     const result = await githubPutFile(env, path, yamlContent, current.sha, "Update schedule via web editor");
-    return jsonResponse({ ok: true, commit: result.commit && result.commit.sha });
+    return jsonResponse({ ok: true, commit: result.commit && result.commit.sha, utcCron: utcCron });
   } catch (err) { return jsonResponse({ ok: false, error: String(err.message || err) }, 500); }
 }
