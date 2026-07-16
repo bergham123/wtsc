@@ -1,17 +1,13 @@
-// src/schedule.js
 import { githubGetFile, githubPutFile } from './github.js';
 import { jsonResponse, getWorkflowPath } from './helpers.js';
 
-// دوال مساعدة لتحويل الوقت بين توقيت المستخدم (المغرب) و UTC (ناقص 2 ساعة)
 function userTimeToUTC(hour, minute) {
-  // نطرح 2 ساعة من الساعة المدخلة
   let utcHour = hour - 2;
   if (utcHour < 0) utcHour += 24;
   return { hour: utcHour, minute };
 }
 
 function utcToUserTime(hour, minute) {
-  // نضيف 2 ساعة إلى الساعة المستخرجة من cron
   let userHour = hour + 2;
   if (userHour >= 24) userHour -= 24;
   return { hour: userHour, minute };
@@ -29,7 +25,6 @@ export function hasSchedule(yamlText) {
 }
 
 export function setCron(yamlText, newCron) {
-  // نفس الكود السابق دون تغيير
   if (!yamlText || yamlText.trim() === "") {
     return "on:\n  schedule:\n    - cron: '" + newCron + "'\n  workflow_dispatch:";
   }
@@ -84,7 +79,7 @@ export async function handleLoadSchedule(request, env) {
         const userTime = utcToUserTime(hour, minute);
         userCron = userTime.minute + " " + userTime.hour + " * * *";
       } else {
-        userCron = cron; // fallback
+        userCron = cron;
       }
     }
     return jsonResponse({ ok: true, cron: userCron, hasSchedule: hasSched, originalCron: cron });
@@ -98,20 +93,18 @@ export async function handleSaveSchedule(request, env) {
     const path = getWorkflowPath(env);
     const current = await githubGetFile(env, path);
     let yamlContent = current.content || "";
-    
+    let utcCron = "";
     if (action === 'remove') {
       return jsonResponse({ ok: false, error: "Remove action not supported" }, 400);
     } else if (action === 'add' || action === 'update') {
       if (!cron || !/^\S+\s+\S+\s+\S+\s+\S+\s+\S+$/.test(cron)) {
         return jsonResponse({ ok: false, error: "cron must have 5 space-separated fields" }, 400);
       }
-      // تحويل وقت المستخدم إلى UTC بطرح ساعتين
       const parts = cron.trim().split(/\s+/);
       const userMinute = parseInt(parts[0], 10);
       const userHour = parseInt(parts[1], 10);
       const utcTime = userTimeToUTC(userHour, userMinute);
-      const utcCron = utcTime.minute + " " + utcTime.hour + " " + parts.slice(2).join(" ");
-      
+      utcCron = utcTime.minute + " " + utcTime.hour + " " + parts.slice(2).join(" ");
       yamlContent = setCron(yamlContent, utcCron);
     } else {
       return jsonResponse({ ok: false, error: "Invalid action" }, 400);
