@@ -1,7 +1,8 @@
 /**
  * Cloudflare Worker - GitHub Manager Pro (معدل)
- * - تم إزالة أزرار "إنشاء" و "حذف" من الجدولة
- * - زر "تحديث" يستخدم القيم المدخلة للساعة والدقيقة
+ * - تم إصلاح دوال قراءة وكتابة cron لتكون أكثر مرونة
+ * - زر "تحديث" يستخدم القيم المدخلة ويعدل/يضيف cron
+ * - زر "تحميل حالي" يعرض الوقت الحالي بشكل صحيح
  */
 
 function ghHeaders(env) {
@@ -113,54 +114,83 @@ async function handleGetLogContent(request, env) {
   } catch (err) { return jsonResponse({ ok: false, error: String(err.message || err) }, 500); }
 }
 
+// ========== دوال الجدولة المعدلة ==========
 function extractCron(yamlText) {
   if (!yamlText) return null;
-  const match = yamlText.match(/-\s*cron:\s*'([^']*)'/);
-  return match ? match[1] : null;
+  // البحث عن cron: متبوعاً بقيمة بين تنصيص مفردة أو مزدوجة أو بدون تنصيص
+  // السماح بمسافات قبل وبعد النقطتين
+  const match = yamlText.match(/cron\s*:\s*['"]?([^'"\n]+)['"]?/);
+  return match ? match[1].trim() : null;
 }
 
 function hasSchedule(yamlText) {
   if (!yamlText) return false;
-  return /schedule:/.test(yamlText);
+  // نبحث عن سطر يبدأ بمسافات ثم "schedule:" (للتأكد من أنها ليست في تعليق أو كلمة أخرى)
+  return /^\s*schedule:/m.test(yamlText);
 }
 
 function setCron(yamlText, newCron) {
-  if (!yamlText || yamlText.trim() === "") return "on:\n  schedule:\n    - cron: '" + newCron + "'\n  workflow_dispatch:";
+  // إذا كان الملف فارغاً أو لا يحتوي على on: نضيف هيكلاً كاملاً
+  if (!yamlText || yamlText.trim() === "") {
+    return "on:\n  schedule:\n    - cron: '" + newCron + "'\n  workflow_dispatch:";
+  }
+
+  // البحث عن سطر on:
   const lines = yamlText.split("\n");
   let onIndex = -1;
   for (let i = 0; i < lines.length; i++) {
     if (/^\s*on:/.test(lines[i])) { onIndex = i; break; }
   }
-  if (onIndex === -1) return "on:\n  schedule:\n    - cron: '" + newCron + "'\n  workflow_dispatch:\n" + yamlText;
-  if (hasSchedule(yamlText)) {
-    if (/- cron:/.test(yamlText)) return yamlText.replace(/-\s*cron:\s*'[^']*'/, "- cron: '" + newCron + "'");
-    else return yamlText.replace(/schedule:/, "schedule:\n    - cron: '" + newCron + "'");
-  }
-  const beforeOn = lines.slice(0, onIndex + 1).join("\n");
-  const afterOn = lines.slice(onIndex + 1).join("\n");
-  return beforeOn + "\n  schedule:\n    - cron: '" + newCron + "'\n" + afterOn;
-}
 
-function removeSchedule(yamlText) {
-  if (!yamlText) return yamlText;
-  const lines = yamlText.split("\n");
-  let inSchedule = false;
-  const result = [];
-  for (let line of lines) {
-    if (/^\s*schedule:/.test(line)) { inSchedule = true; continue; }
-    if (inSchedule && /^\s*-\s*cron:/.test(line)) continue;
-    if (inSchedule && /^\s*workflow_dispatch:/.test(line)) { inSchedule = false; result.push(line); continue; }
-    if (inSchedule && /^\s*\S/.test(line) && !/^\s*workflow_dispatch:/.test(line)) { inSchedule = false; result.push(line); continue; }
-    if (!inSchedule) result.push(line);
+  // إذا لم نجد on: نضيفها في البداية
+  if (onIndex === -1) {
+    return "on:\n  schedule:\n    - cron: '" + newCron + "'\n  workflow_dispatch:\n" + yamlText;
   }
-  return result.join("\n");
+
+  // التحقق من وجود schedule:
+  if (hasSchedule(yamlText)) {
+    // البحث عن سطر cron: واستبداله
+    const cronRegex = /(cron\s*:\s*)['"]?([^'"\n]*)['"]?/;
+    if (cronRegex.test(yamlText)) {
+      // استبدال أول cron يظهر بعد schedule (نستبدل كل المطابقات؟ نفضل استبدال الأول)
+      return yamlText.replace(cronRegex, "$1'" + newCron + "'");
+    } else {
+      // يوجد schedule: لكن لا يوجد cron: -> نضيف سطر cron تحت schedule
+      // نبحث عن موضع schedule: ونضيف بعدها سطر جديد
+      const scheduleIndex = lines.findIndex(line => /^\s*schedule:/.test(line));
+      if (scheduleIndex !== -1) {
+        // نضيف سطر cron بعد سطر schedule مباشرة (مع مسافة بادئة أكبر)
+        lines.splice(scheduleIndex + 1, 0, "    - cron: '" + newCron + "'");
+        return lines.join("\n");
+      }
+      // إذا لم نجد schedule رغم أن hasSchedule قال true (تناقض) نضيفها
+      // لكننا سنضيفها مع on:
+      return yamlText.replace(/on:/, "on:\n  schedule:\n    - cron: '" + newCron + "'");
+    }
+  } else {
+    // لا يوجد schedule: نضيفها تحت on: مباشرة
+    // نبحث عن السطر الذي يلي on: ونضيف بعدها
+    const afterOn = lines.slice(onIndex + 1);
+    // نجد أول سطر غير فارغ أو نهاية
+    // نضيف في السطر التالي بعد on: مع مسافة بادئة
+    const indent = "  "; // مسافتين
+    const newLines = [
+      ...lines.slice(0, onIndex + 1),
+      indent + "schedule:",
+      indent + "  - cron: '" + newCron + "'",
+      ...afterOn
+    ];
+    return newLines.join("\n");
+  }
 }
 
 async function handleLoadSchedule(request, env) {
   try {
     const { content, exists } = await githubGetFile(env, getWorkflowPath(env));
     if (!exists || !content) return jsonResponse({ ok: true, cron: null, hasSchedule: false });
-    return jsonResponse({ ok: true, cron: extractCron(content), hasSchedule: hasSchedule(content) });
+    const cron = extractCron(content);
+    const hasSched = hasSchedule(content);
+    return jsonResponse({ ok: true, cron: cron, hasSchedule: hasSched });
   } catch (err) { return jsonResponse({ ok: false, error: String(err.message || err) }, 500); }
 }
 
@@ -172,11 +202,19 @@ async function handleSaveSchedule(request, env) {
     const current = await githubGetFile(env, path);
     let yamlContent = current.content || "";
     
-    if (action === 'remove') yamlContent = removeSchedule(yamlContent);
-    else if (action === 'add' || action === 'update') {
-      if (!cron || !/^\S+\s+\S+\s+\S+\s+\S+\s+\S+$/.test(cron)) return jsonResponse({ ok: false, error: "cron must have 5 space-separated fields" }, 400);
+    if (action === 'remove') {
+      // إذا أردنا حذف الجدولة (لكننا أزلنا الزر) لكن نتركها للتوافق
+      // يمكن تنفيذها إذا أردنا لاحقاً
+      // لكننا لن نستخدمها حالياً
+      return jsonResponse({ ok: false, error: "Remove action not supported" }, 400);
+    } else if (action === 'add' || action === 'update') {
+      if (!cron || !/^\S+\s+\S+\s+\S+\s+\S+\s+\S+$/.test(cron)) {
+        return jsonResponse({ ok: false, error: "cron must have 5 space-separated fields" }, 400);
+      }
       yamlContent = setCron(yamlContent, cron);
-    } else return jsonResponse({ ok: false, error: "Invalid action" }, 400);
+    } else {
+      return jsonResponse({ ok: false, error: "Invalid action" }, 400);
+    }
     
     const result = await githubPutFile(env, path, yamlContent, current.sha, "Update schedule via web editor");
     return jsonResponse({ ok: true, commit: result.commit && result.commit.sha });
@@ -247,7 +285,7 @@ async function handleUploadImage(request, env) {
   } catch (err) { return jsonResponse({ ok: false, error: String(err.message || err) }, 500); }
 }
 
-// ========== HTML الرئيسي (معدل) ==========
+// ========== HTML (نفسه مع أزرار محدثة) ==========
 const HTML_PAGE = `
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -259,6 +297,7 @@ const HTML_PAGE = `
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
+  /* نفس الستايلات السابقة، لا تغيير */
   :root {
     --bg-main: #0f172a;
     --card-bg: rgba(30, 41, 59, 0.7);
@@ -436,7 +475,7 @@ const HTML_PAGE = `
       <div class="status" id="contactsStatus"></div>
     </div>
 
-    <!-- الجدولة (زرين فقط: تحميل + تحديث) -->
+    <!-- الجدولة (زرين فقط) -->
     <div class="card">
       <div class="card-header"><i class="fas fa-clock"></i><h2>توقيت التشغيل التلقائي</h2></div>
       <div class="card-hint">تعديل جدولة الـ workflow (Cron)</div>
@@ -637,7 +676,7 @@ document.getElementById("viewLogsBtn").onclick = async function() {
 document.getElementById("closeLogsModal").onclick = () => logsModal.classList.remove("active");
 logsModal.addEventListener("click", e => { if (e.target === logsModal) logsModal.classList.remove("active"); });
 
-// ===== Schedule (زرين فقط: تحميل + تحديث) =====
+// ===== Schedule (زرين فقط) =====
 const scheduleStatus = document.getElementById("scheduleStatus");
 const hourInput = document.getElementById("hourInput");
 const minuteInput = document.getElementById("minuteInput");
