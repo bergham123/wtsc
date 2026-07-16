@@ -32,6 +32,11 @@ jobs:
         run: npm install
 
       - name: Run WhatsApp bot
+        env:
+          LOG_SERVER: https://managedash.velora.workers.dev
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_WORKFLOW: ${{ github.workflow }}
         run: npm start
 
       - name: Commit updated files
