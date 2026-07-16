@@ -1,4 +1,3 @@
-// src/helpers.js
 export function ghHeaders(env) {
   return {
     "Authorization": "Bearer " + env.GITHUB_TOKEN,
