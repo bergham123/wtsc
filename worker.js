@@ -1,8 +1,7 @@
 /**
- * Cloudflare Worker - GitHub Manager Pro
- * - Design: Modern Glassmorphism UI
- * - Charts: Chart.js integration
- * - Schedule: 4 Buttons (Load, Create, Update Default, Delete)
+ * Cloudflare Worker - GitHub Manager Pro (معدل)
+ * - تم إزالة أزرار "إنشاء" و "حذف" من الجدولة
+ * - زر "تحديث" يستخدم القيم المدخلة للساعة والدقيقة
  */
 
 function ghHeaders(env) {
@@ -248,7 +247,7 @@ async function handleUploadImage(request, env) {
   } catch (err) { return jsonResponse({ ok: false, error: String(err.message || err) }, 500); }
 }
 
-// ========== HTML الرئيسي (تصميم احترافي مع Chart.js) ==========
+// ========== HTML الرئيسي (معدل) ==========
 const HTML_PAGE = `
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -437,10 +436,10 @@ const HTML_PAGE = `
       <div class="status" id="contactsStatus"></div>
     </div>
 
-    <!-- الجدولة (4 أزرار) -->
+    <!-- الجدولة (زرين فقط: تحميل + تحديث) -->
     <div class="card">
       <div class="card-header"><i class="fas fa-clock"></i><h2>توقيت التشغيل التلقائي</h2></div>
-      <div class="card-hint">إدارة جدولة الـ workflow (Cron)</div>
+      <div class="card-hint">تعديل جدولة الـ workflow (Cron)</div>
       <div style="margin-bottom: 15px;">
         <span class="schedule-status inactive" id="scheduleIndicator">غير مفعل</span>
         <span id="currentCronDisplay" style="font-size:12px;color:var(--text-muted);margin-right:10px;"></span>
@@ -451,9 +450,7 @@ const HTML_PAGE = `
       </div>
       <div class="btn-row">
         <button class="btn" id="loadScheduleBtn"><i class="fas fa-history"></i> تحميل حالي</button>
-        <button class="btn btn-success" id="createScheduleBtn"><i class="fas fa-plus-circle"></i> إنشاء</button>
         <button class="btn btn-warning" id="updateScheduleBtn"><i class="fas fa-sync-alt"></i> تحديث</button>
-        <button class="btn btn-danger" id="removeScheduleBtn"><i class="fas fa-trash-alt"></i> حذف</button>
       </div>
       <div class="status" id="scheduleStatus"></div>
     </div>
@@ -640,7 +637,7 @@ document.getElementById("viewLogsBtn").onclick = async function() {
 document.getElementById("closeLogsModal").onclick = () => logsModal.classList.remove("active");
 logsModal.addEventListener("click", e => { if (e.target === logsModal) logsModal.classList.remove("active"); });
 
-// ===== Schedule (4 Buttons) =====
+// ===== Schedule (زرين فقط: تحميل + تحديث) =====
 const scheduleStatus = document.getElementById("scheduleStatus");
 const hourInput = document.getElementById("hourInput");
 const minuteInput = document.getElementById("minuteInput");
@@ -667,12 +664,12 @@ async function loadSchedule() {
   } catch (err) { setStatus(scheduleStatus, "خطأ: " + err.message, "err"); }
 }
 
-async function saveSchedule(cron, action = "add") {
+async function saveSchedule(cron) {
   setStatus(scheduleStatus, "جاري الحفظ...", "");
   try {
     const res = await fetch("/api/schedule", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: action, cron: cron })
+      body: JSON.stringify({ action: "add", cron: cron })
     });
     const data = await res.json();
     if (!data.ok) throw new Error(data.error);
@@ -683,32 +680,18 @@ async function saveSchedule(cron, action = "add") {
 
 document.getElementById("loadScheduleBtn").onclick = loadSchedule;
 
-document.getElementById("createScheduleBtn").onclick = function() {
-  const h = parseInt(hourInput.value, 10), m = parseInt(minuteInput.value, 10);
-  if (isNaN(h) || h < 0 || h > 23 || isNaN(m) || m < 0 || m > 59) {
-    setStatus(scheduleStatus, "أدخل قيم صحيحة", "err"); return;
-  }
-  saveSchedule(m + " " + h + " * * *", "add");
-};
-
 document.getElementById("updateScheduleBtn").onclick = function() {
-  // زر التحديث: يعتمد الكرون الافتراضي 0 10 * * *
-  saveSchedule("0 10 * * *", "add");
+  const h = parseInt(hourInput.value, 10);
+  const m = parseInt(minuteInput.value, 10);
+  if (isNaN(h) || h < 0 || h > 23 || isNaN(m) || m < 0 || m > 59) {
+    setStatus(scheduleStatus, "أدخل قيم صحيحة (0-23 ساعة، 0-59 دقيقة)", "err");
+    return;
+  }
+  const cron = m + " " + h + " * * *";
+  saveSchedule(cron);
 };
 
-document.getElementById("removeScheduleBtn").onclick = async function() {
-  if (!confirm("حذف الجدولة نهائياً؟")) return;
-  setStatus(scheduleStatus, "جاري الحذف...", "");
-  try {
-    const res = await fetch("/api/schedule", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "remove" }) });
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error);
-    setStatus(scheduleStatus, "تم الحذف ✓", "ok");
-    loadSchedule();
-  } catch (err) { setStatus(scheduleStatus, "خطأ: " + err.message, "err"); }
-};
-
-loadSchedule(); // Auto load on start
+loadSchedule(); // تحميل تلقائي عند بدء الصفحة
 
 // ===== Statistics & Charts =====
 let statsChartInstance = null;
