@@ -1,6 +1,8 @@
 // worker.js - المدخل الرئيسي
 import { HTML_PAGE } from './src/html.js';
-import {
+
+
+import { 
   handleLoad,
   handleSave,
   handleRunWorkflow,
@@ -9,8 +11,11 @@ import {
   handleGetLogContent,
   handleGetStats,
   handleLoadSchedule,
-  handleSaveSchedule
+  handleSaveSchedule,
+  handleListImages,
+  handleDeleteImage   // استيراد الجديد
 } from './src/handlers.js';
+
 
 export default {
   async fetch(request, env) {
@@ -28,6 +33,10 @@ export default {
     if (url.pathname === "/api/schedule" && request.method === "GET") return handleLoadSchedule(request, env);
     if (url.pathname === "/api/schedule" && request.method === "POST") return handleSaveSchedule(request, env);
     if (url.pathname === "/api/stats" && request.method === "GET") return handleGetStats(request, env);
+    // داخل fetch
+    if (url.pathname === "/api/images" && request.method === "GET") return handleListImages(request, env);
+    if (url.pathname === "/api/delete-image" && request.method === "POST") return handleDeleteImage(request, env);
+
 
     return new Response("Not found", { status: 404 });
   }
