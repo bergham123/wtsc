@@ -502,6 +502,125 @@ document.getElementById("loadStatsBtn").onclick = async function() {
     });
   } catch (err) { setStatus(st, "خطأ: " + err.message, "err"); }
 };
+
+// داخل الـ <script> في html.js
+
+// دالة تحميل الصور
+async function loadImages() {
+  const gallery = document.getElementById('imageGallery');
+  const list = document.getElementById('imageList');
+  const countSpan = document.getElementById('imageCount');
+  
+  try {
+    const res = await fetch('/api/images');
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+    
+    const files = data.files || [];
+    countSpan.textContent = files.length;
+    
+    if (files.length === 0) {
+      gallery.style.display = 'none';
+      return;
+    }
+    
+    gallery.style.display = 'block';
+    list.innerHTML = '';
+    
+    files.forEach(file => {
+      const div = document.createElement('div');
+      div.style.cssText = 'position:relative; width:100px; height:100px; border-radius:12px; overflow:hidden; border:1px solid var(--border-color);';
+      
+      // عرض الصورة (نستخدم raw.githubusercontent.com أو رابط download_url)
+      const img = document.createElement('img');
+      img.src = file.download_url || `https://raw.githubusercontent.com/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/${env.GITHUB_BRANCH || 'main'}/images/${file.name}`;
+      img.style.cssText = 'width:100%; height:100%; object-fit:cover;';
+      
+      const deleteBtn = document.createElement('button');
+      deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+      deleteBtn.style.cssText = 'position:absolute; top:4px; right:4px; background:var(--danger); border:none; color:white; border-radius:50%; width:28px; height:28px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:12px; box-shadow:0 2px 8px rgba(0,0,0,0.5);';
+      deleteBtn.onclick = async () => {
+        if (!confirm(`تأكيد حذف الصورة "${file.name}"؟`)) return;
+        try {
+          const resDel = await fetch('/api/delete-image', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filename: file.name, sha: file.sha })
+          });
+          const dataDel = await resDel.json();
+          if (!dataDel.ok) throw new Error(dataDel.error);
+          // إزالة العنصر من الواجهة
+          div.remove();
+          // تحديث العدد
+          const newCount = parseInt(countSpan.textContent) - 1;
+          countSpan.textContent = newCount;
+          if (newCount === 0) gallery.style.display = 'none';
+          // إظهار رسالة نجاح
+          setStatus(document.getElementById('imagesStatus'), 'تم حذف الصورة ✓', 'ok');
+        } catch (err) {
+          setStatus(document.getElementById('imagesStatus'), 'خطأ في الحذف: ' + err.message, 'err');
+        }
+      };
+      
+      div.appendChild(img);
+      div.appendChild(deleteBtn);
+      list.appendChild(div);
+    });
+  } catch (err) {
+    console.error('Error loading images:', err);
+    gallery.style.display = 'none';
+  }
+}
+
+// ربط زر التحديث
+document.getElementById('refreshImagesBtn').onclick = loadImages;
+
+// تحميل الصور تلقائياً عند فتح الصفحة
+loadImages();
+
+// تعديل رفع الصور للتحقق من الحد الأقصى قبل الرفع
+document.getElementById('uploadImagesBtn').onclick = async function() {
+  if (selectedFiles.length === 0) { 
+    setStatus(document.getElementById('imagesStatus'), 'اختر صورة أولاً', 'err'); 
+    return; 
+  }
+  
+  // تحقق من العدد الحالي أولاً
+  try {
+    const resCheck = await fetch('/api/images');
+    const dataCheck = await resCheck.json();
+    if (!dataCheck.ok) throw new Error(dataCheck.error);
+    const currentCount = dataCheck.files ? dataCheck.files.length : 0;
+    if (currentCount >= 3) {
+      setStatus(document.getElementById('imagesStatus'), 'لا يمكن رفع أكثر من 3 صور. قم بحذف بعض الصور أولاً.', 'err');
+      return;
+    }
+    // تأكد أن عدد الملفات المختارة لا يتجاوز المساحة المتبقية
+    const remaining = 3 - currentCount;
+    if (selectedFiles.length > remaining) {
+      setStatus(document.getElementById('imagesStatus'), `يمكنك رفع ${remaining} صورة فقط (الحد الأقصى 3)`, 'err');
+      return;
+    }
+  } catch (err) {
+    setStatus(document.getElementById('imagesStatus'), 'خطأ في التحقق من عدد الصور: ' + err.message, 'err');
+    return;
+  }
+
+  // باقي كود الرفع كما هو
+  let success = 0;
+  for (const file of selectedFiles) {
+    try {
+      const base64 = await new Promise((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(r.result.split(",")[1]); r.onerror = reject; r.readAsDataURL(file); });
+      const res = await fetch("/api/upload-image", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ filename: file.name, dataBase64: base64 }) });
+      const data = await res.json();
+      if (data.ok) success++;
+    } catch (err) {}
+  }
+  setStatus(document.getElementById('imagesStatus'), success + "/" + selectedFiles.length + " تم رفعها", success === selectedFiles.length ? "ok" : "err");
+  if (success === selectedFiles.length) { selectedFiles = []; imagesInput.value = ""; renderPreviews(); }
+  // تحديث قائمة الصور بعد الرفع
+  loadImages();
+};
 </script>
 </body>
 </html>`;  
