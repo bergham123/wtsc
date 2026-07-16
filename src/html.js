@@ -4,30 +4,32 @@ export const HTML_PAGE = `<!DOCTYPE html>
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>GitHub Manager Pro</title>
+<title>WhatsApp Manager Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
   :root {
-    --bg-main: #0f172a;
-    --card-bg: rgba(30, 41, 59, 0.7);
-    --border-color: rgba(255, 255, 255, 0.1);
-    --text-main: #f1f5f9;
-    --text-muted: #94a3b8;
-    --accent: #8b5cf6;
-    --accent-glow: rgba(139, 92, 246, 0.4);
-    --success: #10b981;
-    --danger: #ef4444;
-    --warning: #f59e0b;
+    /* WhatsApp Dark Theme Colors */
+    --bg-main: #111B21;
+    --card-bg: #202C33;
+    --border-color: #2A3942;
+    --text-main: #E9EDEF;
+    --text-muted: #8696A0;
+    --accent: #25D366; /* WhatsApp Green */
+    --accent-glow: rgba(37, 211, 102, 0.2);
+    --success: #25D366;
+    --danger: #F15C6D;
+    --warning: #FFB100;
+    --input-bg: #2A3942;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     font-family: 'Tajawal', sans-serif;
     background: var(--bg-main);
     background-image: 
-      radial-gradient(circle at 10% 20%, rgba(139, 92, 246, 0.15) 0%, transparent 40%),
-      radial-gradient(circle at 90% 80%, rgba(59, 130, 246, 0.15) 0%, transparent 40%);
+      radial-gradient(circle at 0% 0%, rgba(37, 211, 102, 0.05) 0%, transparent 50%),
+      radial-gradient(circle at 100% 100%, rgba(10, 107, 94, 0.1) 0%, transparent 50%);
     color: var(--text-main);
     min-height: 100vh;
     padding: 20px;
@@ -35,13 +37,11 @@ export const HTML_PAGE = `<!DOCTYPE html>
   .container {
     max-width: 1200px;
     margin: auto;
-    background: rgba(15, 23, 42, 0.6);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    background: var(--bg-main);
     border: 1px solid var(--border-color);
-    border-radius: 24px;
+    border-radius: 12px;
     padding: 30px;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
   }
   .header {
     display: flex;
@@ -53,54 +53,58 @@ export const HTML_PAGE = `<!DOCTYPE html>
   }
   .logo-area { display: flex; align-items: center; gap: 15px; }
   .logo-icon {
-    width: 50px; height: 50px;
-    background: linear-gradient(135deg, var(--accent), #3b82f6);
-    border-radius: 14px;
+    width: 48px; height: 48px;
+    background: var(--accent);
+    border-radius: 12px;
     display: flex; align-items: center; justify-content: center;
-    font-size: 24px; color: white;
-    box-shadow: 0 8px 20px var(--accent-glow);
+    font-size: 24px; color: #111B21;
+    box-shadow: 0 4px 15px var(--accent-glow);
   }
-  .logo-text { font-size: 24px; font-weight: 800; letter-spacing: 0.5px; }
-  .logo-text span { background: linear-gradient(to right, var(--accent), #3b82f6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .logo-text { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; color: var(--text-main); }
+  .logo-text span { color: var(--accent); }
   
-  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
   @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
   
   .card {
     background: var(--card-bg);
     border: 1px solid var(--border-color);
-    border-radius: 20px;
+    border-radius: 12px;
     padding: 24px;
-    transition: all 0.3s ease;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
   }
-  .card:hover { border-color: rgba(139, 92, 246, 0.4); box-shadow: 0 0 25px rgba(139, 92, 246, 0.1); }
+  .card:hover { 
+    border-color: var(--accent); 
+    box-shadow: 0 0 15px var(--accent-glow);
+  }
   .card-header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
-  .card-header i { font-size: 20px; color: var(--accent); }
-  .card-header h2 { font-size: 18px; font-weight: 700; }
+  .card-header i { font-size: 18px; color: var(--accent); }
+  .card-header h2 { font-size: 17px; font-weight: 700; }
   .card-hint { color: var(--text-muted); font-size: 13px; margin-bottom: 16px; }
   
   textarea {
     width: 100%;
     min-height: 160px;
-    background: rgba(15, 23, 42, 0.8);
-    color: #e2e8f0;
+    background: var(--input-bg);
+    color: var(--text-main);
     border: 1px solid var(--border-color);
-    border-radius: 12px;
+    border-radius: 8px;
     padding: 12px;
     font-family: 'Consolas', monospace;
     font-size: 13px;
     resize: vertical;
     direction: ltr; text-align: left;
+    transition: border-color 0.2s;
   }
-  textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+  textarea:focus { outline: none; border-color: var(--accent); }
   
   .btn-row { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
   .btn {
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--input-bg);
     color: var(--text-main);
     border: 1px solid var(--border-color);
-    padding: 10px 20px;
-    border-radius: 10px;
+    padding: 10px 18px;
+    border-radius: 8px;
     cursor: pointer;
     font-family: 'Tajawal', sans-serif;
     font-size: 14px;
@@ -108,54 +112,56 @@ export const HTML_PAGE = `<!DOCTYPE html>
     transition: all 0.2s;
     display: inline-flex; align-items: center; gap: 8px;
   }
-  .btn:hover { background: rgba(255, 255, 255, 0.1); transform: translateY(-2px); }
-  .btn-primary { background: linear-gradient(135deg, var(--accent), #6366f1); border: none; box-shadow: 0 4px 15px var(--accent-glow); }
-  .btn-primary:hover { box-shadow: 0 6px 20px var(--accent-glow); }
-  .btn-success { background: linear-gradient(135deg, var(--success), #059669); border: none; }
-  .btn-danger { background: linear-gradient(135deg, var(--danger), #dc2626); border: none; }
-  .btn-warning { background: linear-gradient(135deg, var(--warning), #d97706); border: none; }
+  .btn:hover { background: var(--border-color); transform: translateY(-1px); }
+  .btn-primary { background: var(--accent); color: #111B21; border: none; font-weight: 700; }
+  .btn-primary:hover { background: #1FB855; box-shadow: 0 4px 12px var(--accent-glow); }
+  .btn-success { background: var(--success); border: none; }
+  .btn-danger { background: var(--danger); border: none; }
+  .btn-warning { background: var(--warning); border: none; color: #111B21; }
   
   .status { margin-top: 10px; font-size: 12px; min-height: 18px; color: var(--text-muted); }
   .status.ok { color: var(--success); }
   .status.err { color: var(--danger); }
 
-  .schedule-status { padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; }
-  .schedule-status.active { background: rgba(16, 185, 129, 0.2); color: var(--success); border: 1px solid var(--success); }
-  .schedule-status.inactive { background: rgba(239, 68, 68, 0.2); color: var(--danger); border: 1px solid var(--danger); }
+  .schedule-status { padding: 5px 12px; border-radius: 6px; font-size: 12px; font-weight: 700; display: inline-block; }
+  .schedule-status.active { background: rgba(37, 211, 102, 0.15); color: var(--success); border: 1px solid rgba(37, 211, 102, 0.3); }
+  .schedule-status.inactive { background: rgba(241, 92, 109, 0.15); color: var(--danger); border: 1px solid rgba(241, 92, 109, 0.3); }
   
   .schedule-inputs { display: flex; gap: 12px; margin-bottom: 16px; }
   .schedule-inputs label { display: flex; flex-direction: column; gap: 5px; font-size: 13px; color: var(--text-muted); }
   .schedule-inputs input {
-    width: 80px; background: rgba(15, 23, 42, 0.8); color: var(--text-main);
+    width: 80px; background: var(--input-bg); color: var(--text-main);
     border: 1px solid var(--border-color); border-radius: 8px; padding: 8px; text-align: center;
     font-family: 'Tajawal'; font-size: 16px;
   }
 
   .stats-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
-  .stats-table th { text-align: right; padding: 10px; background: rgba(255,255,255,0.03); color: var(--text-muted); border-bottom: 1px solid var(--border-color); }
-  .stats-table td { padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .stats-table th { text-align: right; padding: 12px; background: var(--input-bg); color: var(--text-muted); border-bottom: 1px solid var(--border-color); font-weight: 500; }
+  .stats-table td { padding: 12px; border-bottom: 1px solid var(--border-color); color: var(--text-main); }
+  .stats-table tr:last-child td { border-bottom: none; }
   
   .modal-overlay {
     display: none; position: fixed; inset: 0;
-    background: rgba(0,0,0,0.8); backdrop-filter: blur(8px);
+    background: rgba(0,0,0,0.85); backdrop-filter: blur(8px);
     z-index: 999; align-items: center; justify-content: center; padding: 20px;
   }
   .modal-overlay.active { display: flex; }
   .modal {
-    background: rgba(30, 41, 59, 0.95); border: 1px solid var(--border-color);
-    border-radius: 20px; max-width: 900px; width: 100%; max-height: 80vh;
+    background: var(--card-bg); border: 1px solid var(--border-color);
+    border-radius: 12px; max-width: 900px; width: 100%; max-height: 80vh;
     padding: 24px; display: flex; flex-direction: column; gap: 16px;
   }
   .log-files-list { display: flex; gap: 10px; flex-wrap: wrap; }
-  .log-file-btn { background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); color: var(--text-main); padding: 8px 16px; border-radius: 20px; cursor: pointer; }
-  .log-file-btn.active { background: var(--accent); border-color: var(--accent); }
-  .log-content { background: #0f172a; border-radius: 12px; padding: 16px; overflow-y: auto; font-family: monospace; font-size: 13px; flex-grow: 1; }
+  .log-file-btn { background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 8px 16px; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+  .log-file-btn:hover { background: var(--border-color); }
+  .log-file-btn.active { background: var(--accent); border-color: var(--accent); color: #111B21; font-weight: 700; }
+  .log-content { background: var(--bg-main); border-radius: 8px; padding: 16px; overflow-y: auto; font-family: 'Consolas', monospace; font-size: 13px; flex-grow: 1; border: 1px solid var(--border-color); }
 
   .image-item {
     position: relative;
     width: 100px;
     height: 100px;
-    border-radius: 12px;
+    border-radius: 8px;
     overflow: hidden;
     border: 1px solid var(--border-color);
     flex-shrink: 0;
@@ -169,15 +175,17 @@ export const HTML_PAGE = `<!DOCTYPE html>
     border: none;
     color: white;
     border-radius: 50%;
-    width: 28px;
-    height: 28px;
+    width: 24px;
+    height: 24px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 12px;
+    font-size: 11px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    transition: transform 0.2s;
   }
+  .image-item .delete-btn:hover { transform: scale(1.1); }
   #imageGallery { margin-top: 16px; }
   #imageList { display: flex; flex-wrap: wrap; gap: 12px; }
 </style>
@@ -186,8 +194,8 @@ export const HTML_PAGE = `<!DOCTYPE html>
 <div class="container">
   <div class="header">
     <div class="logo-area">
-      <div class="logo-icon"><i class="fas fa-cogs"></i></div>
-      <div class="logo-text">مدير <span>GitHub</span> برو</div>
+      <div class="logo-icon"><i class="fab fa-whatsapp"></i></div>
+      <div class="logo-text">مدير <span>واتساب</span> برو</div>
     </div>
   </div>
   
@@ -235,7 +243,7 @@ export const HTML_PAGE = `<!DOCTYPE html>
     <div class="card">
       <div class="card-header"><i class="fas fa-images"></i><h2>رفع الصور</h2></div>
       <div class="card-hint">ستُرفع إلى مجلد <code>images/</code> - الحد الأقصى 3 صور</div>
-      <div style="background: rgba(15, 23, 42, 0.8); padding: 15px; border-radius: 12px; border: 1px dashed var(--border-color);">
+      <div style="background: var(--input-bg); padding: 15px; border-radius: 8px; border: 1px dashed var(--border-color);">
         <input type="file" id="imagesInput" accept="image/*" multiple style="width:100%; margin-bottom: 10px;" />
         <div id="imagePreviewArea" style="display:flex; flex-wrap:wrap; gap:10px;"></div>
       </div>
@@ -253,25 +261,25 @@ export const HTML_PAGE = `<!DOCTYPE html>
     </div>
   </div>
 
-  <div class="card" style="margin-top: 24px;">
+  <div class="card" style="margin-top: 20px;">
     <div class="card-header"><i class="fas fa-chart-line"></i><h2>إحصائيات الإرسال</h2></div>
     <div class="card-hint">عرض تقرير المحاولات والنجاح والفشل مع رسم بياني تفاعلي</div>
     <button class="btn btn-primary" id="loadStatsBtn"><i class="fas fa-database"></i> تحميل الإحصائيات</button>
     <div id="statsContainer" style="display:none; margin-top: 20px;">
-      <div style="max-height: 300px; overflow-y: auto; margin-bottom: 20px; border-radius: 12px; border: 1px solid var(--border-color);">
+      <div style="max-height: 300px; overflow-y: auto; margin-bottom: 20px; border-radius: 8px; border: 1px solid var(--border-color);">
         <table class="stats-table">
           <thead><tr><th>التاريخ</th><th>محاولات</th><th>نجاح</th><th>فشل</th></tr></thead>
           <tbody id="statsBody"></tbody>
         </table>
       </div>
-      <div style="background: rgba(15, 23, 42, 0.8); border-radius: 12px; padding: 20px; height: 350px;">
+      <div style="background: var(--input-bg); border-radius: 8px; padding: 20px; height: 350px;">
         <canvas id="statsChart"></canvas>
       </div>
     </div>
     <div class="status" id="statsStatus"></div>
   </div>
 
-  <div class="grid" style="margin-top: 24px; grid-template-columns: 2fr 1fr;">
+  <div class="grid" style="margin-top: 20px; grid-template-columns: 2fr 1fr;">
     <div class="card">
       <div class="card-header"><i class="fas fa-terminal"></i><h2>سجلات التشغيل</h2></div>
       <div class="btn-row">
@@ -338,7 +346,7 @@ function renderPreviews() {
     const reader = new FileReader();
     reader.onload = function(ev) {
       const div = document.createElement("div");
-      div.style.cssText = "width:80px; height:80px; border-radius:10px; overflow:hidden; position:relative; border:2px solid var(--border-color);";
+      div.style.cssText = "width:80px; height:80px; border-radius:8px; overflow:hidden; position:relative; border:1px solid var(--border-color);";
       div.innerHTML = '<img src="' + ev.target.result + '" style="width:100%; height:100%; object-fit:cover;" />' +
                       '<button data-index="' + index + '" style="position:absolute; top:2px; right:2px; background:var(--danger); color:white; border:none; border-radius:50%; width:20px; height:20px; cursor:pointer; font-size:10px;">X</button>';
       previewArea.appendChild(div);
@@ -565,17 +573,17 @@ document.getElementById("loadStatsBtn").onclick = async function() {
       data: {
         labels: data.data.map(r => r.date),
         datasets: [
-          { label: 'محاولات', data: data.data.map(r => r.attempted||0), backgroundColor: 'rgba(139, 92, 246, 0.6)', borderColor: 'rgba(139, 92, 246, 1)', borderWidth: 1, borderRadius: 6 },
-          { label: 'نجاح', data: data.data.map(r => r.success||0), backgroundColor: 'rgba(16, 185, 129, 0.6)', borderColor: 'rgba(16, 185, 129, 1)', borderWidth: 1, borderRadius: 6 },
-          { label: 'فشل', data: data.data.map(r => r.failed||0), backgroundColor: 'rgba(239, 68, 68, 0.6)', borderColor: 'rgba(239, 68, 68, 1)', borderWidth: 1, borderRadius: 6 }
+          { label: 'محاولات', data: data.data.map(r => r.attempted||0), backgroundColor: 'rgba(53, 114, 238, 0.6)', borderColor: 'rgba(53, 114, 238, 1)', borderWidth: 1, borderRadius: 4 },
+          { label: 'نجاح', data: data.data.map(r => r.success||0), backgroundColor: 'rgba(37, 211, 102, 0.6)', borderColor: 'rgba(37, 211, 102, 1)', borderWidth: 1, borderRadius: 4 },
+          { label: 'فشل', data: data.data.map(r => r.failed||0), backgroundColor: 'rgba(241, 92, 109, 0.6)', borderColor: 'rgba(241, 92, 109, 1)', borderWidth: 1, borderRadius: 4 }
         ]
       },
       options: {
         responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { labels: { color: '#f1f5f9', font: { family: 'Tajawal', size: 14 } } } },
+        plugins: { legend: { labels: { color: '#E9EDEF', font: { family: 'Tajawal', size: 14 } } } },
         scales: {
-          y: { beginAtZero: true, ticks: { color: '#94a3b8', font: { family: 'Tajawal' } }, grid: { color: 'rgba(255,255,255,0.05)' } },
-          x: { ticks: { color: '#94a3b8', font: { family: 'Tajawal' } }, grid: { display: false } }
+          y: { beginAtZero: true, ticks: { color: '#8696A0', font: { family: 'Tajawal' } }, grid: { color: 'rgba(255,255,255,0.05)' } },
+          x: { ticks: { color: '#8696A0', font: { family: 'Tajawal' } }, grid: { display: false } }
         }
       }
     });
