@@ -45,3 +45,7 @@ export function jsonToLines(jsonStr) {
     return JSON.stringify(parsed, null, 2);
   } catch (e) { return jsonStr; }
 }
+
+export function getImagesListPath(env) {
+  return env.IMAGES_LIST_PATH || "images.json";
+}
