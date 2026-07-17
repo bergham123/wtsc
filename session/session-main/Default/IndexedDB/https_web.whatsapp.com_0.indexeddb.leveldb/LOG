@@ -1,3 +1,3 @@
-2026/07/17-15:48:00.591 b3b Reusing MANIFEST /home/runner/work/wtsc/wtsc/session/session-main/Default/IndexedDB/https_web.whatsapp.com_0.indexeddb.leveldb/MANIFEST-000001
-2026/07/17-15:48:00.591 b3b Recovering log #353
-2026/07/17-15:48:00.592 b3b Reusing old log /home/runner/work/wtsc/wtsc/session/session-main/Default/IndexedDB/https_web.whatsapp.com_0.indexeddb.leveldb/000353.log 
+2026/07/17-16:12:03.731 b2b Reusing MANIFEST /home/runner/work/wtsc/wtsc/session/session-main/Default/IndexedDB/https_web.whatsapp.com_0.indexeddb.leveldb/MANIFEST-000001
+2026/07/17-16:12:03.731 b2b Recovering log #353
+2026/07/17-16:12:03.754 b2b Reusing old log /home/runner/work/wtsc/wtsc/session/session-main/Default/IndexedDB/https_web.whatsapp.com_0.indexeddb.leveldb/000353.log 
