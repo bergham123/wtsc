@@ -308,6 +308,17 @@ export const HTML_PAGE = `<!DOCTYPE html>
       </div>
     </div>
 
+<!-- إدارة images.json -->
+<div class="card">
+  <div class="card-header"><i class="fas fa-file-image"></i><h2>قائمة الصور (images.json)</h2></div>
+  <div class="card-hint">أسماء الصور المخزنة (كل اسم في سطر)</div>
+  <textarea id="imagesListArea" placeholder="أسماء الصور..."></textarea>
+  <div class="btn-row">
+    <button class="btn" id="loadImagesListBtn"><i class="fas fa-download"></i> تحميل</button>
+    <button class="btn btn-primary" id="saveImagesListBtn"><i class="fas fa-save"></i> حفظ</button>
+  </div>
+  <div class="status" id="imagesListStatus"></div>
+</div>
     <!-- Images Card (Full Width under grid) -->
     <div class="card">
       <div class="card-header"><i class="fas fa-images"></i><h2>رفع الصور</h2></div>
@@ -417,25 +428,27 @@ async function loadImages() {
       const deleteBtn = document.createElement('button');
       deleteBtn.className = 'delete-btn';
       deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
-      deleteBtn.onclick = async () => {
-        if (!confirm(\`تأكيد حذف الصورة "\${file.name}"؟\`)) return;
-        try {
-          const resDel = await fetch('/api/delete-image', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ filename: file.name, sha: file.sha })
-          });
-          const dataDel = await resDel.json();
-          if (!dataDel.ok) throw new Error(dataDel.error);
-          div.remove();
-          const newCount = parseInt(countSpan.textContent) - 1;
-          countSpan.textContent = newCount;
-          if (newCount === 0) gallery.style.display = 'none';
-          setStatus(document.getElementById('imagesStatus'), 'تم حذف الصورة ✓', 'ok');
-        } catch (err) {
-          setStatus(document.getElementById('imagesStatus'), 'خطأ في الحذف: ' + err.message, 'err');
-        }
-      };
+  deleteBtn.onclick = async () => {
+  if (!confirm(\`تأكيد حذف الصورة "\${file.name}"؟\`)) return;
+  try {
+    const resDel = await fetch('/api/delete-image', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filename: file.name })
+    });
+    const dataDel = await resDel.json();
+    if (!dataDel.ok) throw new Error(dataDel.error);
+    // إزالة العنصر من الـ DOM
+    div.remove();
+    // تحديث العدد
+    const newCount = parseInt(countSpan.textContent) - 1;
+    countSpan.textContent = newCount;
+    if (newCount === 0) gallery.style.display = 'none';
+    setStatus(document.getElementById('imagesStatus'), 'تم حذف الصورة ✓', 'ok');
+  } catch (err) {
+    setStatus(document.getElementById('imagesStatus'), 'خطأ في الحذف: ' + err.message, 'err');
+  }
+};
       div.appendChild(img);
       div.appendChild(deleteBtn);
       list.appendChild(div);
@@ -626,6 +639,10 @@ document.getElementById("loadStatsBtn").onclick = async function() {
     });
   } catch (err) { setStatus(st, "خطأ: " + err.message, "err"); }
 };
+// تحميل وحفظ images.json
+document.getElementById("loadImagesListBtn").onclick = () => loadFile("images", document.getElementById("imagesListArea"), document.getElementById("imagesListStatus"));
+document.getElementById("saveImagesListBtn").onclick = () => saveFile("images", document.getElementById("imagesListArea"), document.getElementById("imagesListStatus"));
+
 </script>
 </body>
 </html>
