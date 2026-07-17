@@ -61,7 +61,6 @@ export async function githubListFiles(env, folder) {
   return { files, exists: true };
 }
 
-// دالة جديدة لحذف ملف
 export async function githubDeleteFile(env, path, sha, message) {
   const branch = env.GITHUB_BRANCH || "main";
   const url = "https://api.github.com/repos/" + env.GITHUB_OWNER + "/" + env.GITHUB_REPO + "/contents/" + encodeURIComponent(path);
