@@ -2,7 +2,7 @@ name: WhatsApp Automation
 
 on:
   schedule:
-    - cron: '49 20 * * *'
+    - cron: '0 8 * * *'
   workflow_dispatch:
   
 permissions:
