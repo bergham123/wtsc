@@ -1,4 +1,3 @@
-import "./logger.js";
 import pkg from "whatsapp-web.js";
 const { Client, LocalAuth } = pkg;
 
