@@ -1,13 +1,46 @@
-2026/07/17-16:29:55.445 b55 Reusing MANIFEST /home/runner/work/wtsc/wtsc/session/session-main/Default/IndexedDB/https_web.whatsapp.com_0.indexeddb.leveldb/MANIFEST-000001
-2026/07/17-16:29:55.446 b55 Recovering log #365
-2026/07/17-16:29:55.465 b55 Reusing old log /home/runner/work/wtsc/wtsc/session/session-main/Default/IndexedDB/https_web.whatsapp.com_0.indexeddb.leveldb/000365.log 
-2026/07/17-16:29:55.465 b55 Delete type=2 #359
-2026/07/17-16:29:55.465 b55 Delete type=2 #355
-2026/07/17-16:29:55.465 b55 Delete type=2 #356
-2026/07/17-16:29:55.465 b55 Delete type=2 #363
-2026/07/17-16:29:55.465 b55 Delete type=2 #361
-2026/07/17-16:29:55.465 b55 Delete type=2 #360
-2026/07/17-16:29:55.465 b55 Delete type=2 #366
-2026/07/17-16:29:55.465 b55 Delete type=2 #357
-2026/07/17-16:29:55.465 b55 Delete type=2 #362
-2026/07/17-16:29:55.465 b55 Delete type=2 #358
+2026/07/18-05:31:33.258 b42 Reusing MANIFEST /home/runner/work/wtsc/wtsc/session/session-main/Default/IndexedDB/https_web.whatsapp.com_0.indexeddb.leveldb/MANIFEST-000001
+2026/07/18-05:31:33.259 b42 Recovering log #365
+2026/07/18-05:31:33.354 b42 Reusing old log /home/runner/work/wtsc/wtsc/session/session-main/Default/IndexedDB/https_web.whatsapp.com_0.indexeddb.leveldb/000365.log 
+2026/07/18-05:31:40.990 b44 Level-0 table #379: started
+2026/07/18-05:31:41.014 b44 Level-0 table #379: 1411841 bytes OK
+2026/07/18-05:31:41.016 b44 Delete type=0 #365
+2026/07/18-05:31:41.045 b44 Compacting 1@1 + 10@2 files
+2026/07/18-05:31:41.120 b44 Generated table #380@1: 67773 keys, 2296138 bytes
+2026/07/18-05:31:41.141 b44 Generated table #381@1: 7986 keys, 2151601 bytes
+2026/07/18-05:31:41.159 b44 Generated table #382@1: 1894 keys, 2147329 bytes
+2026/07/18-05:31:41.176 b44 Generated table #383@1: 2390 keys, 2149543 bytes
+2026/07/18-05:31:41.206 b44 Generated table #384@1: 15276 keys, 2189953 bytes
+2026/07/18-05:31:41.249 b44 Generated table #385@1: 26192 keys, 2262490 bytes
+2026/07/18-05:31:41.281 b44 Generated table #386@1: 13026 keys, 2168076 bytes
+2026/07/18-05:31:41.336 b44 Generated table #387@1: 45915 keys, 2184182 bytes
+2026/07/18-05:31:41.431 b44 Generated table #388@1: 100557 keys, 2252229 bytes
+2026/07/18-05:31:41.456 b44 Generated table #389@1: 12766 keys, 489941 bytes
+2026/07/18-05:31:41.456 b44 Compacted 1@1 + 10@2 files => 20291482 bytes
+2026/07/18-05:31:41.456 b44 compacted to: files[ 0 0 11 0 0 0 0 ]
+2026/07/18-05:31:41.457 b44 Delete type=2 #374
+2026/07/18-05:31:41.457 b44 Delete type=2 #367
+2026/07/18-05:31:41.457 b44 Delete type=2 #372
+2026/07/18-05:31:41.457 b44 Delete type=2 #373
+2026/07/18-05:31:41.457 b44 Delete type=2 #375
+2026/07/18-05:31:41.457 b44 Delete type=2 #376
+2026/07/18-05:31:41.457 b44 Delete type=2 #371
+2026/07/18-05:31:41.457 b44 Delete type=2 #368
+2026/07/18-05:31:41.457 b44 Delete type=2 #369
+2026/07/18-05:31:41.457 b44 Delete type=2 #370
+2026/07/18-05:31:41.457 b44 Delete type=2 #379
+2026/07/18-05:31:42.421 b49 Level-0 table #391: started
+2026/07/18-05:31:42.443 b49 Level-0 table #391: 1330463 bytes OK
+2026/07/18-05:31:42.446 b49 Delete type=0 #378
+2026/07/18-05:31:42.462 b44 Compacting 1@1 + 10@2 files
+2026/07/18-05:31:42.558 b44 Generated table #392@1: 66609 keys, 2303487 bytes
+2026/07/18-05:31:42.611 b44 Generated table #393@1: 9028 keys, 2158682 bytes
+2026/07/18-05:31:42.652 b44 Generated table #394@1: 1863 keys, 2145648 bytes
+2026/07/18-05:31:42.683 b44 Generated table #395@1: 2414 keys, 2150003 bytes
+2026/07/18-05:31:42.717 b44 Generated table #396@1: 14621 keys, 2186128 bytes
+2026/07/18-05:31:42.779 b44 Generated table #397@1: 26317 keys, 2260299 bytes
+2026/07/18-05:31:42.826 b44 Generated table #398@1: 12506 keys, 2172773 bytes
+2026/07/18-05:31:42.893 b44 Generated table #399@1: 42826 keys, 2180138 bytes
+2026/07/18-05:31:43.023 b44 Generated table #400@1: 100537 keys, 2251373 bytes
+2026/07/18-05:31:43.056 b44 Generated table #401@1: 17474 keys, 600241 bytes
+2026/07/18-05:31:43.056 b44 Compacted 1@1 + 10@2 files => 20408772 bytes
+2026/07/18-05:31:43.057 b44 compacted to: files[ 0 0 11 0 0 0 0 ]
