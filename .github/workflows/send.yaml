@@ -2,11 +2,16 @@ name: WhatsApp Automation
 
 on:
   schedule:
-    - cron: '30 3 * * *'
+    - cron: "30 3 * * *"
+
   workflow_dispatch:
-  
+
 permissions:
   contents: write
+
+concurrency:
+  group: whatsapp-bot
+  cancel-in-progress: false
 
 jobs:
   run:
@@ -26,10 +31,22 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgbm-dev
+          sudo apt-get install -y \
+            libgbm-dev \
+            libnss3 \
+            libatk-bridge2.0-0 \
+            libgtk-3-0 \
+            libxss1 \
+            libasound2t64
 
       - name: Install Node dependencies
         run: npm install
+
+      - name: Remove Chromium lock files
+        run: |
+          find session -name "SingletonLock" -delete || true
+          find session -name "SingletonCookie" -delete || true
+          find session -name "SingletonSocket" -delete || true
 
       - name: Run WhatsApp bot
         run: npm start
@@ -38,7 +55,9 @@ jobs:
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          # نضيف فقط الملفات الموجودة (نتجاهل الأخطاء)
+
           git add --ignore-errors session dashboard aggregate.json logs
-          git commit -m "update session, dashboard & logs $(date +'%Y-%m-%d %H:%M')" || echo "No changes to commit"
+
+          git commit -m "update session, dashboard & logs $(date +'%Y-%m-%d %H:%M')" || echo "No changes"
+
           git push
