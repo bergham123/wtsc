@@ -26,7 +26,18 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgbm-dev
+          sudo apt-get install -y \
+            libgbm-dev \
+            libxss1 \
+            libnss3 \
+            libappindicator1 \
+            libindicator7 \
+            xdg-utils \
+            fonts-liberation \
+            xsel \
+            libxrender1 \
+            libxrandr2 \
+            libxi6
 
       - name: Install Node dependencies
         run: npm install
