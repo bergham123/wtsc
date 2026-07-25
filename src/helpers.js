@@ -50,3 +50,7 @@ export function jsonToLines(jsonStr) {
     return JSON.stringify(parsed, null, 2);
   } catch (e) { return jsonStr; }
 }
+
+export function getContactsPath(env) {
+  return "contact.json";
+}
