@@ -1,0 +1,21 @@
+*
+!session-main/
+!session-main/**
+
+# Chrome cache
+session-main/Default/Cache/
+session-main/Default/Code Cache/
+session-main/Default/GPUCache/
+session-main/Default/Service Worker/
+session-main/Default/Sessions/
+session-main/Default/Blob Storage/
+session-main/Default/VideoDecodeStats/
+
+session-main/Crashpad/
+session-main/GrShaderCache/
+session-main/GraphiteDawnCache/
+session-main/BrowserMetrics/
+
+session-main/**/SingletonLock
+session-main/**/SingletonCookie
+session-main/**/SingletonSocket
