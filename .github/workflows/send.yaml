@@ -1,9 +1,9 @@
+# .github/workflows/send.yaml
 name: WhatsApp Automation
 
 on:
   schedule:
     - cron: "30 3 * * *"
-
   workflow_dispatch:
 
 permissions:
@@ -16,14 +16,15 @@ concurrency:
 jobs:
   run:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           persist-credentials: true
 
-      - name: Setup Node
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -37,27 +38,56 @@ jobs:
             libatk-bridge2.0-0 \
             libgtk-3-0 \
             libxss1 \
-            libasound2t64
+            libasound2t64 \
+            libx11-xcb1 \
+            libxcomposite1 \
+            libxcursor1 \
+            libxdamage1 \
+            libxrandr2 \
+            libxfixes3 \
+            libcups2 \
+            libxkbcommon0 \
+            libpango-1.0-0 \
+            libcairo2
+
+      - name: Restore session cache
+        uses: actions/cache@v4
+        id: session-cache
+        with:
+          path: session
+          key: whatsapp-session-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: |
+            whatsapp-session-${{ runner.os }}-
 
       - name: Install Node dependencies
         run: npm install
 
-      - name: Remove Chromium lock files
+      - name: Remove stale lock files
         run: |
-          find session -name "SingletonLock" -delete || true
-          find session -name "SingletonCookie" -delete || true
-          find session -name "SingletonSocket" -delete || true
+          find session -name "SingletonLock" -delete 2>/dev/null || true
+          find session -name "SingletonCookie" -delete 2>/dev/null || true
+          find session -name "SingletonSocket" -delete 2>/dev/null || true
+          find session -name "*.lock" -delete 2>/dev/null || true
 
       - name: Run WhatsApp bot
+        env:
+          PUPPETEER_EXECUTABLE_PATH: /usr/bin/google-chrome-stable
         run: npm start
 
-      - name: Commit updated files
+      - name: Save session cache
+        uses: actions/cache@v4
+        if: always()
+        with:
+          path: session
+          key: whatsapp-session-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: |
+            whatsapp-session-${{ runner.os }}-
+
+      - name: Commit updated files (small)
+        if: always()
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-
-          git add --ignore-errors session dashboard aggregate.json logs
-
-          git commit -m "update session, dashboard & logs $(date +'%Y-%m-%d %H:%M')" || echo "No changes"
-
+          git add dashboard/*.json aggregate.json logs/*.log || true
+          git commit -m "Update dashboard, aggregate & logs $(date +'%Y-%m-%d %H:%M')" || echo "No changes"
           git push
