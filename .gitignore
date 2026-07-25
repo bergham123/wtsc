@@ -1,0 +1,13 @@
+# .gitignore
+node_modules/
+session/
+*.log
+*.lock
+.DS_Store
+*.tmp
+*.swp
+.env
+coverage/
+dist/
+.vscode/
+.idea/
