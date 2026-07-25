@@ -7,7 +7,6 @@ export const HTML_EDIT = `<!DOCTYPE html>
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
-  /* الأنماط (نفسها من الصفحة الرئيسية مع إضافات خاصة بالتحرير) */
   :root {
     --bg-main: #111B21;
     --card-bg: #202C33;
@@ -136,7 +135,6 @@ export const HTML_EDIT = `<!DOCTYPE html>
   .content-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
   @media (max-width:768px) { .content-grid { grid-template-columns:1fr; } }
 
-  /* أنماط جهات الاتصال */
   .contact-form { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; background: var(--bg-main); padding: 16px; border-radius: 8px; margin-bottom: 16px; border: 1px solid var(--border-color); }
   .contact-form .field { display: flex; flex-direction: column; gap: 4px; flex: 1 0 120px; }
   .contact-form .field label { font-size: 12px; color: var(--text-muted); }
@@ -174,7 +172,7 @@ export const HTML_EDIT = `<!DOCTYPE html>
 </nav>
 
 <div class="main-content">
-  <!-- قسم الرسائل -->
+  <!-- الرسائل -->
   <div class="card">
     <div class="card-header"><i class="fas fa-comment-dots"></i><h2>الرسائل</h2></div>
     <div class="card-hint">كل رسالة في سطر</div>
@@ -186,12 +184,11 @@ export const HTML_EDIT = `<!DOCTYPE html>
     <div class="status" id="messagesStatus"></div>
   </div>
 
-  <!-- قسم جهات الاتصال المتقدمة -->
+  <!-- جهات الاتصال المتقدمة -->
   <div class="card">
     <div class="card-header"><i class="fas fa-address-book"></i><h2>جهات الاتصال (من contact.json)</h2></div>
     <div class="card-hint">إدارة جهات الاتصال مع فلتر وتصدير الأرقام إلى Contacts Area</div>
 
-    <!-- فلتر -->
     <div class="filter-row">
       <label>الجنس
         <select id="genderFilter">
@@ -210,7 +207,6 @@ export const HTML_EDIT = `<!DOCTYPE html>
       <button class="btn" id="resetFilterBtn" style="width:auto;"><i class="fas fa-undo"></i> إعادة ضبط</button>
     </div>
 
-    <!-- نموذج إضافة/تعديل -->
     <div class="contact-form">
       <div class="field"><label>الاسم</label><input type="text" id="contactName" placeholder="الاسم" /></div>
       <div class="field"><label>الجنس</label>
@@ -225,7 +221,6 @@ export const HTML_EDIT = `<!DOCTYPE html>
       </div>
     </div>
 
-    <!-- جدول جهات الاتصال -->
     <div class="contact-table-wrap">
       <table class="contact-table">
         <thead><tr><th>#</th><th>الاسم</th><th>الجنس</th><th>الرقم</th><th>العمر</th><th>إجراءات</th></tr></thead>
@@ -233,7 +228,6 @@ export const HTML_EDIT = `<!DOCTYPE html>
       </table>
     </div>
 
-    <!-- أزرار حفظ وتصدير -->
     <div class="btn-row">
       <button class="btn btn-primary" id="saveContactsBtn"><i class="fas fa-save"></i> حفظ جهات الاتصال (contact.json)</button>
       <button class="btn btn-warning" id="exportNumbersBtn"><i class="fas fa-arrow-left"></i> تصدير الأرقام (المفلترة) إلى Contacts Area</button>
@@ -241,7 +235,7 @@ export const HTML_EDIT = `<!DOCTYPE html>
     <div class="status" id="contactsStatus"></div>
   </div>
 
-  <!-- Contacts Area (النصية) -->
+  <!-- Contacts Area النصية -->
   <div class="card">
     <div class="card-header"><i class="fas fa-list-ul"></i><h2>Contacts Area (للإرسال)</h2></div>
     <div class="card-hint">هنا يتم وضع الأرقام المستوردة من الجدول (كل رقم في سطر)</div>
@@ -253,7 +247,7 @@ export const HTML_EDIT = `<!DOCTYPE html>
     <div class="status" id="contactsAreaStatus"></div>
   </div>
 
-  <!-- قسم الصور -->
+  <!-- الصور -->
   <div class="card">
     <div class="card-header"><i class="fas fa-images"></i><h2>رفع الصور</h2></div>
     <div class="card-hint">الحد الأقصى 3 صور</div>
@@ -290,7 +284,7 @@ export const HTML_EDIT = `<!DOCTYPE html>
 <script>
 function setStatus(el, msg, type) { el.textContent = msg; el.className = "status" + (type ? " " + type : ""); }
 
-// ===== الرسائل =====
+// === دوال تحميل/حفظ الملفات ===
 async function loadFile(type, areaEl, statusEl) {
   setStatus(statusEl, "جاري التحميل...", "");
   try {
@@ -310,18 +304,17 @@ async function saveFile(type, areaEl, statusEl) {
     setStatus(statusEl, "تم الحفظ ✓", "ok");
   } catch (err) { setStatus(statusEl, "خطأ: " + err.message, "err"); }
 }
+
 document.getElementById("loadMessagesBtn").onclick = () => loadFile("messages", document.getElementById("messagesArea"), document.getElementById("messagesStatus"));
 document.getElementById("saveMessagesBtn").onclick = () => saveFile("messages", document.getElementById("messagesArea"), document.getElementById("messagesStatus"));
 
-// ===== Contacts Area (accounts.json) =====
 document.getElementById("loadContactsAreaBtn").onclick = () => loadFile("contacts", document.getElementById("contactsArea"), document.getElementById("contactsAreaStatus"));
 document.getElementById("saveContactsAreaBtn").onclick = () => saveFile("contacts", document.getElementById("contactsArea"), document.getElementById("contactsAreaStatus"));
 
-// ===== images.json =====
 document.getElementById("loadImagesListBtn").onclick = () => loadFile("images", document.getElementById("imagesListArea"), document.getElementById("imagesListStatus"));
 document.getElementById("saveImagesListBtn").onclick = () => saveFile("images", document.getElementById("imagesListArea"), document.getElementById("imagesListStatus"));
 
-// ===== إدارة الصور =====
+// === إدارة الصور ===
 const imagesInput = document.getElementById("imagesInput");
 const previewArea = document.getElementById("imagePreviewArea");
 let selectedFiles = [];
@@ -365,12 +358,12 @@ async function loadImages() {
       const div = document.createElement('div');
       div.className = 'image-item';
       const img = document.createElement('img');
-      img.src = file.download_url || \`https://raw.githubusercontent.com/bergham123/wtsc/main/images/\${file.name}\`;
+      img.src = file.download_url || 'https://raw.githubusercontent.com/bergham123/wtsc/main/images/' + file.name;
       const deleteBtn = document.createElement('button');
       deleteBtn.className = 'delete-btn';
       deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
       deleteBtn.onclick = async () => {
-        if (!confirm(\`تأكيد حذف الصورة "\${file.name}"؟\`)) return;
+        if (!confirm('تأكيد حذف الصورة "' + file.name + '"؟')) return;
         try {
           const resDel = await fetch('/api/delete-image', {
             method: 'POST',
@@ -412,7 +405,7 @@ document.getElementById('uploadImagesBtn').onclick = async function() {
     }
     const remaining = 3 - currentCount;
     if (selectedFiles.length > remaining) {
-      setStatus(document.getElementById('imagesStatus'), \`يمكنك رفع \${remaining} صورة فقط (الحد الأقصى 3)\`, 'err');
+      setStatus(document.getElementById('imagesStatus'), 'يمكنك رفع ' + remaining + ' صورة فقط (الحد الأقصى 3)', 'err');
       return;
     }
   } catch (err) {
@@ -434,11 +427,10 @@ document.getElementById('uploadImagesBtn').onclick = async function() {
 };
 loadImages();
 
-// ===== إدارة جهات الاتصال المتقدمة =====
+// === إدارة جهات الاتصال المتقدمة ===
 let contacts = [];
 let editingIndex = null;
 
-// تحميل جهات الاتصال من contact.json
 async function loadContacts() {
   try {
     const res = await fetch('/api/structured-contacts');
@@ -454,26 +446,22 @@ async function loadContacts() {
   }
 }
 
-// عرض الجدول مع تطبيق الفلتر
 function renderContactsTable(data) {
   const tbody = document.getElementById('contactsTableBody');
   tbody.innerHTML = '';
   data.forEach((c, idx) => {
     const tr = document.createElement('tr');
-    tr.innerHTML = \`
-      <td>\${idx+1}</td>
-      <td>\${c.name || ''}</td>
-      <td>\${c.gender || ''}</td>
-      <td>\${c.number || ''}</td>
-      <td>\${c.age || ''}</td>
-      <td class="actions">
-        <button class="edit-btn" data-index="\${idx}"><i class="fas fa-edit"></i></button>
-        <button class="del-btn" data-index="\${idx}"><i class="fas fa-trash"></i></button>
-      </td>
-    \`;
+    tr.innerHTML = '<td>' + (idx+1) + '</td>' +
+                   '<td>' + (c.name || '') + '</td>' +
+                   '<td>' + (c.gender || '') + '</td>' +
+                   '<td>' + (c.number || '') + '</td>' +
+                   '<td>' + (c.age || '') + '</td>' +
+                   '<td class="actions">' +
+                   '<button class="edit-btn" data-index="' + idx + '"><i class="fas fa-edit"></i></button>' +
+                   '<button class="del-btn" data-index="' + idx + '"><i class="fas fa-trash"></i></button>' +
+                   '</td>';
     tbody.appendChild(tr);
   });
-  // ربط الأحداث
   tbody.querySelectorAll('.edit-btn').forEach(btn => {
     btn.onclick = function() {
       const idx = parseInt(this.dataset.index);
@@ -492,7 +480,6 @@ function renderContactsTable(data) {
   });
 }
 
-// الحصول على البيانات المفلترة
 function getFilteredData() {
   const gender = document.getElementById('genderFilter').value;
   const ageFrom = parseInt(document.getElementById('ageFrom').value) || 0;
@@ -505,7 +492,6 @@ function getFilteredData() {
   });
 }
 
-// تطبيق الفلتر
 document.getElementById('applyFilterBtn').onclick = function() {
   renderContactsTable(getFilteredData());
 };
@@ -516,7 +502,6 @@ document.getElementById('resetFilterBtn').onclick = function() {
   renderContactsTable(contacts);
 };
 
-// إضافة جهة اتصال
 document.getElementById('addContactBtn').onclick = function() {
   const name = document.getElementById('contactName').value.trim();
   const gender = document.getElementById('contactGender').value;
@@ -527,7 +512,6 @@ document.getElementById('addContactBtn').onclick = function() {
     return;
   }
   contacts.push({ name, gender, number, age });
-  // تنظيف الحقول
   document.getElementById('contactName').value = '';
   document.getElementById('contactNumber').value = '';
   document.getElementById('contactAge').value = '';
@@ -535,7 +519,6 @@ document.getElementById('addContactBtn').onclick = function() {
   setStatus(document.getElementById('contactsStatus'), 'تمت الإضافة، اضغط حفظ لتأكيد التغيير', 'ok');
 };
 
-// تعديل جهة اتصال
 function editContact(index) {
   const c = contacts[index];
   document.getElementById('contactName').value = c.name || '';
@@ -570,11 +553,10 @@ document.getElementById('updateContactBtn').onclick = function() {
   }
   contacts[editingIndex] = { name, gender, number, age };
   renderContactsTable(getFilteredData());
-  document.getElementById('cancelEditBtn').click(); // إلغاء التحرير
+  document.getElementById('cancelEditBtn').click();
   setStatus(document.getElementById('contactsStatus'), 'تم التحديث، اضغط حفظ لتأكيد التغيير', 'ok');
 };
 
-// حفظ جهات الاتصال إلى contact.json
 document.getElementById('saveContactsBtn').onclick = async function() {
   const st = document.getElementById('contactsStatus');
   setStatus(st, 'جاري الحفظ...', '');
@@ -592,7 +574,6 @@ document.getElementById('saveContactsBtn').onclick = async function() {
   }
 };
 
-// تصدير الأرقام المفلترة إلى contactsArea
 document.getElementById('exportNumbersBtn').onclick = function() {
   const filtered = getFilteredData();
   const numbers = filtered.map(c => c.number).filter(n => n.trim() !== '');
@@ -601,7 +582,6 @@ document.getElementById('exportNumbersBtn').onclick = function() {
   setStatus(document.getElementById('contactsStatus'), 'تم تصدير ' + numbers.length + ' رقم إلى Contacts Area', 'ok');
 };
 
-// تحميل جهات الاتصال عند بدء الصفحة
 loadContacts();
 </script>
 </body>
