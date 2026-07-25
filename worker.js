@@ -1,8 +1,8 @@
-// worker.js - المدخل الرئيسي
+// worker.js
 import { HTML_PAGE } from './src/html.js';
-
-
-import { 
+import { HTML_EDIT } from './src/edit.js';
+import { HTML_STATS } from './src/stats.js';
+import {
   handleLoad,
   handleSave,
   handleRunWorkflow,
@@ -13,17 +13,27 @@ import {
   handleLoadSchedule,
   handleSaveSchedule,
   handleListImages,
-  handleDeleteImage   // استيراد الجديد
+  handleDeleteImage,
+  handleLoadStructuredContacts,
+  handleSaveStructuredContacts
 } from './src/handlers.js';
-
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
+    // الصفحات
     if (url.pathname === "/" && request.method === "GET") {
       return new Response(HTML_PAGE, { headers: { "Content-Type": "text/html; charset=utf-8" } });
     }
+    if (url.pathname === "/edit" && request.method === "GET") {
+      return new Response(HTML_EDIT, { headers: { "Content-Type": "text/html; charset=utf-8" } });
+    }
+    if (url.pathname === "/stats" && request.method === "GET") {
+      return new Response(HTML_STATS, { headers: { "Content-Type": "text/html; charset=utf-8" } });
+    }
+
+    // API
     if (url.pathname === "/api/load" && request.method === "GET") return handleLoad(request, env);
     if (url.pathname === "/api/save" && request.method === "POST") return handleSave(request, env);
     if (url.pathname === "/api/run-workflow" && request.method === "POST") return handleRunWorkflow(request, env);
@@ -33,10 +43,10 @@ export default {
     if (url.pathname === "/api/schedule" && request.method === "GET") return handleLoadSchedule(request, env);
     if (url.pathname === "/api/schedule" && request.method === "POST") return handleSaveSchedule(request, env);
     if (url.pathname === "/api/stats" && request.method === "GET") return handleGetStats(request, env);
-    // داخل fetch
     if (url.pathname === "/api/images" && request.method === "GET") return handleListImages(request, env);
     if (url.pathname === "/api/delete-image" && request.method === "POST") return handleDeleteImage(request, env);
-
+    if (url.pathname === "/api/structured-contacts" && request.method === "GET") return handleLoadStructuredContacts(request, env);
+    if (url.pathname === "/api/structured-contacts" && request.method === "POST") return handleSaveStructuredContacts(request, env);
 
     return new Response("Not found", { status: 404 });
   }
