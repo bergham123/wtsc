@@ -87,13 +87,18 @@ if (await fs.pathExists(CHECKPOINT_FILE)) {
 logMessage(`📌 نقطة التوقف الحالية: الفهرس ${checkpoint.lastIndex}`);
 
 // =================== إنشاء عميل واتساب ===================
+// =================== إنشاء عميل واتساب ===================
 const client = new Client({
   authStrategy: new LocalAuth({
     clientId: "main",
     dataPath: SESSION_DIR,
   }),
   puppeteer: {
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage"
+    ],
     headless: true,
   },
 });
