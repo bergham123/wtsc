@@ -190,5 +190,35 @@ export async function handleGetStats(request, env) {
   } catch (err) { return jsonResponse({ ok: false, error: String(err.message || err) }, 500); }
 }
 
+// ===== معالجات contact.json =====
+export async function handleLoadStructuredContacts(request, env) {
+  try {
+    const path = "contact.json";
+    const { content, exists } = await githubGetFile(env, path);
+    let data = [];
+    if (exists && content) {
+      try { data = JSON.parse(content); if (!Array.isArray(data)) data = []; } catch (e) { data = []; }
+    }
+    return jsonResponse({ ok: true, data });
+  } catch (err) {
+    return jsonResponse({ ok: false, error: String(err.message || err) }, 500);
+  }
+}
+
+export async function handleSaveStructuredContacts(request, env) {
+  try {
+    const { data } = await request.json();
+    if (!Array.isArray(data)) {
+      return jsonResponse({ ok: false, error: "data must be an array" }, 400);
+    }
+    const path = "contact.json";
+    const current = await githubGetFile(env, path);
+    const contentStr = JSON.stringify(data, null, 2);
+    const result = await githubPutFile(env, path, contentStr, current.sha, "Update contacts");
+    return jsonResponse({ ok: true, commit: result.commit && result.commit.sha });
+  } catch (err) {
+    return jsonResponse({ ok: false, error: String(err.message || err) }, 500);
+  }
+}
 // إعادة تصدير معالجات الجدولة
 export { handleLoadSchedule, handleSaveSchedule };
