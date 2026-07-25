@@ -87,20 +87,34 @@ if (await fs.pathExists(CHECKPOINT_FILE)) {
 logMessage(`📌 نقطة التوقف الحالية: الفهرس ${checkpoint.lastIndex}`);
 
 // =================== إنشاء عميل واتساب ===================
-// =================== إنشاء عميل واتساب ===================
+
 const client = new Client({
   authStrategy: new LocalAuth({
     clientId: "main",
     dataPath: SESSION_DIR,
   }),
+
   puppeteer: {
+    headless: true,
+
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH,
+
     args: [
       "--no-sandbox",
       "--disable-setuid-sandbox",
-      "--disable-dev-shm-usage"
+      "--disable-dev-shm-usage",
+      "--disable-gpu",
+      "--disable-extensions",
+      "--disable-background-networking",
+      "--disable-sync",
+      "--no-first-run",
+      "--no-default-browser-check",
+      "--disable-features=site-per-process",
+      "--disable-features=Translate",
     ],
-    headless: true,
   },
+
+  restartOnAuthFail: true,
 });
 
 client.on("qr", (qr) => {
