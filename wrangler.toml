@@ -2,14 +2,22 @@ name = "managedash"
 main = "worker.js"
 compatibility_date = "2024-11-01"
 
-# ملاحظة: الـ secrets (GITHUB_TOKEN) ما تحطهاش هنا فهاد الملف
-# دخلها من Cloudflare Dashboard > Workers > Settings > Variables and Secrets
-# أو عبر الأمر: wrangler secret put GITHUB_TOKEN
+# ============================================
+# ربط قاعدة بيانات KV (الجلسة الحية)
+# ============================================
+[[kv_namespaces]]
+binding = "SESSION_KV"   # الاسم اللي تستعمله في الكود (مثلاً env.SESSION_KV)
+id = "76ead9dff9344f20a6c49f682f11d0b5"
 
+# ============================================
+# المتغيرات العادية (غير سرية)
+# ============================================
 [vars]
 GITHUB_OWNER = "bergham123"
 GITHUB_REPO = "wtsc"
 GITHUB_BRANCH = "main"
 WORKFLOW_FILE = "send.yaml"
 MESSAGES_PATH = "message.json"
-CONTACTS_PATH  = "accounts.json"
+CONTACTS_PATH = "accounts.json"
+IMAGES_LIST_PATH = "images.json"          # 👈 هاد الصف جديد (كان ناقص)
+IMAGES_DIR = "images"                      # 👈 هاد الصف جديد (مجلد الصور)
