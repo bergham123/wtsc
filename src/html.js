@@ -208,6 +208,22 @@ export const HTML_PAGE = `<!DOCTYPE html>
   }
   #imageGallery { margin-top: 16px; }
   #imageList { display: flex; flex-wrap: wrap; gap: 12px; }
+
+  /* Live Session styles */
+  #liveLogs, #liveMessages {
+    background: var(--bg-main);
+    border-radius: 8px;
+    padding: 8px;
+    height: 120px;
+    overflow-y: auto;
+    font-size: 12px;
+    border: 1px solid var(--border-color);
+  }
+  #liveLogs div, #liveMessages div {
+    border-bottom: 1px solid var(--border-color);
+    padding: 2px 0;
+  }
+  #liveLogs div:last-child, #liveMessages div:last-child { border-bottom: none; }
 </style>
 </head>
 <body>
@@ -281,6 +297,31 @@ export const HTML_PAGE = `<!DOCTYPE html>
       </div>
       <div class="status" id="statsStatus"></div>
     </div>
+
+    <!-- ========== NEW: Live Session Card ========== -->
+    <div class="card" id="liveSessionCard">
+      <div class="card-header"><i class="fas fa-broadcast"></i><h2>الجلسة الحية</h2></div>
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+        <span id="liveStatusIndicator" style="display:inline-block; width:14px; height:14px; border-radius:50%; background:gray;"></span>
+        <span id="liveStatusText" style="font-weight:bold;">غير معروف</span>
+        <span style="font-size:12px; color:var(--text-muted); margin-right:auto;">آخر تحديث: <span id="liveLastUpdate">-</span></span>
+      </div>
+      <div id="liveQRContainer" style="display:none; text-align:center; margin-bottom:16px;">
+        <img id="liveQRImage" src="" alt="QR Code" style="max-width:200px; border-radius:8px; border:1px solid var(--border-color);" />
+        <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">امسح الرمز لتسجيل الدخول</div>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:8px;">
+        <div>
+          <div style="font-size:14px; font-weight:700; color:var(--text-muted); margin-bottom:6px;">السجلات</div>
+          <div id="liveLogs"></div>
+        </div>
+        <div>
+          <div style="font-size:14px; font-weight:700; color:var(--text-muted); margin-bottom:6px;">الرسائل الواردة</div>
+          <div id="liveMessages"></div>
+        </div>
+      </div>
+    </div>
+    <!-- ========== END Live Session ========== -->
 
     <div class="content-grid">
       <!-- Messages Card -->
@@ -436,7 +477,6 @@ async function loadImages() {
       const deleteBtn = document.createElement('button');
       deleteBtn.className = 'delete-btn';
       deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
-      // ===== زر الحذف المعدل =====
       deleteBtn.onclick = async () => {
         if (!confirm(\`تأكيد حذف الصورة "\${file.name}"؟\`)) return;
         try {
@@ -647,6 +687,96 @@ document.getElementById("loadStatsBtn").onclick = async function() {
     });
   } catch (err) { setStatus(st, "خطأ: " + err.message, "err"); }
 };
+
+// ===== NEW: Live Session Polling =====
+let livePollInterval = null;
+
+function updateLiveStatus(status) {
+    const indicator = document.getElementById('liveStatusIndicator');
+    const text = document.getElementById('liveStatusText');
+    const qrContainer = document.getElementById('liveQRContainer');
+    const statusMap = {
+        'starting': { color: '#FFB100', label: '🟡 جاري التشغيل...' },
+        'waiting_scan': { color: '#FFB100', label: '📷 في انتظار المسح' },
+        'connected': { color: '#25D366', label: '🟢 متصل' },
+        'disconnected': { color: '#F15C6D', label: '🔴 غير متصل' }
+    };
+    const info = statusMap[status] || { color: 'gray', label: 'غير معروف' };
+    indicator.style.background = info.color;
+    text.textContent = info.label;
+    // Hide QR if connected or no status
+    if (status === 'connected' || !status) {
+        qrContainer.style.display = 'none';
+    } else {
+        qrContainer.style.display = 'block';
+    }
+}
+
+function updateLiveQR(qrData) {
+    const img = document.getElementById('liveQRImage');
+    const container = document.getElementById('liveQRContainer');
+    if (qrData) {
+        img.src = qrData;
+        container.style.display = 'block';
+    } else {
+        container.style.display = 'none';
+    }
+}
+
+function updateLiveLogs(logs) {
+    const container = document.getElementById('liveLogs');
+    if (!Array.isArray(logs)) logs = [];
+    container.innerHTML = logs.map(entry =>
+        `<div style="color:var(--text-muted);">${entry.timestamp ? entry.timestamp.slice(11,19) : ''} - ${entry.text}</div>`
+    ).join('');
+    // scroll to bottom
+    container.scrollTop = container.scrollHeight;
+}
+
+function updateLiveMessages(messages) {
+    const container = document.getElementById('liveMessages');
+    if (!Array.isArray(messages)) messages = [];
+    container.innerHTML = messages.map(entry =>
+        `<div>
+            <span style="color:var(--text-muted); font-size:10px;">${entry.timestamp ? entry.timestamp.slice(11,19) : ''}</span>
+            <span style="color:var(--text-main);">${entry.from || '?'}: ${entry.body || ''}</span>
+        </div>`
+    ).join('');
+    container.scrollTop = container.scrollHeight;
+}
+
+async function pollLive() {
+    try {
+        const [statusRes, qrRes, logsRes, msgsRes] = await Promise.all([
+            fetch('/api/live/status'),
+            fetch('/api/live/qr'),
+            fetch('/api/live/log'),
+            fetch('/api/live/messages')
+        ]);
+        const statusData = await statusRes.json();
+        const qrData = await qrRes.json();
+        const logsData = await logsRes.json();
+        const msgsData = await msgsRes.json();
+
+        if (statusData.ok) updateLiveStatus(statusData.status);
+        if (qrData.ok) updateLiveQR(qrData.qr);
+        if (logsData.ok) updateLiveLogs(logsData.logs);
+        if (msgsData.ok) updateLiveMessages(msgsData.messages);
+
+        document.getElementById('liveLastUpdate').textContent = new Date().toLocaleTimeString();
+    } catch (e) {
+        console.error('Live poll error:', e);
+    }
+}
+
+// Start polling
+pollLive();
+livePollInterval = setInterval(pollLive, 2000);
+
+// Cleanup interval on page unload (optional)
+window.addEventListener('beforeunload', () => {
+    if (livePollInterval) clearInterval(livePollInterval);
+});
 </script>
 </body>
 </html>
