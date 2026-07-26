@@ -1,4 +1,3 @@
-# .github/workflows/send.yaml
 name: WhatsApp Automation
 
 on:
@@ -85,7 +84,7 @@ jobs:
           restore-keys: |
             whatsapp-session-${{ runner.os }}-
 
-      - name: Commit updated files (small)
+      - name: Commit updated files
         if: always()
         run: |
           git config user.name "github-actions"
