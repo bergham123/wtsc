@@ -21,3 +21,4 @@ MESSAGES_PATH = "message.json"
 CONTACTS_PATH = "accounts.json"
 IMAGES_LIST_PATH = "images.json"          # 👈 هاد الصف جديد (كان ناقص)
 IMAGES_DIR = "images"                      # 👈 هاد الصف جديد (مجلد الصور)
+WORKER_URL = "https://managedash.velora.workers.dev"
