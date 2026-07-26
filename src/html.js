@@ -396,6 +396,14 @@ export const HTML_PAGE = `<!DOCTYPE html>
   </div>
 
 <script>
+// Helper function to add API key header
+function getHeaders() {
+  return {
+    'Content-Type': 'application/json',
+    'X-API-Key': window.API_SECRET || ''
+  };
+}
+
 function setStatus(el, msg, type) { el.textContent = msg; el.className = "status" + (type ? " " + type : ""); }
 
 async function loadFile(type, areaEl, statusEl) {
@@ -408,10 +416,15 @@ async function loadFile(type, areaEl, statusEl) {
     setStatus(statusEl, "تم التحميل ✓", "ok");
   } catch (err) { setStatus(statusEl, "خطأ: " + err.message, "err"); }
 }
+
 async function saveFile(type, areaEl, statusEl) {
   setStatus(statusEl, "جاري الحفظ...", "");
   try {
-    const res = await fetch("/api/save", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type, text: areaEl.value }) });
+    const res = await fetch("/api/save", {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify({ type, text: areaEl.value })
+    });
     const data = await res.json();
     if (!data.ok) throw new Error(data.error);
     setStatus(statusEl, "تم الحفظ ✓", "ok");
@@ -481,7 +494,7 @@ async function loadImages() {
         try {
           const resDel = await fetch('/api/delete-image', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getHeaders(),
             body: JSON.stringify({ filename: file.name })
           });
           const dataDel = await resDel.json();
@@ -530,7 +543,11 @@ document.getElementById('uploadImagesBtn').onclick = async function() {
   for (const file of selectedFiles) {
     try {
       const base64 = await new Promise((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(r.result.split(",")[1]); r.onerror = reject; r.readAsDataURL(file); });
-      const res = await fetch("/api/upload-image", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ filename: file.name, dataBase64: base64 }) });
+      const res = await fetch("/api/upload-image", {
+        method: "POST",
+        headers: getHeaders(),
+        body: JSON.stringify({ filename: file.name, dataBase64: base64 })
+      });
       const data = await res.json();
       if (data.ok) success++;
     } catch (err) {}
@@ -547,7 +564,10 @@ document.getElementById("runWorkflowBtn").onclick = async function() {
   const st = document.getElementById("workflowStatus");
   setStatus(st, "جاري التشغيل...", "");
   try {
-    const res = await fetch("/api/run-workflow", { method: "POST" });
+    const res = await fetch("/api/run-workflow", {
+      method: "POST",
+      headers: getHeaders()
+    });
     const data = await res.json();
     if (!data.ok) throw new Error(data.error);
     setStatus(st, "تم التشغيل ✓", "ok");
@@ -613,16 +633,22 @@ async function loadSchedule() {
     }
   } catch (err) { setStatus(scheduleStatus, "خطأ: " + err.message, "err"); }
 }
+
 async function saveSchedule(cron) {
   setStatus(scheduleStatus, "جاري الحفظ...", "");
   try {
-    const res = await fetch("/api/schedule", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "add", cron: cron }) });
+    const res = await fetch("/api/schedule", {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify({ action: "add", cron: cron })
+    });
     const data = await res.json();
     if (!data.ok) throw new Error(data.error);
     setStatus(scheduleStatus, "تم التحديث ✓", "ok");
     loadSchedule();
   } catch (err) { setStatus(scheduleStatus, "خطأ: " + err.message, "err"); }
 }
+
 document.getElementById("loadScheduleBtn").onclick = loadSchedule;
 document.getElementById("updateScheduleBtn").onclick = function() {
   const h = parseInt(hourInput.value, 10);
@@ -772,7 +798,7 @@ async function pollLive() {
 pollLive();
 livePollInterval = setInterval(pollLive, 2000);
 
-// Cleanup interval on page unload (optional)
+// Cleanup interval on page unload
 window.addEventListener('beforeunload', () => {
     if (livePollInterval) clearInterval(livePollInterval);
 });
