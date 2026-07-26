@@ -298,7 +298,7 @@ export const HTML_PAGE = `<!DOCTYPE html>
       <div class="status" id="statsStatus"></div>
     </div>
 
-    <!-- ========== NEW: Live Session Card ========== -->
+    <!-- Live Session Card -->
     <div class="card" id="liveSessionCard">
       <div class="card-header"><i class="fas fa-broadcast"></i><h2>الجلسة الحية</h2></div>
       <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
@@ -321,7 +321,6 @@ export const HTML_PAGE = `<!DOCTYPE html>
         </div>
       </div>
     </div>
-    <!-- ========== END Live Session ========== -->
 
     <div class="content-grid">
       <!-- Messages Card -->
@@ -727,7 +726,7 @@ function updateLiveLogs(logs) {
     const container = document.getElementById('liveLogs');
     if (!Array.isArray(logs)) logs = [];
     container.innerHTML = logs.map(entry =>
-        `<div style="color:var(--text-muted);">${entry.timestamp ? entry.timestamp.slice(11,19) : ''} - ${entry.text}</div>`
+        \`<div style="color:var(--text-muted);">\${entry.timestamp ? entry.timestamp.slice(11,19) : ''} - \${entry.text}</div>\`
     ).join('');
     // scroll to bottom
     container.scrollTop = container.scrollHeight;
@@ -737,10 +736,10 @@ function updateLiveMessages(messages) {
     const container = document.getElementById('liveMessages');
     if (!Array.isArray(messages)) messages = [];
     container.innerHTML = messages.map(entry =>
-        `<div>
-            <span style="color:var(--text-muted); font-size:10px;">${entry.timestamp ? entry.timestamp.slice(11,19) : ''}</span>
-            <span style="color:var(--text-main);">${entry.from || '?'}: ${entry.body || ''}</span>
-        </div>`
+        \`<div>
+            <span style="color:var(--text-muted); font-size:10px;">\${entry.timestamp ? entry.timestamp.slice(11,19) : ''}</span>
+            <span style="color:var(--text-main);">\${entry.from || '?'}: \${entry.body || ''}</span>
+        </div>\`
     ).join('');
     container.scrollTop = container.scrollHeight;
 }
