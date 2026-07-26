@@ -1,7 +1,6 @@
 // src/live.js
 import { jsonResponse } from './helpers.js';
 
-// KV key helpers
 const STATUS_KEY = (s) => `session_${s}_status`;
 const QR_KEY = (s) => `session_${s}_qr`;
 const LOGS_KEY = (s) => `session_${s}_logs`;
@@ -10,7 +9,6 @@ const MESSAGES_KEY = (s) => `session_${s}_messages`;
 const MAX_LOGS = 50;
 const MAX_MESSAGES = 20;
 
-// Append to a KV array, keep only last N
 async function appendToKVList(env, key, entry, maxLen) {
     let list = [];
     try {
@@ -22,13 +20,11 @@ async function appendToKVList(env, key, entry, maxLen) {
     await env.SESSION_KV.put(key, JSON.stringify(list));
 }
 
-// ----- Status -----
 export async function handleSetStatus(req, env) {
     try {
         const { session, status } = await req.json();
         if (!session || !status) return jsonResponse({ ok: false, error: 'session and status required' }, 400);
         await env.SESSION_KV.put(STATUS_KEY(session), status);
-        // If connected, clear QR
         if (status === 'connected') {
             await env.SESSION_KV.delete(QR_KEY(session));
         }
@@ -44,13 +40,11 @@ export async function handleGetStatus(req, env) {
     } catch (e) { return jsonResponse({ ok: false, error: String(e) }, 500); }
 }
 
-// ----- QR -----
 export async function handleSetQR(req, env) {
     try {
         const { session, qr } = await req.json();
         if (!session || !qr) return jsonResponse({ ok: false, error: 'session and qr required' }, 400);
         await env.SESSION_KV.put(QR_KEY(session), qr);
-        // Set status to waiting_scan unless already connected
         const current = await env.SESSION_KV.get(STATUS_KEY(session));
         if (current !== 'connected') {
             await env.SESSION_KV.put(STATUS_KEY(session), 'waiting_scan');
@@ -67,7 +61,6 @@ export async function handleGetQR(req, env) {
     } catch (e) { return jsonResponse({ ok: false, error: String(e) }, 500); }
 }
 
-// ----- Logs -----
 export async function handleAddLog(req, env) {
     try {
         const { session, text } = await req.json();
@@ -85,7 +78,6 @@ export async function handleGetLogs(req, env) {
     } catch (e) { return jsonResponse({ ok: false, error: String(e) }, 500); }
 }
 
-// ----- Messages -----
 export async function handleAddMessage(req, env) {
     try {
         const { session, message } = await req.json();
