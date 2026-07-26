@@ -1,26 +1,30 @@
-// worker.js (extend)
+// worker.js - المدخل الرئيسي
 import { HTML_PAGE } from './src/html.js';
-import {
-    handleLoad, handleSave, handleRunWorkflow,
-    handleUploadImage, handleGetLogs, handleGetLogContent,
-    handleGetStats, handleLoadSchedule, handleSaveSchedule,
-    handleListImages, handleDeleteImage
-} from './src/handlers.js';
-import {
-    handleSetStatus, handleGetStatus,
-    handleSetQR, handleGetQR,
-    handleAddLog, handleGetLogs as handleGetLiveLogs,
-    handleAddMessage, handleGetMessages
-} from './src/live.js';
 
-// Auth middleware for POST endpoints
-async function withAuth(req, env, handler) {
-    const apiKey = req.headers.get('X-API-Key');
-    if (apiKey !== env.API_SECRET) {
-        return new Response('Unauthorized', { status: 401 });
-    }
-    return handler(req, env);
-}
+import {
+    handleLoad,
+    handleSave,
+    handleRunWorkflow,
+    handleUploadImage,
+    handleGetLogs,
+    handleGetLogContent,
+    handleGetStats,
+    handleLoadSchedule,
+    handleSaveSchedule,
+    handleListImages,
+    handleDeleteImage
+} from './src/handlers.js';
+
+import {
+    handleSetStatus,
+    handleGetStatus,
+    handleSetQR,
+    handleGetQR,
+    handleAddLog,
+    handleGetLogs as handleGetLiveLogs,
+    handleAddMessage,
+    handleGetMessages
+} from './src/live.js';
 
 export default {
     async fetch(request, env) {
