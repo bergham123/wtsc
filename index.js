@@ -3,7 +3,7 @@ import pkg from "whatsapp-web.js";
 const { Client, LocalAuth, MessageMedia } = pkg;
 
 import qrcode from "qrcode-terminal";
-import QRCode from "qrcode";                // NEW
+import QRCode from "qrcode";
 import fs from "fs-extra";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -39,11 +39,16 @@ const cleanNumber = (raw) => raw.replace(/\D/g, "");
 const isUrl = (str) => /^https?:\/\/\S+\.\S+/.test(str);
 const getToday = () => new Date().toISOString().split("T")[0];
 
-// ---------- NEW: Worker communication ----------
+// ---------- Worker communication with detailed logging ----------
 async function sendToWorker(endpoint, data) {
-    if (!WORKER_URL || !API_SECRET) return;
+    if (!WORKER_URL || !API_SECRET) {
+        console.warn("⚠️ WORKER_URL or API_SECRET not set, cannot send to worker");
+        return;
+    }
+    const url = WORKER_URL + endpoint;
+    console.log(`📤 Sending to ${url}`);
     try {
-        await fetch(WORKER_URL + endpoint, {
+        const response = await fetch(url, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -51,21 +56,31 @@ async function sendToWorker(endpoint, data) {
             },
             body: JSON.stringify({ session: SESSION_NAME, ...data }),
         });
+        const responseText = await response.text();
+        console.log(`📥 Response status: ${response.status}, body: ${responseText}`);
+        if (!response.ok) {
+            console.warn(`❌ Failed to send to worker: ${response.status} - ${responseText}`);
+        } else {
+            console.log(`✅ Successfully sent to worker: ${endpoint}`);
+        }
     } catch (e) {
-        // silently ignore network errors
+        console.error(`💥 Error sending to worker (${endpoint}):`, e.message);
     }
 }
 
 function sendLogToWorker(text) {
-    if (!WORKER_URL || !API_SECRET) return;
-    fetch(WORKER_URL + "/api/live/log", {
+    if (!WORKER_URL || !API_SECRET) {
+        return;
+    }
+    const url = WORKER_URL + "/api/live/log";
+    fetch(url, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
             "X-API-Key": API_SECRET,
         },
         body: JSON.stringify({ session: SESSION_NAME, text }),
-    }).catch(() => {});
+    }).catch((e) => console.error("💥 Log send error:", e.message));
 }
 // ---------- END NEW ----------
 
@@ -101,7 +116,6 @@ function logMessage(msg) {
     const line = `[${timestamp}] ${msg}`;
     console.log(msg);
     if (logStream) logStream.write(line + "\n");
-    // Send to worker
     sendLogToWorker(msg);
 }
 
@@ -284,7 +298,6 @@ async function runBot(client) {
                 dashboard.sent.push(rawNumber);
                 logMessage(`✔ Successfully sent to ${rawNumber}`);
 
-                // Update checkpoint and dashboard
                 checkpoint.lastIndex = index + 1;
                 await saveCheckpoint(checkpoint);
                 await saveJSON(dashboardPath, dashboard);
@@ -304,23 +317,15 @@ async function runBot(client) {
             }
         }
 
-        // Delay between numbers
         const delay = randomDelay();
         logMessage(`⏳ Waiting ${(delay / 1000).toFixed(1)}s`);
         await wait(delay);
         index++;
     }
 
-    // ========== Finish ==========
     logMessage("🏁 Main loop finished");
-
-    // Remove checkpoint
     await fs.remove(CHECKPOINT_FILE).catch(() => {});
-
-    // Update aggregate
     await updateAggregate();
-
-    // Send admin report
     await sendAdminReport(client, dashboard, messages.length, imageItems.length, messageMode);
 
     logMessage("✅ Script completed successfully");
@@ -377,7 +382,6 @@ async function sendAdminReport(client, dashboard, msgCount, imgCount, mode) {
         logMessage("📨 Admin report sent");
     } catch (err) {
         logMessage(`⚠️ Failed to send admin report: ${err.message}`);
-        // Retry once
         try {
             await wait(5000);
             await client.sendMessage(adminChatId, report);
@@ -415,11 +419,10 @@ async function createClient() {
         restartOnAuthFail: true,
     });
 
-    // ========== NEW EVENT HANDLERS ==========
+    // Event handlers with worker communication
     client.on("qr", async (qr) => {
         console.log("🔐 Scan the QR code below:");
         qrcode.generate(qr, { small: true });
-        // Generate data URL and send to Worker
         try {
             const qrDataUrl = await QRCode.toDataURL(qr);
             await sendToWorker("/api/live/qr", { qr: qrDataUrl });
@@ -430,7 +433,6 @@ async function createClient() {
 
     client.on("ready", async () => {
         await sendToWorker("/api/live/status", { status: "connected" });
-        // The rest of the ready logic will run in the 'ready' listener below
     });
 
     client.on("disconnected", async (reason) => {
@@ -440,7 +442,6 @@ async function createClient() {
     });
 
     client.on("message", async (message) => {
-        // Only send if it's a regular text message and not from self
         if (message.type === 'chat' && !message.fromMe) {
             const msgData = {
                 from: message.from,
@@ -450,9 +451,7 @@ async function createClient() {
             await sendToWorker("/api/live/message", { message: msgData });
         }
     });
-    // =========================================
 
-    // Handle graceful shutdown
     const shutdown = async () => {
         logMessage("🛑 Shutting down...");
         await client.destroy();
@@ -468,21 +467,17 @@ async function createClient() {
 // =================== Main Entry ===================
 async function main() {
     try {
-        // Ensure directories
         await fs.ensureDir(SESSION_DIR);
         await fs.ensureDir(LOGS_DIR);
         await fs.ensureDir(DASHBOARD_DIR);
         initLogger();
 
         logMessage("🚀 Starting WhatsApp bot");
-
-        // Inform Worker that we're starting
         await sendToWorker("/api/live/status", { status: "starting" });
 
         const client = await createClient();
         await client.initialize();
 
-        // When ready, run the bot logic
         client.on("ready", async () => {
             await runBot(client);
         });
