@@ -72,6 +72,8 @@ jobs:
       - name: Run WhatsApp bot
         env:
           PUPPETEER_EXECUTABLE_PATH: /usr/bin/google-chrome-stable
+          WORKER_URL: ${{ secrets.WORKER_URL }}
+          API_SECRET: ${{ secrets.API_SECRET }}
         run: npm start
 
       - name: Save session cache
