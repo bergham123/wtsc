@@ -57,6 +57,7 @@ async function loadStats() {
     statusEl.textContent = '✓ تم التحميل';
     statusEl.className = 'status ok';
 
+    // تعبئة الجدول
     const tbody = document.getElementById('statsTableBody');
     tbody.innerHTML = '';
     let totalAtt = 0, totalSuc = 0, totalFail = 0;
@@ -73,6 +74,7 @@ async function loadStats() {
         </tr>
       `;
     });
+    // إضافة صف المجموع
     tbody.innerHTML += `
       <tr style="font-weight:bold; border-top:2px solid var(--accent);">
         <td style="padding:6px 4px;">المجموع</td>
@@ -82,9 +84,11 @@ async function loadStats() {
       </tr>
     `;
 
-    // رسم البيان باستخدام Chart.js من window (CDN)
+    // رسم البيان باستخدام Chart من النطاق العام (window)
     const ctx = document.getElementById('statsChart').getContext('2d');
     if (chartInstance) chartInstance.destroy();
+    
+    // التحقق من وجود Chart في النطاق العام
     if (typeof Chart !== 'undefined') {
       chartInstance = new Chart(ctx, {
         type: 'bar',
