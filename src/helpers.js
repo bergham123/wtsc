@@ -9,9 +9,10 @@ export function ghHeaders(env) {
 
 export function getPath(env, type) {
   if (type === "messages") return env.MESSAGES_PATH || "message.json";
-  if (type === "contacts") return env.CONTACTS_PATH || "accounts.json";
+  // if (type === "contacts") return env.CONTACTS_PATH || "accounts.json";
+  if (type === "contacts") return "mylist.json";
   if (type === "images") return env.IMAGES_LIST_PATH || "images.json";
-    if (type === "accounts") return "mylist.json";
+    // if (type === "accounts") return "mylist.json";
   throw new Error("Unknown type: " + type);
 }
 
