@@ -394,10 +394,12 @@ async function sendAdminReport(client, dashboard, msgCount, imgCount, mode) {
 // =================== Client Setup ===================
 async function createClient() {
     const client = new Client({
-        authStrategy: new LocalAuth({
-            clientId: "main",
-            dataPath: SESSION_DIR,
-        }),
+
+         authStrategy: new LocalAuth({
+              clientId: "main",
+              dataPath: "./session", // مسار ثابت
+              restartOnAuthFail: true
+       }),
         puppeteer: {
             headless: 'new',          // Use new headless mode (works in Puppeteer v22+)
             executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
