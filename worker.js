@@ -12,7 +12,8 @@ import {
     handleLoadSchedule,
     handleSaveSchedule,
     handleListImages,
-    handleDeleteImage
+    handleDeleteImage,
+    handleStopWorkflow   // جديد
 } from './src/handlers.js';
 
 import {
@@ -68,6 +69,7 @@ export default {
             switch (path) {
                 case '/api/save': return handleSave(request, env);
                 case '/api/run-workflow': return handleRunWorkflow(request, env);
+                case '/api/stop-workflow': return handleStopWorkflow(request, env); // جديد
                 case '/api/upload-image': return handleUploadImage(request, env);
                 case '/api/delete-image': return handleDeleteImage(request, env);
                 case '/api/schedule': return handleSaveSchedule(request, env);
