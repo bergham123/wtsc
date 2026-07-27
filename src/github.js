@@ -69,3 +69,24 @@ export async function githubDeleteFile(env, path, sha, message) {
   if (!res.ok) throw new Error("GitHub DELETE error " + res.status + ": " + await res.text());
   return await res.json();
 }
+
+// ===== دوال جديدة لإدارة الـ Workflow =====
+export async function githubListWorkflowRuns(env, statusFilter = null) {
+  const workflowFile = env.WORKFLOW_FILE;
+  if (!workflowFile) throw new Error("WORKFLOW_FILE env var is not set");
+  const url = "https://api.github.com/repos/" + env.GITHUB_OWNER + "/" + env.GITHUB_REPO + "/actions/workflows/" + encodeURIComponent(workflowFile) + "/runs";
+  const params = new URLSearchParams();
+  if (statusFilter) params.append('status', statusFilter);
+  const fullUrl = params.toString() ? url + "?" + params : url;
+  const res = await fetch(fullUrl, { headers: ghHeaders(env) });
+  if (!res.ok) throw new Error("GitHub list runs error " + res.status + ": " + await res.text());
+  const data = await res.json();
+  return data.workflow_runs || [];
+}
+
+export async function githubCancelWorkflowRun(env, runId) {
+  const url = "https://api.github.com/repos/" + env.GITHUB_OWNER + "/" + env.GITHUB_REPO + "/actions/runs/" + runId + "/cancel";
+  const res = await fetch(url, { method: "POST", headers: ghHeaders(env) });
+  if (res.status !== 202) throw new Error("GitHub cancel error " + res.status + ": " + await res.text());
+  return true;
+}
