@@ -1,6 +1,13 @@
 // worker.js
 import { HTML_PAGE } from './src/app.js';
 import {
+    handleGetAccounts,
+    handleUpdateAccounts,
+    handleGetMessagesFile,
+    handleUpdateMessagesFile,
+    handleGetMyList,
+    handleUpdateMyList,
+    // ---------
     handleLoad,
     handleSave,
     handleRunWorkflow,
@@ -44,6 +51,12 @@ export default {
         }
 
         // ---- Public GET endpoints ----
+
+         // إضافة نقاط GET
+        if (path === '/api/accounts' && request.method === 'GET') return handleGetAccounts(request, env);
+        if (path === '/api/messages' && request.method === 'GET') return handleGetMessagesFile(request, env);
+        if (path === '/api/mylist' && request.method === 'GET') return handleGetMyList(request, env);
+//  ------------------------------
         if (path === '/api/live/status' && request.method === 'GET') return handleGetStatus(request, env);
         if (path === '/api/live/qr' && request.method === 'GET') return handleGetQR(request, env);
         if (path === '/api/live/log' && request.method === 'GET') return handleGetLiveLogs(request, env);
@@ -74,7 +87,12 @@ export default {
                 case '/api/live/log': return handleAddLog(request, env);
                 case '/api/live/message': return handleAddMessage(request, env);
                 case '/api/contacts': return handleUpdateContacts(request, env);
+                case '/api/accounts': return handleUpdateAccounts(request, env);
+                case '/api/messages': return handleUpdateMessagesFile(request, env);
+                case '/api/mylist': return handleUpdateMyList(request, env);
+                
                 default: return new Response('Not found', { status: 404 });
+                    
             }
         }
 
