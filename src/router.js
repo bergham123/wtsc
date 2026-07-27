@@ -1,5 +1,4 @@
 // src/router.js
-import { renderLayout, initLayout } from './layout.js';
 import { renderLoginPage, initLogin } from './auth.js';
 import { isLoggedIn } from './utils.js';
 
@@ -26,6 +25,7 @@ export function navigate(hash) {
   const main = document.getElementById('pageContent');
   if (!main) return;
 
+  // التحقق من تسجيل الدخول
   if (page !== 'login' && !isLoggedIn()) {
     window.location.hash = '#login';
     return;
@@ -40,16 +40,13 @@ export function navigate(hash) {
   main.innerHTML = route.render();
   if (route.init) route.init();
 
+  // تحديث الروابط النشطة
   document.querySelectorAll('.nav-link').forEach(link => {
     link.classList.toggle('active', link.getAttribute('href') === '#' + page);
   });
 }
 
 export function initRouter() {
-  if (!document.getElementById('pageContent')) {
-    document.body.innerHTML = renderLayout();
-    initLayout();
-  }
   window.addEventListener('hashchange', () => {
     navigate(window.location.hash);
   });
