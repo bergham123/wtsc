@@ -1,6 +1,5 @@
 // src/pages/stats.js
 import { getHeaders, showToast } from '../utils.js';
-import Chart from 'chart.js/auto'; // يجب استيراد Chart.js (سيتم تضمينه عبر CDN في HTML)
 
 let chartInstance = null;
 
@@ -58,7 +57,6 @@ async function loadStats() {
     statusEl.textContent = '✓ تم التحميل';
     statusEl.className = 'status ok';
 
-    // تعبئة الجدول
     const tbody = document.getElementById('statsTableBody');
     tbody.innerHTML = '';
     let totalAtt = 0, totalSuc = 0, totalFail = 0;
@@ -75,7 +73,6 @@ async function loadStats() {
         </tr>
       `;
     });
-    // إضافة صف المجموع
     tbody.innerHTML += `
       <tr style="font-weight:bold; border-top:2px solid var(--accent);">
         <td style="padding:6px 4px;">المجموع</td>
@@ -85,31 +82,35 @@ async function loadStats() {
       </tr>
     `;
 
-    // رسم البيان
+    // رسم البيان باستخدام Chart.js من window (CDN)
     const ctx = document.getElementById('statsChart').getContext('2d');
     if (chartInstance) chartInstance.destroy();
-    chartInstance = new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: data.data.map(r => r.date),
-        datasets: [
-          { label: 'محاولات', data: data.data.map(r => r.attempted||0), backgroundColor: 'rgba(53,114,238,0.6)', borderColor: 'rgba(53,114,238,1)', borderWidth: 1 },
-          { label: 'نجاح', data: data.data.map(r => r.success||0), backgroundColor: 'rgba(37,211,102,0.6)', borderColor: 'rgba(37,211,102,1)', borderWidth: 1 },
-          { label: 'فشل', data: data.data.map(r => r.failed||0), backgroundColor: 'rgba(241,92,109,0.6)', borderColor: 'rgba(241,92,109,1)', borderWidth: 1 }
-        ]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { labels: { color: '#E9EDEF', font: { family: 'Tajawal', size: 13 } } }
+    if (typeof Chart !== 'undefined') {
+      chartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: data.data.map(r => r.date),
+          datasets: [
+            { label: 'محاولات', data: data.data.map(r => r.attempted||0), backgroundColor: 'rgba(53,114,238,0.6)', borderColor: 'rgba(53,114,238,1)', borderWidth: 1 },
+            { label: 'نجاح', data: data.data.map(r => r.success||0), backgroundColor: 'rgba(37,211,102,0.6)', borderColor: 'rgba(37,211,102,1)', borderWidth: 1 },
+            { label: 'فشل', data: data.data.map(r => r.failed||0), backgroundColor: 'rgba(241,92,109,0.6)', borderColor: 'rgba(241,92,109,1)', borderWidth: 1 }
+          ]
         },
-        scales: {
-          y: { beginAtZero: true, ticks: { color: '#8696A0' }, grid: { color: 'rgba(255,255,255,0.05)' } },
-          x: { ticks: { color: '#8696A0' }, grid: { display: false } }
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { labels: { color: '#E9EDEF', font: { family: 'Tajawal', size: 13 } } }
+          },
+          scales: {
+            y: { beginAtZero: true, ticks: { color: '#8696A0' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+            x: { ticks: { color: '#8696A0' }, grid: { display: false } }
+          }
         }
-      }
-    });
+      });
+    } else {
+      console.warn('Chart.js not loaded');
+    }
   } catch (e) {
     statusEl.textContent = 'خطأ: ' + e.message;
     statusEl.className = 'status err';
