@@ -1,6 +1,7 @@
 import { 
   githubGetFile, githubPutFile, githubRunWorkflow, githubListFiles, 
-  githubGetFileRaw, githubPutFileBase64, githubDeleteFile 
+  githubGetFileRaw, githubPutFileBase64, githubDeleteFile,
+  githubListWorkflowRuns, githubCancelWorkflowRun
 } from './github.js';
 import { jsonResponse, getPath, getImagesDir, linesToJsonArray, jsonToLines, getImagesListPath } from './helpers.js';
 import { handleLoadSchedule, handleSaveSchedule } from './schedule.js';
@@ -160,6 +161,22 @@ export async function handleSaveImagesList(request, env) {
 export async function handleRunWorkflow(request, env) {
   try { await githubRunWorkflow(env); return jsonResponse({ ok: true }); }
   catch (err) { return jsonResponse({ ok: false, error: String(err.message || err) }, 500); }
+}
+
+// ===== دالة إيقاف الـ Workflow =====
+export async function handleStopWorkflow(request, env) {
+  try {
+    // الحصول على آخر تشغيل قيد التنفيذ
+    const runs = await githubListWorkflowRuns(env, 'in_progress');
+    if (runs.length === 0) {
+      return jsonResponse({ ok: false, error: 'لا يوجد تشغيل قيد التنفيذ' }, 404);
+    }
+    const latestRun = runs[0];
+    await githubCancelWorkflowRun(env, latestRun.id);
+    return jsonResponse({ ok: true, message: `تم إلغاء التشغيل #${latestRun.id}` });
+  } catch (err) {
+    return jsonResponse({ ok: false, error: String(err.message || err) }, 500);
+  }
 }
 
 export async function handleGetLogs(request, env) {
