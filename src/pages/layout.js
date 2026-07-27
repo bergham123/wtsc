@@ -8,6 +8,7 @@ export function layout(content, activePage) {
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
+  /* نفس الـ CSS السابق */
   :root {
     --bg-main: #111B21;
     --card-bg: #202C33;
@@ -45,9 +46,7 @@ export function layout(content, activePage) {
     font-size: 18px;
     color: var(--text-main);
   }
-  .navbar .logo i {
-    color: var(--accent);
-  }
+  .navbar .logo i { color: var(--accent); }
   .navbar .nav-links {
     display: flex;
     gap: 8px;
@@ -71,18 +70,13 @@ export function layout(content, activePage) {
     color: #111B21;
     font-weight: 700;
   }
-  .container {
-    padding: 24px;
-    max-width: 1200px;
-    margin: 0 auto;
-  }
+  .container { padding: 24px; max-width: 1200px; margin: 0 auto; }
   .card {
     background: var(--card-bg);
     border: 1px solid var(--border-color);
     border-radius: 12px;
     padding: 24px;
     margin-bottom: 20px;
-    transition: border-color 0.3s ease;
   }
   .card:hover { border-color: rgba(37, 211, 102, 0.4); }
   .card-header {
@@ -151,10 +145,7 @@ export function layout(content, activePage) {
     border-bottom: 1px solid var(--border-color);
     text-align: right;
   }
-  th {
-    color: var(--text-muted);
-    font-weight: 500;
-  }
+  th { color: var(--text-muted); font-weight: 500; }
   .modal-overlay {
     display: none;
     position: fixed;
@@ -232,6 +223,42 @@ export function layout(content, activePage) {
     .container { padding: 12px; }
   }
 </style>
+<script>
+  // دوال مساعدة عامة
+  function getHeaders() {
+    return {
+      'Content-Type': 'application/json',
+      'X-API-Key': window.API_SECRET || ''
+    };
+  }
+  function setStatus(el, msg, type) {
+    el.textContent = msg;
+    el.className = "status" + (type ? " " + type : "");
+  }
+  async function loadFile(type, areaEl, statusEl) {
+    setStatus(statusEl, "جاري التحميل...", "");
+    try {
+      const res = await fetch("/api/load?type=" + type);
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error);
+      areaEl.value = data.text;
+      setStatus(statusEl, "تم التحميل ✓", "ok");
+    } catch (err) { setStatus(statusEl, "خطأ: " + err.message, "err"); }
+  }
+  async function saveFile(type, areaEl, statusEl) {
+    setStatus(statusEl, "جاري الحفظ...", "");
+    try {
+      const res = await fetch("/api/save", {
+        method: "POST",
+        headers: getHeaders(),
+        body: JSON.stringify({ type, text: areaEl.value })
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error);
+      setStatus(statusEl, "تم الحفظ ✓", "ok");
+    } catch (err) { setStatus(statusEl, "خطأ: " + err.message, "err"); }
+  }
+</script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
@@ -249,41 +276,8 @@ export function layout(content, activePage) {
     ${content}
   </div>
   <script>
-    // دالة مساعدة للـ fetch مع API key
-    function getHeaders() {
-      return {
-        'Content-Type': 'application/json',
-        'X-API-Key': window.API_SECRET || ''
-      };
-    }
-    function setStatus(el, msg, type) {
-      el.textContent = msg;
-      el.className = "status" + (type ? " " + type : "");
-    }
-    // دالة لتحميل ملف معين (messages, contacts, images, mycontacts)
-    async function loadFile(type, areaEl, statusEl) {
-      setStatus(statusEl, "جاري التحميل...", "");
-      try {
-        const res = await fetch("/api/load?type=" + type);
-        const data = await res.json();
-        if (!data.ok) throw new Error(data.error);
-        areaEl.value = data.text;
-        setStatus(statusEl, "تم التحميل ✓", "ok");
-      } catch (err) { setStatus(statusEl, "خطأ: " + err.message, "err"); }
-    }
-    async function saveFile(type, areaEl, statusEl) {
-      setStatus(statusEl, "جاري الحفظ...", "");
-      try {
-        const res = await fetch("/api/save", {
-          method: "POST",
-          headers: getHeaders(),
-          body: JSON.stringify({ type, text: areaEl.value })
-        });
-        const data = await res.json();
-        if (!data.ok) throw new Error(data.error);
-        setStatus(statusEl, "تم الحفظ ✓", "ok");
-      } catch (err) { setStatus(statusEl, "خطأ: " + err.message, "err"); }
-    }
+    // تمرير API_SECRET من البيئة
+    window.API_SECRET = "${env.API_SECRET || ''}";
   </script>
 </body>
 </html>`;
