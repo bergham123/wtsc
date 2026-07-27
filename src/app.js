@@ -11,7 +11,6 @@ export const HTML_PAGE = `
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
-  /* جميع الأنماط السابقة ... (اختصاراً، نفس الأنماط السابقة) */
   :root {
     --bg-main: #111B21;
     --card-bg: #202C33;
@@ -229,6 +228,7 @@ export const HTML_PAGE = `
   }
   .image-item img { width: 100%; height: 100%; object-fit: cover; }
 
+  /* Progress Bar */
   .progress-container {
     width: 100%;
     background: var(--progress-bg);
@@ -256,6 +256,7 @@ export const HTML_PAGE = `
     margin-bottom: 4px;
   }
 
+  /* Session */
   .session-status {
     display: flex;
     align-items: center;
@@ -449,7 +450,6 @@ function renderLayout() {
         <a href="#dashboard" class="nav-link active"><i class="fas fa-home"></i> الرئيسية</a>
         <a href="#contacts" class="nav-link"><i class="fas fa-address-book"></i> جهات الاتصال</a>
         <a href="#messages" class="nav-link"><i class="fas fa-envelope"></i> الرسائل</a>
-        <a href="#accounts" class="nav-link"><i class="fas fa-list-ul"></i> الأرقام</a>
         <a href="#sender" class="nav-link"><i class="fas fa-paper-plane"></i> الإرسال</a>
         <a href="#schedule" class="nav-link"><i class="fas fa-clock"></i> الجدولة</a>
         <a href="#stats" class="nav-link"><i class="fas fa-chart-bar"></i> الإحصائيات</a>
@@ -564,9 +564,7 @@ async function initDashboard() {
   } catch (e) {}
 }
 
-// ============================================================
-// صفحة جهات الاتصال (mylist.json) - مع الاسم، الجنس، الرقم، العمر
-// ============================================================
+// ----- صفحة جهات الاتصال (mylist.json) -----
 function renderContacts() {
   return \`
     <div class="page-header">
@@ -612,6 +610,7 @@ async function loadContacts() {
   try {
     const text = await loadFile('contacts');
     if (text === null) throw new Error('فشل التحميل');
+    // تحويل النص إلى مصفوفة كائنات (كل سطر هو JSON)
     const lines = text.split('\\n').filter(Boolean);
     contactsData = lines.map(line => {
       try { return JSON.parse(line); } catch (e) { return { name: '', gender: '', number: line, age: '' }; }
@@ -679,6 +678,7 @@ async function saveContacts() {
   status.textContent = 'جاري الحفظ...';
   status.className = 'status';
   try {
+    // تحويل المصفوفة إلى نصوص JSON سطراً سطراً
     const text = contactsData.map(row => JSON.stringify(row)).join('\\n');
     const ok = await saveFile('contacts', text);
     if (ok) {
@@ -715,9 +715,7 @@ function initContacts() {
   });
 }
 
-// ============================================================
-// صفحة الرسائل (messages.json)
-// ============================================================
+// ----- صفحة الرسائل (messages.json) -----
 function renderMessages() {
   return \`
     <div class="page-header">
@@ -781,44 +779,503 @@ function initMessages() {
   loadMessages();
   document.getElementById('loadMessagesBtn').addEventListener('click', loadMessages);
   document.getElementById('saveMessagesBtn').addEventListener('click', saveMessages);
+  // تحديث العدد عند الكتابة
   document.getElementById('messagesArea').addEventListener('input', function() {
     const count = this.value.split('\\n').filter(Boolean).length;
     document.getElementById('messagesCount').textContent = count + ' رسالة';
   });
 }
 
-// ============================================================
-// صفحة الأرقام (accounts.json)
-// ============================================================
-function renderAccounts() {
+// ----- صفحة الإرسال (Sender) مع progress bar -----
+function renderSender() {
   return \`
     <div class="page-header">
-      <h1><i class="fas fa-list-ul"></i> الأرقام (accounts.json)</h1>
-      <p style="color:var(--text-muted);">إدارة قائمة الأرقام (كل رقم في سطر)</p>
+      <h1><i class="fas fa-paper-plane"></i> الإرسال</h1>
+      <p style="color:var(--text-muted);">تشغيل الـ Workflow لإرسال الرسائل مع عرض التقدم</p>
     </div>
     <div class="card">
-      <div style="display:flex; flex-wrap:wrap; gap:12px; margin-bottom:16px; align-items:center;">
-        <button id="loadAccountsBtn" class="btn" style="width:auto;"><i class="fas fa-download"></i> تحميل</button>
-        <button id="saveAccountsBtn" class="btn btn-primary" style="width:auto;"><i class="fas fa-save"></i> حفظ</button>
-        <span id="accountsCount" style="color:var(--text-muted); font-size:13px;">0 رقم</span>
+      <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px;">
+        <button id="runWorkflowBtn" class="btn btn-success" style="width:auto;"><i class="fas fa-play"></i> تشغيل الـ Workflow</button>
+        <button id="stopWorkflowBtn" class="btn btn-danger" style="width:auto;"><i class="fas fa-stop"></i> إيقاف</button>
+        <button id="refreshSenderBtn" class="btn" style="width:auto;"><i class="fas fa-sync"></i> تحديث</button>
       </div>
-      <textarea id="accountsArea" style="width:100%; min-height:200px; background:var(--input-bg); color:var(--text-main); border:1px solid var(--border-color); border-radius:8px; padding:12px; font-family:'Consolas',monospace; font-size:13px; resize:vertical; direction:ltr; text-align:left;"></textarea>
-      <div id="accountsStatus" class="status" style="margin-top:12px;"></div>
+      <div style="background:var(--bg-main); padding:16px; border-radius:8px; margin-bottom:16px;">
+        <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+          <span><strong>عدد الأرقام:</strong> <span id="senderNumbersCount">-</span></span>
+          <span><strong>عدد الرسائل:</strong> <span id="senderMessagesCount">-</span></span>
+          <span><strong>الوقت المتوقع:</strong> <span id="senderEstimatedTime">-</span></span>
+        </div>
+      </div>
+      <div>
+        <div class="progress-text" id="progressText">0%</div>
+        <div class="progress-container">
+          <div class="progress-bar" id="progressBar" style="width:0%;">0%</div>
+        </div>
+      </div>
+      <div id="senderStatus" class="status"></div>
     </div>
   \`;
 }
 
-async function loadAccounts() {
-  const area = document.getElementById('accountsArea');
-  const status = document.getElementById('accountsStatus');
+let senderInterval = null;
+
+async function updateSenderStats() {
+  try {
+    // جلب عدد الأرقام من accounts.json
+    const accountsRes = await fetch('/api/load?type=accounts', { headers: getHeaders() });
+    const accountsData = await accountsRes.json();
+    let numbersCount = 0;
+    if (accountsData.ok && accountsData.text) {
+      numbersCount = accountsData.text.split('\\n').filter(Boolean).length;
+    }
+    document.getElementById('senderNumbersCount').textContent = numbersCount;
+
+    // جلب عدد الرسائل من messages.json
+    const messagesRes = await fetch('/api/load?type=messages', { headers: getHeaders() });
+    const messagesData = await messagesRes.json();
+    let messagesCount = 0;
+    if (messagesData.ok && messagesData.text) {
+      messagesCount = messagesData.text.split('\\n').filter(Boolean).length;
+    }
+    document.getElementById('senderMessagesCount').textContent = messagesCount;
+
+    // حساب الوقت المتوقع (20-40 ثانية لكل رقم)
+    if (numbersCount > 0) {
+      const minTime = numbersCount * 20;
+      const maxTime = numbersCount * 40;
+      document.getElementById('senderEstimatedTime').textContent = minTime + ' - ' + maxTime + ' ثانية';
+    } else {
+      document.getElementById('senderEstimatedTime').textContent = 'لا توجد أرقام';
+    }
+  } catch (e) {
+    console.error('Error updating sender stats:', e);
+  }
+}
+
+// محاكاة التقدم (للعرض فقط، لأننا لا نستطيع تتبع تقدم الـ Workflow الفعلي)
+function startProgressSimulation() {
+  let progress = 0;
+  const bar = document.getElementById('progressBar');
+  const text = document.getElementById('progressText');
+  if (senderInterval) clearInterval(senderInterval);
+  senderInterval = setInterval(() => {
+    progress += Math.random() * 5;
+    if (progress >= 100) {
+      progress = 100;
+      clearInterval(senderInterval);
+      senderInterval = null;
+      showToast('اكتمل الإرسال!', 'success');
+    }
+    bar.style.width = progress + '%';
+    bar.textContent = Math.round(progress) + '%';
+    text.textContent = Math.round(progress) + '%';
+  }, 1000);
+}
+
+function stopProgressSimulation() {
+  if (senderInterval) {
+    clearInterval(senderInterval);
+    senderInterval = null;
+  }
+  const bar = document.getElementById('progressBar');
+  const text = document.getElementById('progressText');
+  bar.style.width = '0%';
+  bar.textContent = '0%';
+  text.textContent = '0%';
+}
+
+function initSender() {
+  updateSenderStats();
+  document.getElementById('refreshSenderBtn').addEventListener('click', updateSenderStats);
+
+  document.getElementById('runWorkflowBtn').addEventListener('click', async function() {
+    const status = document.getElementById('senderStatus');
+    status.textContent = 'جاري تشغيل الـ Workflow...';
+    status.className = 'status';
+    try {
+      const res = await fetch('/api/run-workflow', {
+        method: 'POST',
+        headers: getHeaders()
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error);
+      status.textContent = '✓ تم التشغيل';
+      status.className = 'status ok';
+      showToast('تم تشغيل الـ Workflow بنجاح', 'success');
+      // بدء محاكاة التقدم
+      startProgressSimulation();
+    } catch (e) {
+      status.textContent = 'خطأ: ' + e.message;
+      status.className = 'status err';
+      showToast('فشل تشغيل الـ Workflow', 'error');
+    }
+  });
+
+  document.getElementById('stopWorkflowBtn').addEventListener('click', async function() {
+    const status = document.getElementById('senderStatus');
+    status.textContent = 'جاري إيقاف الـ Workflow...';
+    status.className = 'status';
+    try {
+      const res = await fetch('/api/stop-workflow', {
+        method: 'POST',
+        headers: getHeaders()
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error);
+      status.textContent = '✓ تم الإيقاف';
+      status.className = 'status ok';
+      showToast('تم إيقاف الـ Workflow', 'info');
+      stopProgressSimulation();
+    } catch (e) {
+      status.textContent = 'خطأ: ' + e.message;
+      status.className = 'status err';
+      showToast('فشل إيقاف الـ Workflow', 'error');
+    }
+  });
+}
+
+// ----- صفحة الجدولة (Schedule) -----
+function renderSchedule() {
+  return \`
+    <div class="page-header">
+      <h1><i class="fas fa-clock"></i> الجدولة</h1>
+      <p style="color:var(--text-muted);">تحديد وقت تشغيل الـ Workflow (توقيت المغرب -2 ساعة UTC)</p>
+    </div>
+    <div class="card">
+      <div style="margin-bottom:16px;">
+        <span class="schedule-status inactive" id="scheduleIndicator">غير مفعل</span>
+        <span id="currentCronDisplay" style="font-size:13px; color:var(--text-muted); display:block; margin-top:5px;"></span>
+      </div>
+      <div class="schedule-inputs">
+        <label>الساعة <input type="number" id="hourInput" min="0" max="23" value="10" style="width:70px; background:var(--input-bg); color:var(--text-main); border:1px solid var(--border-color); border-radius:6px; padding:8px; text-align:center; font-size:16px;" /></label>
+        <label>الدقيقة <input type="number" id="minuteInput" min="0" max="59" value="0" style="width:70px; background:var(--input-bg); color:var(--text-main); border:1px solid var(--border-color); border-radius:6px; padding:8px; text-align:center; font-size:16px;" /></label>
+      </div>
+      <div class="btn-row" style="margin-top:10px;">
+        <button id="loadScheduleBtn" class="btn" style="width:auto;"><i class="fas fa-history"></i> تحميل</button>
+        <button id="updateScheduleBtn" class="btn btn-warning" style="width:auto;"><i class="fas fa-sync-alt"></i> تحديث</button>
+      </div>
+      <div id="scheduleStatus" class="status"></div>
+    </div>
+  \`;
+}
+
+function initSchedule() {
+  const hourInput = document.getElementById('hourInput');
+  const minuteInput = document.getElementById('minuteInput');
+  const statusEl = document.getElementById('scheduleStatus');
+  const indicator = document.getElementById('scheduleIndicator');
+  const disp = document.getElementById('currentCronDisplay');
+
+  async function loadSchedule() {
+    statusEl.textContent = 'جاري التحميل...';
+    statusEl.className = 'status';
+    try {
+      const res = await fetch('/api/schedule', { headers: getHeaders() });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error);
+      if (data.hasSchedule && data.cron) {
+        indicator.textContent = 'مفعل';
+        indicator.className = 'schedule-status active';
+        disp.textContent = 'التوقيت (المغرب): ' + data.cron;
+        const parts = data.cron.trim().split(/\\s+/);
+        if (parts.length >= 2) { minuteInput.value = parts[0]; hourInput.value = parts[1]; }
+        statusEl.textContent = 'تم التحميل ✓';
+        statusEl.className = 'status ok';
+      } else {
+        indicator.textContent = 'غير مفعل';
+        indicator.className = 'schedule-status inactive';
+        disp.textContent = '(لا توجد جدولة)';
+        statusEl.textContent = 'الجدولة غير مفعلة';
+        statusEl.className = 'status';
+      }
+    } catch (e) {
+      statusEl.textContent = 'خطأ: ' + e.message;
+      statusEl.className = 'status err';
+    }
+  }
+
+  async function saveSchedule(cron) {
+    statusEl.textContent = 'جاري الحفظ...';
+    statusEl.className = 'status';
+    try {
+      const res = await fetch('/api/schedule', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ action: 'add', cron })
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error);
+      statusEl.textContent = 'تم التحديث ✓';
+      statusEl.className = 'status ok';
+      showToast('تم تحديث الجدولة', 'success');
+      loadSchedule();
+    } catch (e) {
+      statusEl.textContent = 'خطأ: ' + e.message;
+      statusEl.className = 'status err';
+    }
+  }
+
+  document.getElementById('loadScheduleBtn').addEventListener('click', loadSchedule);
+  document.getElementById('updateScheduleBtn').addEventListener('click', () => {
+    const h = parseInt(hourInput.value, 10);
+    const m = parseInt(minuteInput.value, 10);
+    if (isNaN(h) || h < 0 || h > 23 || isNaN(m) || m < 0 || m > 59) {
+      statusEl.textContent = 'أدخل قيم صحيحة';
+      statusEl.className = 'status err';
+      return;
+    }
+    saveSchedule(m + ' ' + h + ' * * *');
+  });
+  loadSchedule();
+}
+
+// ----- صفحة الإحصائيات (Stats) -----
+let statsChartInstance = null;
+
+function renderStats() {
+  return \`
+    <div class="page-header">
+      <h1><i class="fas fa-chart-bar"></i> الإحصائيات</h1>
+      <p style="color:var(--text-muted);">ملخص أداء عمليات الإرسال</p>
+    </div>
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px;">
+        <button id="refreshStatsBtn" class="btn btn-primary" style="width:auto;"><i class="fas fa-sync"></i> تحديث</button>
+      </div>
+      <div id="statsContainer">
+        <div style="max-height:250px; overflow-y:auto; border:1px solid var(--border-color); border-radius:8px; margin-bottom:20px;">
+          <table style="width:100%; border-collapse:collapse; font-size:14px;">
+            <thead style="background:var(--card-bg); position:sticky; top:0;">
+              <tr><th style="padding:8px 4px; text-align:right;">التاريخ</th><th style="padding:8px 4px; text-align:center;">محاولات</th><th style="padding:8px 4px; text-align:center;">نجاح</th><th style="padding:8px 4px; text-align:center;">فشل</th></tr>
+            </thead>
+            <tbody id="statsTableBody"></tbody>
+          </table>
+        </div>
+        <div style="background:var(--bg-main); border-radius:8px; padding:20px; height:300px;">
+          <canvas id="statsChart"></canvas>
+        </div>
+      </div>
+      <div id="statsStatus" class="status"></div>
+    </div>
+  \`;
+}
+
+async function loadStats() {
+  const statusEl = document.getElementById('statsStatus');
+  statusEl.textContent = 'جاري التحميل...';
+  statusEl.className = 'status';
+  try {
+    const res = await fetch('/api/stats', { headers: getHeaders() });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+    if (data.data.length === 0) {
+      statusEl.textContent = 'لا توجد إحصائيات';
+      statusEl.className = 'status';
+      return;
+    }
+    statusEl.textContent = '✓ تم التحميل';
+    statusEl.className = 'status ok';
+
+    const tbody = document.getElementById('statsTableBody');
+    tbody.innerHTML = '';
+    let totalAtt = 0, totalSuc = 0, totalFail = 0;
+    data.data.forEach(row => {
+      totalAtt += row.attempted || 0;
+      totalSuc += row.success || 0;
+      totalFail += row.failed || 0;
+      tbody.innerHTML += \`
+        <tr>
+          <td style="padding:6px 4px;">\${row.date}</td>
+          <td style="padding:6px 4px; text-align:center;">\${row.attempted || 0}</td>
+          <td style="padding:6px 4px; text-align:center; color:var(--success);">\${row.success || 0}</td>
+          <td style="padding:6px 4px; text-align:center; color:var(--danger);">\${row.failed || 0}</td>
+        </tr>
+      \`;
+    });
+    tbody.innerHTML += \`
+      <tr style="font-weight:bold; border-top:2px solid var(--accent);">
+        <td style="padding:6px 4px;">المجموع</td>
+        <td style="padding:6px 4px; text-align:center;">\${totalAtt}</td>
+        <td style="padding:6px 4px; text-align:center; color:var(--success);">\${totalSuc}</td>
+        <td style="padding:6px 4px; text-align:center; color:var(--danger);">\${totalFail}</td>
+      </tr>
+    \`;
+
+    const ctx = document.getElementById('statsChart').getContext('2d');
+    if (statsChartInstance) statsChartInstance.destroy();
+    statsChartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: data.data.map(r => r.date),
+        datasets: [
+          { label: 'محاولات', data: data.data.map(r => r.attempted||0), backgroundColor: 'rgba(53,114,238,0.6)', borderColor: 'rgba(53,114,238,1)', borderWidth: 1 },
+          { label: 'نجاح', data: data.data.map(r => r.success||0), backgroundColor: 'rgba(37,211,102,0.6)', borderColor: 'rgba(37,211,102,1)', borderWidth: 1 },
+          { label: 'فشل', data: data.data.map(r => r.failed||0), backgroundColor: 'rgba(241,92,109,0.6)', borderColor: 'rgba(241,92,109,1)', borderWidth: 1 }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: '#E9EDEF', font: { family: 'Tajawal', size: 13 } } } },
+        scales: {
+          y: { beginAtZero: true, ticks: { color: '#8696A0' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+          x: { ticks: { color: '#8696A0' }, grid: { display: false } }
+        }
+      }
+    });
+  } catch (e) {
+    statusEl.textContent = 'خطأ: ' + e.message;
+    statusEl.className = 'status err';
+    showToast('فشل تحميل الإحصائيات', 'error');
+  }
+}
+
+function initStats() {
+  loadStats();
+  document.getElementById('refreshStatsBtn').addEventListener('click', loadStats);
+}
+
+// ----- صفحة السجلات (Logs) -----
+function renderLogs() {
+  return \`
+    <div class="page-header">
+      <h1><i class="fas fa-terminal"></i> السجلات</h1>
+      <p style="color:var(--text-muted);">عرض ملفات السجل من مجلد logs</p>
+    </div>
+    <div class="card">
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px;">
+        <button id="refreshLogsBtn" class="btn btn-primary" style="width:auto;"><i class="fas fa-sync"></i> تحديث</button>
+      </div>
+      <div id="logsList" style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px;"></div>
+      <div style="border:1px solid var(--border-color); border-radius:8px; background:var(--bg-main); padding:16px; min-height:200px; max-height:400px; overflow:auto; font-family:monospace; font-size:13px; white-space:pre-wrap;" id="logContent">اختر ملف سجل لعرض محتواه</div>
+      <div id="logsStatus" class="status"></div>
+    </div>
+  \`;
+}
+
+async function loadLogsList() {
+  const listEl = document.getElementById('logsList');
+  const statusEl = document.getElementById('logsStatus');
+  statusEl.textContent = 'جاري التحميل...';
+  statusEl.className = 'status';
+  try {
+    const res = await fetch('/api/logs', { headers: getHeaders() });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+    listEl.innerHTML = '';
+    if (data.files.length === 0) {
+      listEl.innerHTML = '<span style="color:var(--text-muted);">لا توجد سجلات</span>';
+      statusEl.textContent = 'لا توجد ملفات';
+      statusEl.className = 'status';
+      return;
+    }
+    data.files.forEach(file => {
+      const btn = document.createElement('button');
+      btn.className = 'btn';
+      btn.textContent = file.name;
+      btn.style.width = 'auto';
+      btn.addEventListener('click', () => loadLogContent(file.name));
+      listEl.appendChild(btn);
+    });
+    statusEl.textContent = '✓ تم التحميل';
+    statusEl.className = 'status ok';
+  } catch (e) {
+    statusEl.textContent = 'خطأ: ' + e.message;
+    statusEl.className = 'status err';
+    showToast('فشل تحميل قائمة السجلات', 'error');
+  }
+}
+
+async function loadLogContent(filename) {
+  const contentEl = document.getElementById('logContent');
+  contentEl.textContent = 'جاري التحميل...';
+  try {
+    const res = await fetch('/api/log-content?file=' + encodeURIComponent(filename), { headers: getHeaders() });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+    contentEl.textContent = data.content || '(فارغ)';
+  } catch (e) {
+    contentEl.textContent = 'خطأ: ' + e.message;
+    showToast('فشل تحميل المحتوى', 'error');
+  }
+}
+
+function initLogs() {
+  loadLogsList();
+  document.getElementById('refreshLogsBtn').addEventListener('click', loadLogsList);
+}
+
+// ----- صفحة الصور (Images) -----
+let selectedFiles = [];
+
+function renderImages() {
+  return \`
+    <div class="page-header">
+      <h1><i class="fas fa-images"></i> إدارة الصور</h1>
+      <p style="color:var(--text-muted);">رفع وحذف الصور (الحد الأقصى 3 صور)</p>
+    </div>
+    <div class="card">
+      <div style="background:var(--bg-main); padding:16px; border-radius:8px; border:1px dashed var(--border-color); margin-bottom:16px;">
+        <input type="file" id="imagesInput" accept="image/*" multiple style="width:100%; margin-bottom:10px;" />
+        <div id="imagePreviewArea" style="display:flex; flex-wrap:wrap; gap:10px;"></div>
+      </div>
+      <div class="btn-row" style="margin-top:0;">
+        <button id="uploadImagesBtn" class="btn btn-primary" style="width:auto;"><i class="fas fa-upload"></i> رفع الصور</button>
+        <button id="refreshImagesBtn" class="btn" style="width:auto;"><i class="fas fa-sync"></i> تحديث القائمة</button>
+      </div>
+      <div id="imageGallery" style="margin-top:16px; display:none;">
+        <div style="margin-bottom:10px;"><span style="font-size:14px; color:var(--text-muted);">الصور الموجودة (<span id="imageCount">0</span>/3)</span></div>
+        <div id="imageList" style="display:flex; flex-wrap:wrap; gap:12px;"></div>
+      </div>
+      <div id="imagesStatus" class="status"></div>
+    </div>
+  \`;
+}
+
+async function loadImages() {
+  const gallery = document.getElementById('imageGallery');
+  const list = document.getElementById('imageList');
+  const countSpan = document.getElementById('imageCount');
+  const status = document.getElementById('imagesStatus');
   status.textContent = 'جاري التحميل...';
   status.className = 'status';
   try {
-    const text = await loadFile('accounts');
-    if (text === null) throw new Error('فشل التحميل');
-    area.value = text;
-    const count = text.split('\\n').filter(Boolean).length;
-    document.getElementById('accountsCount').textContent = count + ' رقم';
+    const res = await fetch('/api/images', { headers: getHeaders() });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+    const files = data.files || [];
+    countSpan.textContent = files.length;
+    if (files.length === 0) { gallery.style.display = 'none'; status.textContent = 'لا توجد صور'; status.className = 'status'; return; }
+    gallery.style.display = 'block';
+    list.innerHTML = '';
+    files.forEach(file => {
+      const div = document.createElement('div');
+      div.className = 'image-item';
+      div.innerHTML = \`
+        <img src="\${file.download_url}" style="width:100%; height:100%; object-fit:cover;" />
+        <button class="delete-btn" data-filename="\${file.name}" style="position:absolute; top:4px; right:4px; background:var(--danger); border:none; color:white; border-radius:50%; width:24px; height:24px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:11px; box-shadow:0 2px 8px rgba(0,0,0,0.5);"><i class="fas fa-trash"></i></button>
+      \`;
+      list.appendChild(div);
+    });
+    document.querySelectorAll('.delete-btn').forEach(btn => {
+      btn.addEventListener('click', async function() {
+        const filename = this.dataset.filename;
+        if (!confirm('تأكيد حذف الصورة "' + filename + '"؟')) return;
+        try {
+          const res = await fetch('/api/delete-image', {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify({ filename })
+          });
+          const data = await res.json();
+          if (!data.ok) throw new Error(data.error);
+          showToast('تم حذف الصورة', 'success');
+          loadImages();
+        } catch (e) {
+          showToast('خطأ في الحذف: ' + e.message, 'error');
+        }
+      });
+    });
     status.textContent = '✓ تم التحميل';
     status.className = 'status ok';
   } catch (e) {
@@ -827,55 +1284,209 @@ async function loadAccounts() {
   }
 }
 
-async function saveAccounts() {
-  const area = document.getElementById('accountsArea');
-  const status = document.getElementById('accountsStatus');
-  status.textContent = 'جاري الحفظ...';
-  status.className = 'status';
-  try {
-    const ok = await saveFile('accounts', area.value);
-    if (ok) {
-      const count = area.value.split('\\n').filter(Boolean).length;
-      document.getElementById('accountsCount').textContent = count + ' رقم';
-      status.textContent = '✓ تم الحفظ';
-      status.className = 'status ok';
-    } else {
-      status.textContent = 'فشل الحفظ';
-      status.className = 'status err';
+function initImages() {
+  const input = document.getElementById('imagesInput');
+  const preview = document.getElementById('imagePreviewArea');
+  input.addEventListener('change', function(e) {
+    selectedFiles = Array.from(this.files);
+    renderPreviews();
+  });
+
+  function renderPreviews() {
+    preview.innerHTML = '';
+    selectedFiles.forEach((file, index) => {
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        const div = document.createElement('div');
+        div.style.cssText = 'width:80px; height:80px; border-radius:8px; overflow:hidden; position:relative; border:1px solid var(--border-color);';
+        div.innerHTML = \`
+          <img src="\${ev.target.result}" style="width:100%; height:100%; object-fit:cover;" />
+          <button data-index="\${index}" style="position:absolute; top:2px; right:2px; background:var(--danger); color:white; border:none; border-radius:50%; width:20px; height:20px; cursor:pointer; font-size:10px;">X</button>
+        \`;
+        preview.appendChild(div);
+        div.querySelector('button').onclick = function() {
+          selectedFiles.splice(index, 1);
+          renderPreviews();
+        };
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  document.getElementById('uploadImagesBtn').addEventListener('click', uploadImages);
+  document.getElementById('refreshImagesBtn').addEventListener('click', loadImages);
+  loadImages();
+
+  async function uploadImages() {
+    if (selectedFiles.length === 0) { showToast('اختر صورة أولاً', 'warning'); return; }
+    try {
+      const checkRes = await fetch('/api/images', { headers: getHeaders() });
+      const checkData = await checkRes.json();
+      if (!checkData.ok) throw new Error(checkData.error);
+      const currentCount = checkData.files ? checkData.files.length : 0;
+      if (currentCount >= 3) { showToast('لا يمكن رفع أكثر من 3 صور', 'error'); return; }
+      const remaining = 3 - currentCount;
+      if (selectedFiles.length > remaining) {
+        showToast('يمكنك رفع ' + remaining + ' صورة فقط', 'warning');
+        return;
+      }
+    } catch (e) {
+      showToast('خطأ في التحقق: ' + e.message, 'error');
+      return;
     }
-  } catch (e) {
-    status.textContent = 'خطأ: ' + e.message;
-    status.className = 'status err';
+    let success = 0;
+    for (const file of selectedFiles) {
+      try {
+        const base64 = await new Promise((resolve, reject) => {
+          const r = new FileReader();
+          r.onload = () => resolve(r.result.split(',')[1]);
+          r.onerror = reject;
+          r.readAsDataURL(file);
+        });
+        const res = await fetch('/api/upload-image', {
+          method: 'POST',
+          headers: getHeaders(),
+          body: JSON.stringify({ filename: file.name, dataBase64: base64 })
+        });
+        const data = await res.json();
+        if (data.ok) success++;
+      } catch (e) {}
+    }
+    showToast(success + '/' + selectedFiles.length + ' تم رفعها', success === selectedFiles.length ? 'success' : 'warning');
+    if (success === selectedFiles.length) {
+      selectedFiles = [];
+      document.getElementById('imagesInput').value = '';
+      document.getElementById('imagePreviewArea').innerHTML = '';
+    }
+    loadImages();
   }
 }
 
-function initAccounts() {
-  loadAccounts();
-  document.getElementById('loadAccountsBtn').addEventListener('click', loadAccounts);
-  document.getElementById('saveAccountsBtn').addEventListener('click', saveAccounts);
-  document.getElementById('accountsArea').addEventListener('input', function() {
-    const count = this.value.split('\\n').filter(Boolean).length;
-    document.getElementById('accountsCount').textContent = count + ' رقم';
+// ----- صفحة التحقق من الجلسة (Session) -----
+let sessionQRInterval = null;
+
+function renderSession() {
+  return \`
+    <div class="page-header">
+      <h1><i class="fas fa-qrcode"></i> التحقق من الجلسة</h1>
+      <p style="color:var(--text-muted);">عرض حالة جلسة واتساب ورمز QR عند الحاجة</p>
+    </div>
+    <div class="card">
+      <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:16px;">
+        <button id="checkSessionBtn" class="btn btn-primary" style="width:auto;"><i class="fas fa-sync"></i> تحقق الآن</button>
+        <button id="stopQRBtn" class="btn btn-danger" style="width:auto;"><i class="fas fa-stop"></i> إيقاف تحديث QR</button>
+      </div>
+      <div class="session-status">
+        <span class="session-indicator unknown" id="sessionIndicator"></span>
+        <span id="sessionStatusText" style="font-weight:bold;">غير معروف</span>
+        <span style="color:var(--text-muted); margin-right:auto;">آخر تحديث: <span id="sessionLastUpdate">-</span></span>
+      </div>
+      <div id="sessionQRContainer" style="display:none;" class="qr-container">
+        <img id="sessionQRImage" src="" alt="QR Code" />
+        <div style="font-size:12px; color:var(--text-muted); margin-top:8px;">امسح الرمز لتسجيل الدخول</div>
+      </div>
+      <div id="sessionStatus" class="status"></div>
+    </div>
+  \`;
+}
+
+async function checkSession() {
+  const statusText = document.getElementById('sessionStatusText');
+  const indicator = document.getElementById('sessionIndicator');
+  const qrContainer = document.getElementById('sessionQRContainer');
+  const lastUpdate = document.getElementById('sessionLastUpdate');
+  const statusEl = document.getElementById('sessionStatus');
+
+  statusEl.textContent = 'جاري التحقق...';
+  statusEl.className = 'status';
+
+  try {
+    // جلب حالة الجلسة
+    const res = await fetch('/api/live/status', { headers: getHeaders() });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+
+    const status = data.status;
+    const statusMap = {
+      'connected': { label: '🟢 متصل', class: 'connected' },
+      'waiting_scan': { label: '🟡 في انتظار المسح', class: 'waiting' },
+      'starting': { label: '🟡 جاري التشغيل', class: 'waiting' },
+      'disconnected': { label: '🔴 غير متصل', class: 'disconnected' }
+    };
+    const info = statusMap[status] || { label: '⚪ غير معروف', class: 'unknown' };
+    statusText.textContent = info.label;
+    indicator.className = 'session-indicator ' + info.class;
+
+    lastUpdate.textContent = new Date().toLocaleTimeString();
+
+    // إذا كانت الحالة غير متصلة أو في انتظار المسح، نجلب QR
+    if (status === 'waiting_scan' || status === 'disconnected' || status === 'starting') {
+      await fetchQR();
+      // نبدأ تحديث QR كل 2 ثانية
+      if (!sessionQRInterval) {
+        sessionQRInterval = setInterval(fetchQR, 2000);
+      }
+    } else {
+      qrContainer.style.display = 'none';
+      if (sessionQRInterval) {
+        clearInterval(sessionQRInterval);
+        sessionQRInterval = null;
+      }
+    }
+
+    statusEl.textContent = '✓ تم التحقق';
+    statusEl.className = 'status ok';
+  } catch (e) {
+    statusEl.textContent = 'خطأ: ' + e.message;
+    statusEl.className = 'status err';
+    showToast('فشل التحقق من الجلسة', 'error');
+  }
+}
+
+async function fetchQR() {
+  try {
+    const res = await fetch('/api/live/qr', { headers: getHeaders() });
+    const data = await res.json();
+    if (data.ok && data.qr) {
+      const img = document.getElementById('sessionQRImage');
+      img.src = data.qr;
+      document.getElementById('sessionQRContainer').style.display = 'block';
+    }
+  } catch (e) {}
+}
+
+function stopQRUpdate() {
+  if (sessionQRInterval) {
+    clearInterval(sessionQRInterval);
+    sessionQRInterval = null;
+    showToast('تم إيقاف تحديث QR', 'info');
+  }
+}
+
+function initSession() {
+  checkSession();
+  document.getElementById('checkSessionBtn').addEventListener('click', checkSession);
+  document.getElementById('stopQRBtn').addEventListener('click', stopQRUpdate);
+  // إيقاف التحديث عند مغادرة الصفحة
+  window.addEventListener('hashchange', () => {
+    if (window.location.hash !== '#session') {
+      stopQRUpdate();
+    }
   });
 }
 
-// ============================================================
-// باقي الصفحات (Sender, Schedule, Stats, Logs, Images, Session)
-// تم حذفها للاختصار، لكنها موجودة في الكود السابق.
-// ============================================================
-
-// .... (ضع هنا باقي الصفحات كما هي من الكود السابق) ....
-
-// ============================================================
-// التوجيه (Router)
-// ============================================================
+// ----- التوجيه (Router) -----
 const routes = {
   'login': { render: renderLoginPage, init: initLogin },
   'dashboard': { render: renderDashboard, init: initDashboard },
   'contacts': { render: renderContacts, init: initContacts },
   'messages': { render: renderMessages, init: initMessages },
-  'accounts': { render: renderAccounts, init: initAccounts },
-  // ... باقي الصفحات
+  'sender': { render: renderSender, init: initSender },
+  'schedule': { render: renderSchedule, init: initSchedule },
+  'stats': { render: renderStats, init: initStats },
+  'logs': { render: renderLogs, init: initLogs },
+  'images': { render: renderImages, init: initImages },
+  'session': { render: renderSession, init: initSession }
 };
 
 function navigate(hash) {
