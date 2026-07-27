@@ -255,5 +255,124 @@ export async function handleUpdateContacts(request, env) {
   }
 }
 
+// src/handlers.js (الإضافات الجديدة في الأسفل)
+
+// ===== دوال لإدارة accounts.json (قائمة الأرقام النصية) =====
+export async function handleGetAccounts(request, env) {
+  try {
+    const path = 'accounts.json'; // مسار ثابت
+    const { content, exists } = await githubGetFile(env, path);
+    let data = [];
+    if (exists && content) {
+      try {
+        const parsed = JSON.parse(content);
+        if (Array.isArray(parsed)) data = parsed;
+        else if (typeof parsed === 'object') data = Object.values(parsed);
+      } catch (e) { data = []; }
+    }
+    // تأكد من أنها مصفوفة نصوص
+    data = data.map(item => String(item).trim()).filter(Boolean);
+    return jsonResponse({ ok: true, data });
+  } catch (err) {
+    return jsonResponse({ ok: false, error: String(err.message || err) }, 500);
+  }
+}
+
+export async function handleUpdateAccounts(request, env) {
+  try {
+    const { data } = await request.json();
+    if (!Array.isArray(data)) {
+      return jsonResponse({ ok: false, error: 'data must be an array' }, 400);
+    }
+    const cleanData = data.map(item => String(item).trim()).filter(Boolean);
+    const path = 'accounts.json';
+    const current = await githubGetFile(env, path);
+    const result = await githubPutFile(env, path, JSON.stringify(cleanData, null, 2), current.sha, "Update accounts.json");
+    return jsonResponse({ ok: true, commit: result.commit && result.commit.sha });
+  } catch (err) {
+    return jsonResponse({ ok: false, error: String(err.message || err) }, 500);
+  }
+}
+
+// ===== دوال لإدارة messages.json =====
+export async function handleGetMessagesFile(request, env) {
+  try {
+    const path = 'message.json'; // أو messages.json حسب الاسم الفعلي
+    const { content, exists } = await githubGetFile(env, path);
+    let data = [];
+    if (exists && content) {
+      try {
+        const parsed = JSON.parse(content);
+        if (Array.isArray(parsed)) data = parsed;
+      } catch (e) { data = []; }
+    }
+    data = data.map(item => String(item).trim()).filter(Boolean);
+    return jsonResponse({ ok: true, data });
+  } catch (err) {
+    return jsonResponse({ ok: false, error: String(err.message || err) }, 500);
+  }
+}
+
+export async function handleUpdateMessagesFile(request, env) {
+  try {
+    const { data } = await request.json();
+    if (!Array.isArray(data)) {
+      return jsonResponse({ ok: false, error: 'data must be an array' }, 400);
+    }
+    const cleanData = data.map(item => String(item).trim()).filter(Boolean);
+    const path = 'message.json';
+    const current = await githubGetFile(env, path);
+    const result = await githubPutFile(env, path, JSON.stringify(cleanData, null, 2), current.sha, "Update message.json");
+    return jsonResponse({ ok: true, commit: result.commit && result.commit.sha });
+  } catch (err) {
+    return jsonResponse({ ok: false, error: String(err.message || err) }, 500);
+  }
+}
+
+// ===== دوال لإدارة mylist.json (جهات الاتصال بالتفاصيل) =====
+export async function handleGetMyList(request, env) {
+  try {
+    const path = 'mylist.json';
+    const { content, exists } = await githubGetFile(env, path);
+    let data = [];
+    if (exists && content) {
+      try {
+        const parsed = JSON.parse(content);
+        if (Array.isArray(parsed)) data = parsed;
+      } catch (e) { data = []; }
+    }
+    data = data.map(item => ({
+      name: item.name || '',
+      gender: item.gender || '',
+      number: item.number || '',
+      age: item.age || ''
+    }));
+    return jsonResponse({ ok: true, data });
+  } catch (err) {
+    return jsonResponse({ ok: false, error: String(err.message || err) }, 500);
+  }
+}
+
+export async function handleUpdateMyList(request, env) {
+  try {
+    const { data } = await request.json();
+    if (!Array.isArray(data)) {
+      return jsonResponse({ ok: false, error: 'data must be an array' }, 400);
+    }
+    const cleanData = data.map(item => ({
+      name: (item.name || '').trim(),
+      gender: (item.gender || '').trim(),
+      number: (item.number || '').trim(),
+      age: (item.age || '').trim()
+    })).filter(item => item.number !== '');
+    const path = 'mylist.json';
+    const current = await githubGetFile(env, path);
+    const result = await githubPutFile(env, path, JSON.stringify(cleanData, null, 2), current.sha, "Update mylist.json");
+    return jsonResponse({ ok: true, commit: result.commit && result.commit.sha });
+  } catch (err) {
+    return jsonResponse({ ok: false, error: String(err.message || err) }, 500);
+  }
+}
+
 // إعادة تصدير معالجات الجدولة
 export { handleLoadSchedule, handleSaveSchedule };
