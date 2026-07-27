@@ -47,20 +47,24 @@ jobs:
             libcups2 \
             libxkbcommon0 \
             libpango-1.0-0 \
-            libcairo2
+            libcairo2 \
+            chromium-browser
 
+      # استرجاع الجلسة المخزنة مؤقتاً (cache)
       - name: Restore session cache
         uses: actions/cache@v4
         id: session-cache
         with:
           path: session
-          key: whatsapp-session-${{ runner.os }}-${{ github.run_id }}
+          # نستخدم مفتاحاً ثابتاً مع إصدار يدوي لتحديث الكاش عند تغيير هيكل الجلسة
+          key: whatsapp-session-${{ runner.os }}-v1
           restore-keys: |
-            whatsapp-session-${{ runner.os }}-
+            whatsapp-session-${{ runner.os }}-v1
 
       - name: Install Node dependencies
         run: npm install
 
+      # إزالة ملفات القفل التي قد تمنع تشغيل الجلسة
       - name: Remove stale lock files
         run: |
           find session -name "SingletonLock" -delete 2>/dev/null || true
@@ -70,20 +74,23 @@ jobs:
 
       - name: Run WhatsApp bot
         env:
-          PUPPETEER_EXECUTABLE_PATH: /usr/bin/google-chrome-stable
+          PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium-browser
           WORKER_URL: ${{ secrets.WORKER_URL }}
           API_SECRET: ${{ secrets.API_SECRET }}
         run: npm start
+        # في حال فشل البوت نستمر لحفظ الجلسة (لكن قد لا تحفظ إذا كان الفشل مبكراً)
+        continue-on-error: true
 
+      # حفظ الجلسة بعد التشغيل (حتى لو فشل البوت)
       - name: Save session cache
         uses: actions/cache@v4
-        if: always()
+        if: always()  # يحفظ دائماً
         with:
           path: session
-          key: whatsapp-session-${{ runner.os }}-${{ github.run_id }}
-          restore-keys: |
-            whatsapp-session-${{ runner.os }}-
+          # نفس المفتاح المستخدم في الاسترجاع لتحديث الكاش
+          key: whatsapp-session-${{ runner.os }}-v1
 
+      # حفظ الملفات الناتجة (dashboard, logs, aggregate)
       - name: Commit updated files
         if: always()
         run: |
