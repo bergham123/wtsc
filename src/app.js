@@ -1,8 +1,9 @@
 // src/app.js
+import { renderLayout, initLayout } from './layout.js';
 import { initRouter } from './router.js';
 import { showToast, isLoggedIn } from './utils.js';
 
-// سنقوم ببناء HTML الكامل هنا
+// HTML الكامل للصفحة (مع CSS والهيكل الأساسي)
 export const HTML_PAGE = `
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -262,7 +263,6 @@ export const HTML_PAGE = `
 </style>
 </head>
 <body>
-  <!-- سيتم إضافة الهيكل بواسطة layout.js -->
   <div id="app"></div>
   <script type="module">
     import './src/app.js';
@@ -273,11 +273,13 @@ export const HTML_PAGE = `
 
 // عند تحميل الصفحة، نقوم بتشغيل التطبيق
 document.addEventListener('DOMContentLoaded', () => {
-  // نضع المحتوى في #app
   const app = document.getElementById('app');
   if (app) {
-    import('./router.js').then(({ initRouter }) => {
-      initRouter();
-    });
+    app.innerHTML = renderLayout();
+    initLayout();
+    initRouter();
+    if (isLoggedIn()) {
+      showToast('مرحباً بك في لوحة التحكم', 'success');
+    }
   }
 });
