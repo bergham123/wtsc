@@ -150,6 +150,8 @@ export const HTML_PAGE = `<!DOCTYPE html>
   .btn-primary { background: var(--accent); color: #111B21; border: none; font-weight: 700; }
   .btn-primary:hover { background: #1FB855; box-shadow: 0 4px 12px var(--accent-glow); }
   .btn-warning { background: var(--warning); border: none; color: #111B21; font-weight: 700; }
+  .btn-danger { background: var(--danger); border: none; color: white; font-weight: 700; }
+  .btn-danger:hover { background: #d9534f; }
   
   .status { margin-top: 10px; font-size: 12px; min-height: 18px; color: var(--text-muted); text-align: center; }
   .status.ok { color: var(--success); }
@@ -241,6 +243,7 @@ export const HTML_PAGE = `<!DOCTYPE html>
         <div class="card-header"><i class="fas fa-bolt"></i><h2>تشغيل يدوي</h2></div>
         <div class="btn-row" style="margin-top: 12px;">
           <button class="btn btn-primary" id="runWorkflowBtn"><i class="fas fa-play"></i> تشغيل الـ Workflow</button>
+          <button class="btn btn-danger" id="stopWorkflowBtn"><i class="fas fa-stop"></i> إيقاف</button>
         </div>
         <div class="status" id="workflowStatus"></div>
       </div>
@@ -301,10 +304,11 @@ export const HTML_PAGE = `<!DOCTYPE html>
     <!-- Live Session Card -->
     <div class="card" id="liveSessionCard">
       <div class="card-header"><i class="fas fa-broadcast"></i><h2>الجلسة الحية</h2></div>
-      <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px; flex-wrap:wrap;">
         <span id="liveStatusIndicator" style="display:inline-block; width:14px; height:14px; border-radius:50%; background:gray;"></span>
         <span id="liveStatusText" style="font-weight:bold;">غير معروف</span>
         <span style="font-size:12px; color:var(--text-muted); margin-right:auto;">آخر تحديث: <span id="liveLastUpdate">-</span></span>
+        <button class="btn" id="checkSessionBtn" style="width:auto; padding:5px 12px; font-size:12px;"><i class="fas fa-sync"></i> تحقق</button>
       </div>
       <div id="liveQRContainer" style="display:none; text-align:center; margin-bottom:16px;">
         <img id="liveQRImage" src="" alt="QR Code" style="max-width:200px; border-radius:8px; border:1px solid var(--border-color);" />
@@ -574,6 +578,21 @@ document.getElementById("runWorkflowBtn").onclick = async function() {
   } catch (err) { setStatus(st, "خطأ: " + err.message, "err"); }
 };
 
+// زر إيقاف الـ Workflow
+document.getElementById("stopWorkflowBtn").onclick = async function() {
+  const st = document.getElementById("workflowStatus");
+  setStatus(st, "جاري الإيقاف...", "");
+  try {
+    const res = await fetch("/api/stop-workflow", {
+      method: "POST",
+      headers: getHeaders()
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+    setStatus(st, "تم الإيقاف ✓", "ok");
+  } catch (err) { setStatus(st, "خطأ: " + err.message, "err"); }
+};
+
 const logsModal = document.getElementById("logsModal");
 document.getElementById("viewLogsBtn").onclick = async function() {
   logsModal.classList.add("active");
@@ -713,8 +732,10 @@ document.getElementById("loadStatsBtn").onclick = async function() {
   } catch (err) { setStatus(st, "خطأ: " + err.message, "err"); }
 };
 
-// ===== NEW: Live Session Polling =====
-let livePollInterval = null;
+// ===== إدارة الجلسة الحية (تم التعديل) =====
+let qrPollInterval = null;
+let sessionCheckInterval = null;
+const SESSION_CHECK_INTERVAL = 5 * 60 * 1000; // 5 دقائق
 
 function updateLiveStatus(status) {
     const indicator = document.getElementById('liveStatusIndicator');
@@ -729,11 +750,11 @@ function updateLiveStatus(status) {
     const info = statusMap[status] || { color: 'gray', label: 'غير معروف' };
     indicator.style.background = info.color;
     text.textContent = info.label;
-    // Hide QR if connected or no status
     if (status === 'connected' || !status) {
         qrContainer.style.display = 'none';
     } else {
-        qrContainer.style.display = 'block';
+        // Keep QR visible only if we have a QR code
+        // but we will set it via polling
     }
 }
 
@@ -754,7 +775,6 @@ function updateLiveLogs(logs) {
     container.innerHTML = logs.map(entry =>
         \`<div style="color:var(--text-muted);">\${entry.timestamp ? entry.timestamp.slice(11,19) : ''} - \${entry.text}</div>\`
     ).join('');
-    // scroll to bottom
     container.scrollTop = container.scrollHeight;
 }
 
@@ -770,38 +790,90 @@ function updateLiveMessages(messages) {
     container.scrollTop = container.scrollHeight;
 }
 
-async function pollLive() {
+// دالة التحقق من الجلسة (مرة واحدة عند التحميل وكل 5 دقائق)
+async function checkSession() {
     try {
-        const [statusRes, qrRes, logsRes, msgsRes] = await Promise.all([
-            fetch('/api/live/status'),
-            fetch('/api/live/qr'),
-            fetch('/api/live/log'),
-            fetch('/api/live/messages')
-        ]);
-        const statusData = await statusRes.json();
-        const qrData = await qrRes.json();
-        const logsData = await logsRes.json();
-        const msgsData = await msgsRes.json();
-
-        if (statusData.ok) updateLiveStatus(statusData.status);
-        if (qrData.ok) updateLiveQR(qrData.qr);
-        if (logsData.ok) updateLiveLogs(logsData.logs);
-        if (msgsData.ok) updateLiveMessages(msgsData.messages);
-
-        document.getElementById('liveLastUpdate').textContent = new Date().toLocaleTimeString();
+        // جلب الحالة
+        const res = await fetch('/api/live/status');
+        const data = await res.json();
+        if (data.ok) {
+            const status = data.status;
+            updateLiveStatus(status);
+            // حفظ في localStorage
+            localStorage.setItem('liveStatus', status);
+            localStorage.setItem('liveStatusTimestamp', Date.now());
+            // التحكم في جلب QR بناءً على الحالة
+            if (status !== 'connected' && status !== null) {
+                startQRPolling();
+            } else {
+                stopQRPolling();
+            }
+            // تحديث آخر تحديث
+            document.getElementById('liveLastUpdate').textContent = new Date().toLocaleTimeString();
+        }
     } catch (e) {
-        console.error('Live poll error:', e);
+        console.error('Session check error:', e);
     }
 }
 
-// Start polling
-pollLive();
-livePollInterval = setInterval(pollLive, 2000);
+// بدء جلب QR كل 2 ثانية
+function startQRPolling() {
+    if (qrPollInterval) return;
+    qrPollInterval = setInterval(async () => {
+        try {
+            const res = await fetch('/api/live/qr');
+            const data = await res.json();
+            if (data.ok && data.qr) {
+                updateLiveQR(data.qr);
+            }
+        } catch (e) {}
+    }, 2000);
+}
 
-// Cleanup interval on page unload
+function stopQRPolling() {
+    if (qrPollInterval) {
+        clearInterval(qrPollInterval);
+        qrPollInterval = null;
+        // إخفاء الـ QR
+        document.getElementById('liveQRContainer').style.display = 'none';
+    }
+}
+
+// عند تحميل الصفحة: تحقق من localStorage أولاً
+function initializeSession() {
+    const savedStatus = localStorage.getItem('liveStatus');
+    const savedTimestamp = localStorage.getItem('liveStatusTimestamp');
+    if (savedStatus && savedTimestamp) {
+        const elapsed = Date.now() - parseInt(savedTimestamp);
+        if (elapsed < SESSION_CHECK_INTERVAL) {
+            // استخدم الحالة المخزنة مؤقتاً
+            updateLiveStatus(savedStatus);
+            if (savedStatus !== 'connected') {
+                startQRPolling();
+            }
+            // ولكن نتحقق أيضاً للتحديث
+        }
+    }
+    // نفذ التحقق الكامل
+    checkSession();
+    // وكل 5 دقائق
+    sessionCheckInterval = setInterval(checkSession, SESSION_CHECK_INTERVAL);
+}
+
+// زر التحقق اليدوي
+document.getElementById('checkSessionBtn').onclick = checkSession;
+
+// بدء التهيئة
+initializeSession();
+
+// تنظيف عند إغلاق الصفحة
 window.addEventListener('beforeunload', () => {
-    if (livePollInterval) clearInterval(livePollInterval);
+    if (qrPollInterval) clearInterval(qrPollInterval);
+    if (sessionCheckInterval) clearInterval(sessionCheckInterval);
 });
+
+// ملاحظة: تم إزالة الاستدعاءات التلقائية للسجلات والرسائل (كانت تجلب كل 2 ثانية)
+// يمكن إضافتها لاحقاً عند الحاجة.
 </script>
 </body>
 </html>
