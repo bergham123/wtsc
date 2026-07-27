@@ -1,4 +1,6 @@
 // src/layout.js
+import { showToast } from './utils.js';
+
 export function renderLayout() {
   return `
     <nav class="navbar">
@@ -36,7 +38,6 @@ export function initLayout() {
     });
   });
 
-  // زر الخروج
   const logoutBtn = document.getElementById('logoutBtn');
   if (logoutBtn) {
     logoutBtn.addEventListener('click', () => {
