@@ -1,3 +1,4 @@
+// src/handlers.js
 import { 
   githubGetFile, githubPutFile, githubRunWorkflow, githubListFiles, 
   githubGetFileRaw, githubPutFileBase64, githubDeleteFile,
@@ -157,16 +158,14 @@ export async function handleSaveImagesList(request, env) {
   }
 }
 
-// ===== دوال أخرى (Workflow, Logs, Stats) =====
+// ===== دوال تشغيل وإيقاف الـ Workflow =====
 export async function handleRunWorkflow(request, env) {
   try { await githubRunWorkflow(env); return jsonResponse({ ok: true }); }
   catch (err) { return jsonResponse({ ok: false, error: String(err.message || err) }, 500); }
 }
 
-// ===== دالة إيقاف الـ Workflow =====
 export async function handleStopWorkflow(request, env) {
   try {
-    // الحصول على آخر تشغيل قيد التنفيذ
     const runs = await githubListWorkflowRuns(env, 'in_progress');
     if (runs.length === 0) {
       return jsonResponse({ ok: false, error: 'لا يوجد تشغيل قيد التنفيذ' }, 404);
@@ -179,6 +178,7 @@ export async function handleStopWorkflow(request, env) {
   }
 }
 
+// ===== دوال السجلات والإحصائيات =====
 export async function handleGetLogs(request, env) {
   try {
     const { files } = await githubListFiles(env, "logs");
@@ -205,6 +205,54 @@ export async function handleGetStats(request, env) {
       return jsonResponse({ ok: true, data: Array.isArray(data) ? data : [] });
     } catch (e) { return jsonResponse({ ok: false, error: "Invalid JSON format" }, 500); }
   } catch (err) { return jsonResponse({ ok: false, error: String(err.message || err) }, 500); }
+}
+
+// ===== دوال إدارة جهات الاتصال (accounts.json) =====
+export async function handleGetContacts(request, env) {
+  try {
+    const path = getPath(env, 'contacts'); // "accounts.json"
+    const { content, exists } = await githubGetFile(env, path);
+    let data = [];
+    if (exists && content) {
+      try {
+        const parsed = JSON.parse(content);
+        if (Array.isArray(parsed)) data = parsed;
+      } catch (e) { data = []; }
+    }
+    // تأكد من أن كل عنصر يحتوي على الحقول الأساسية
+    data = data.map(item => ({
+      name: item.name || '',
+      gender: item.gender || '',
+      number: item.number || '',
+      age: item.age || ''
+    }));
+    return jsonResponse({ ok: true, data });
+  } catch (err) {
+    return jsonResponse({ ok: false, error: String(err.message || err) }, 500);
+  }
+}
+
+export async function handleUpdateContacts(request, env) {
+  try {
+    const { data } = await request.json();
+    if (!Array.isArray(data)) {
+      return jsonResponse({ ok: false, error: 'data must be an array' }, 400);
+    }
+    // تنظيف البيانات
+    const cleanData = data.map(item => ({
+      name: (item.name || '').trim(),
+      gender: (item.gender || '').trim(),
+      number: (item.number || '').trim(),
+      age: (item.age || '').trim()
+    })).filter(item => item.number !== ''); // لا نسمح بحفظ أرقام فارغة
+
+    const path = getPath(env, 'contacts');
+    const current = await githubGetFile(env, path);
+    const result = await githubPutFile(env, path, JSON.stringify(cleanData, null, 2), current.sha, "Update contacts data");
+    return jsonResponse({ ok: true, commit: result.commit && result.commit.sha });
+  } catch (err) {
+    return jsonResponse({ ok: false, error: String(err.message || err) }, 500);
+  }
 }
 
 // إعادة تصدير معالجات الجدولة
