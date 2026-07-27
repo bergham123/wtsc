@@ -18,6 +18,8 @@ const routes = {
   'stats': { render: stats.render, init: stats.init },
   'logs': { render: logs.render, init: logs.init },
   'images': { render: images.render, init: images.init },
+  'sender': { render: renderSender, init: initSender },   // جديد
+  'session': { render: renderSession, init: initSession } // جديد
 };
 
 export function navigate(hash) {
