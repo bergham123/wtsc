@@ -10,7 +10,7 @@ import { handleLoadSchedule, handleSaveSchedule } from './schedule.js';
 // ===== دوال تحميل وحفظ الملفات (messages, contacts, images) =====
 export async function handleLoad(request, env) {
   const type = new URL(request.url).searchParams.get("type");
-  if (!["messages", "contacts", "images"].includes(type)) {
+  if (!["messages", "accounts",  "contacts", "images"].includes(type)) {
     return jsonResponse({ error: "type must be messages, contacts or images" }, 400);
   }
   try {
@@ -24,7 +24,7 @@ export async function handleLoad(request, env) {
 export async function handleSave(request, env) {
   try {
     const { type, text } = await request.json();
-    if (!["messages", "contacts", "images"].includes(type)) {
+    if (!["messages", "accounts", "contacts", "images"].includes(type)) {
       return jsonResponse({ error: "type must be messages, contacts or images" }, 400);
     }
     const path = getPath(env, type);
@@ -210,7 +210,7 @@ export async function handleGetStats(request, env) {
 // ===== دوال إدارة جهات الاتصال (accounts.json) =====
 export async function handleGetContacts(request, env) {
   try {
-    const path = getPath(env, 'contacts'); // "accounts.json"
+    const path = getPath(env, 'contacts'); // "mylist.json"
     const { content, exists } = await githubGetFile(env, path);
     let data = [];
     if (exists && content) {
@@ -257,7 +257,7 @@ export async function handleUpdateContacts(request, env) {
 
 // src/handlers.js (الإضافات الجديدة في الأسفل)
 
-// ===== دوال لإدارة accounts.json (قائمة الأرقام النصية) =====
+// ===== دوال لإدارة  mylist.json (قائمة الأرقام النصية) =====
 export async function handleGetAccounts(request, env) {
   try {
     const path = 'accounts.json'; // مسار ثابت
