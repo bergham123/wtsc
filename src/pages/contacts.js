@@ -47,7 +47,7 @@ export async function init() {
 
 async function loadContacts() {
   try {
-    const res = await fetch('/api/contacts', { headers: getHeaders() });
+    const res = await fetch('/api/mylist', { headers: getHeaders() });
     const data = await res.json();
     if (!data.ok) throw new Error(data.error);
     contactsData = data.data || [];
@@ -128,7 +128,7 @@ function bindEvents() {
   // حفظ التغييرات
   document.getElementById('saveContactsBtn').addEventListener('click', async () => {
     try {
-      const res = await fetch('/api/contacts', {
+      const res = await fetch('/api/mylist', {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify({ data: contactsData })
