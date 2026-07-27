@@ -1,4 +1,3 @@
-// index.js
 import pkg from "whatsapp-web.js";
 const { Client, LocalAuth, MessageMedia } = pkg;
 
@@ -400,7 +399,7 @@ async function createClient() {
             dataPath: SESSION_DIR,
         }),
         puppeteer: {
-            headless: true,
+            headless: 'new',          // Use new headless mode (works in Puppeteer v22+)
             executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
             args: [
                 "--no-sandbox",
@@ -414,9 +413,14 @@ async function createClient() {
                 "--no-default-browser-check",
                 "--disable-features=site-per-process,Translate",
                 "--disable-ipc-flooding-protection",
+                "--disable-blink-features=AutomationControlled",  // Avoid detection
             ],
+            // Increase default navigation timeout to 2 minutes
+            timeout: 120000,
+            // Set protocol timeout (Puppeteer v21+)
+            protocolTimeout: 120000,
         },
-        restartOnAuthFail: true,
+        // restartOnAuthFail is not supported with LocalAuth, so we removed it
     });
 
     // Event handlers with worker communication
@@ -475,8 +479,32 @@ async function main() {
         logMessage("🚀 Starting WhatsApp bot");
         await sendToWorker("/api/live/status", { status: "starting" });
 
-        const client = await createClient();
-        await client.initialize();
+        // Use let so we can reassign on retry
+        let client = await createClient();
+
+        // Retry initialization up to 3 times
+        let initialized = false;
+        let attempts = 0;
+        while (!initialized && attempts < 3) {
+            try {
+                await client.initialize();
+                initialized = true;
+                logMessage("✅ Client initialized successfully");
+            } catch (initErr) {
+                attempts++;
+                logMessage(`❌ Initialization attempt ${attempts} failed: ${initErr.message}`);
+                if (attempts < 3) {
+                    logMessage(`Retrying in 10 seconds...`);
+                    await wait(10000);
+                    // Destroy the old client and create a new one for fresh attempt
+                    await client.destroy().catch(() => {});
+                    // Re-create the client
+                    client = await createClient();
+                } else {
+                    throw initErr; // rethrow after final attempt
+                }
+            }
+        }
 
         client.on("ready", async () => {
             await runBot(client);
