@@ -2,6 +2,8 @@
 import { renderLayout, initLayout } from './layout.js';
 import { renderLoginPage, initLogin } from './auth.js';
 import { isLoggedIn } from './utils.js';
+
+// استيراد الصفحات
 import * as dashboard from './pages/dashboard.js';
 import * as contacts from './pages/contacts.js';
 import * as schedule from './pages/schedule.js';
@@ -24,7 +26,6 @@ export function navigate(hash) {
   const main = document.getElementById('pageContent');
   if (!main) return;
 
-  // التحقق من تسجيل الدخول
   if (page !== 'login' && !isLoggedIn()) {
     window.location.hash = '#login';
     return;
@@ -36,30 +37,21 @@ export function navigate(hash) {
     return;
   }
 
-  // عرض المحتوى
   main.innerHTML = route.render();
-  // تهيئة الصفحة (ربط الأحداث)
   if (route.init) route.init();
 
-  // تحديث الروابط النشطة
   document.querySelectorAll('.nav-link').forEach(link => {
     link.classList.toggle('active', link.getAttribute('href') === '#' + page);
   });
 }
 
 export function initRouter() {
-  // بناء الهيكل الأساسي إذا لم يكن موجوداً
   if (!document.getElementById('pageContent')) {
     document.body.innerHTML = renderLayout();
     initLayout();
   }
-
-  // الاستماع لتغير الهاش
   window.addEventListener('hashchange', () => {
     navigate(window.location.hash);
   });
-
-  // التنقل الأولي
-  const initialHash = window.location.hash || '#dashboard';
-  navigate(initialHash);
+  navigate(window.location.hash || '#dashboard');
 }
