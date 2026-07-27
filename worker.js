@@ -1,6 +1,5 @@
 // worker.js
 import { HTML_PAGE } from './src/app.js';
-
 import {
     handleLoad,
     handleSave,
@@ -17,7 +16,6 @@ import {
     handleGetContacts,
     handleUpdateContacts
 } from './src/handlers.js';
-
 import {
     handleSetStatus,
     handleGetStatus,
@@ -45,7 +43,7 @@ export default {
             });
         }
 
-        // ---- Public GET endpoints (no auth required) ----
+        // ---- Public GET endpoints ----
         if (path === '/api/live/status' && request.method === 'GET') return handleGetStatus(request, env);
         if (path === '/api/live/qr' && request.method === 'GET') return handleGetQR(request, env);
         if (path === '/api/live/log' && request.method === 'GET') return handleGetLiveLogs(request, env);
@@ -58,13 +56,11 @@ export default {
         if (path === '/api/images' && request.method === 'GET') return handleListImages(request, env);
         if (path === '/api/contacts' && request.method === 'GET') return handleGetContacts(request, env);
 
-        // ---- POST endpoints (require authentication via X-API-Key) ----
+        // ---- POST endpoints ----
         if (request.method === 'POST') {
-            // Optional: verify API key (if present)
+            // Optional: verify API key
             // const apiKey = request.headers.get('X-API-Key');
-            // if (!apiKey || apiKey !== env.API_SECRET) {
-            //     return new Response('Unauthorized', { status: 401 });
-            // }
+            // if (!apiKey || apiKey !== env.API_SECRET) return new Response('Unauthorized', { status: 401 });
 
             switch (path) {
                 case '/api/save': return handleSave(request, env);
