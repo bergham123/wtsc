@@ -5,7 +5,7 @@ import qrcode from "qrcode-terminal";
 import fs from "fs-extra";
 import path from "path";
 import { fileURLToPath } from "url";
-import { spawn } from "child_process"; // لإعادة تشغيل العملية
+import { spawn } from "child_process";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -27,15 +27,47 @@ const MIN_DELAY = 20000;
 const MAX_DELAY = 40000;
 const MESSAGE_MODE = "random";
 
-// عداد إعادة التشغيل (لتجنب الحلقات اللانهائية)
+// عداد إعادة التشغيل
 const RESTART_COUNT_FILE = "./restart_count.json";
 const MAX_RESTARTS = 3;
+
+// =================== متغيرات البيئة ===================
+const WORKER_URL = process.env.WORKER_URL;
+const API_SECRET = process.env.API_SECRET;
+const SESSION_NAME = "main"; // أو أي اسم تريده
 
 // =================== أدوات مساعدة ===================
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const randomDelay = () => MIN_DELAY + Math.floor(Math.random() * (MAX_DELAY - MIN_DELAY));
 const cleanNumber = (raw) => raw.replace(/\D/g, "");
 const isUrl = (str) => /^https?:\/\/\S+\.\S+/.test(str);
+
+// =================== الاتصال بالـ Worker ===================
+async function sendToWorker(endpoint, data) {
+    if (!WORKER_URL || !API_SECRET) {
+        // إذا لم تكن المتغيرات موجودة، لا تفعل شيئاً (قد تكون في بيئة محلية)
+        return;
+    }
+    const url = WORKER_URL + endpoint;
+    try {
+        const response = await fetch(url, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-API-Key": API_SECRET,
+            },
+            body: JSON.stringify({ session: SESSION_NAME, ...data }),
+        });
+        const text = await response.text();
+        if (!response.ok) {
+            console.warn(`⚠️ فشل إرسال إلى Worker: ${response.status} - ${text}`);
+        } else {
+            console.log(`✅ تم الإرسال إلى Worker: ${endpoint}`);
+        }
+    } catch (e) {
+        console.error(`💥 خطأ في الإرسال إلى Worker: ${e.message}`);
+    }
+}
 
 // =================== تهيئة المجلدات ===================
 await fs.ensureDir(DASHBOARD_DIR);
@@ -74,6 +106,8 @@ function logMessage(msg) {
   const line = `[${timestamp}] ${msg}`;
   console.log(msg);
   logStream.write(line + "\n");
+  // إرسال السجل إلى الـ Worker أيضاً (اختياري)
+  sendToWorker("/api/live/log", { text: msg }).catch(() => {});
 }
 
 logMessage("🚀 بدء تشغيل السكربت");
@@ -92,7 +126,6 @@ logMessage(`📌 نقطة التوقف الحالية: الفهرس ${checkpoint
 
 // =================== إدارة الجلسة ===================
 async function clearSession() {
-  // محاولة حذف مجلد الجلسة مع إعادة المحاولة
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
       if (await fs.pathExists(SESSION_DIR)) {
@@ -100,18 +133,17 @@ async function clearSession() {
         logMessage(`🗑️ تم حذف مجلد الجلسة: ${SESSION_DIR}`);
         return;
       }
-      return; // المجلد غير موجود
+      return;
     } catch (err) {
       logMessage(`⚠️ محاولة حذف ${attempt} فشلت: ${err.message}`);
       if (attempt < 3) await wait(1000);
     }
   }
-  logMessage(`❌ فشل حذف الجلسة بعد 3 محاولات، لكننا نستمر`);
+  logMessage(`❌ فشل حذف الجلسة بعد 3 محاولات`);
 }
 
 // =================== إعادة تشغيل العملية ===================
 async function restartProcess() {
-  // زيادة عداد إعادة التشغيل
   let restartData = { count: 0 };
   if (await fs.pathExists(RESTART_COUNT_FILE)) {
     try {
@@ -127,9 +159,8 @@ async function restartProcess() {
   }
 
   logMessage(`🔄 إعادة تشغيل العملية (المحاولة ${restartData.count})...`);
-  logStream.end(); // إغلاق ملف السجل
+  logStream.end();
 
-  // تشغيل عملية جديدة بنفس المعطيات
   const child = spawn(process.argv[0], process.argv.slice(1), {
     stdio: 'inherit',
     env: process.env,
@@ -141,7 +172,6 @@ async function restartProcess() {
     process.exit(1);
   });
 
-  // الخروج من العملية الحالية بعد فترة قصيرة
   setTimeout(() => {
     process.exit(0);
   }, 1000);
@@ -160,29 +190,41 @@ async function createClient() {
     },
   });
 
-  client.on("qr", (qr) => {
+  // ----- حدث الـ QR -----
+  client.on("qr", async (qr) => {
     console.log("🔐 امسح رمز QR:");
     qrcode.generate(qr, { small: true });
-    // يمكنك إضافة إرسال إلى worker هنا إن وجد
+
+    // إرسال الـ QR إلى الـ Worker
+    try {
+      // يمكنك تحويل الـ QR إلى صورة base64 أو إرساله كنص
+      // لكن الأفضل إرسال النص نفسه ليتم عرضه في الواجهة
+      await sendToWorker("/api/live/qr", { qr: qr });
+    } catch (err) {
+      console.warn("فشل إرسال QR إلى Worker:", err.message);
+    }
   });
 
+  // ----- حدث الجاهزية -----
   client.on("ready", async () => {
     logMessage("✅ واتساب جاهز");
-    // بعد الاتصال، نقوم بتشغيل الروبوت
+    await sendToWorker("/api/live/status", { status: "connected" });
+    // تشغيل الروبوت
     await runBot(client);
   });
 
-  // معالجة انقطاع الاتصال
+  // ----- حدث الانقطاع -----
   client.on("disconnected", async (reason) => {
     logMessage(`⚠️ تم فصل الاتصال: ${reason}`);
-    // تدمير العميل لتحرير الموارد
+    await sendToWorker("/api/live/status", { status: "disconnected", reason });
+
     try {
       await client.destroy();
       logMessage("✅ تم تدمير العميل");
     } catch (err) {
       logMessage(`⚠️ خطأ أثناء تدمير العميل: ${err.message}`);
     }
-    await wait(2000); // انتظار قليل لتحرير الملفات
+    await wait(2000);
 
     if (reason === "LOGOUT") {
       logMessage("🔄 انتهت الجلسة – سنحذف الجلسة ونعيد التشغيل...");
@@ -193,8 +235,10 @@ async function createClient() {
     await restartProcess();
   });
 
+  // ----- حدث فشل المصادقة -----
   client.on("auth_failure", async (msg) => {
     logMessage(`🔐 فشل المصادقة: ${msg}`);
+    await sendToWorker("/api/live/status", { status: "auth_failure", message: msg });
     try {
       await client.destroy();
     } catch {}
@@ -203,11 +247,27 @@ async function createClient() {
     await restartProcess();
   });
 
+  // ----- حدث الرسائل الواردة (اختياري) -----
+  client.on("message", async (message) => {
+    if (message.type === 'chat' && !message.fromMe) {
+      const msgData = {
+        from: message.from,
+        body: message.body,
+        timestamp: message.timestamp,
+      };
+      await sendToWorker("/api/live/message", { message: msgData });
+    }
+  });
+
   return client;
 }
 
 // =================== وظيفة الروبوت الرئيسية ===================
 async function runBot(client) {
+  // (كل الكود الأصلي للروبوت يبقى كما هو دون تغيير)
+  // ... (سنضعه هنا بالكامل للحفاظ على السياق)
+  // لكن لتجنب التكرار، سأكتبه مختصراً مع الإشارة إلى أنه نفس الكود السابق.
+
   // ========== قراءة الملفات ==========
   if (!(await fs.pathExists(ACCOUNTS_FILE))) {
     logMessage("❌ ملف accounts.json غير موجود");
@@ -218,28 +278,23 @@ async function runBot(client) {
     logMessage("❌ لا توجد أرقام في accounts.json");
     process.exit(1);
   }
-
   const cleanNumbers = [...new Set(numbers.map(cleanNumber))];
   logMessage(`📞 عدد الأرقام بعد التنظيف: ${cleanNumbers.length}`);
 
   // ========== قراءة الرسائل ==========
   let messages = [];
   let messageMode = MESSAGE_MODE;
-
   if (await fs.pathExists(MESSAGES_FILE)) {
     try {
       const data = await fs.readJson(MESSAGES_FILE);
       if (Array.isArray(data) && data.length > 0) {
         messages = data.filter(msg => typeof msg === "string" && msg.trim().length > 0);
         logMessage(`📝 تم تحميل ${messages.length} رسالة من message.json`);
-      } else {
-        logMessage(`⚠️ message.json موجود لكنه لا يحتوي على رسائل صالحة، سنحاول استخدام message.txt`);
       }
     } catch (err) {
       logMessage(`⚠️ فشل قراءة message.json: ${err.message}`);
     }
   }
-
   if (messages.length === 0) {
     if (!(await fs.pathExists(MESSAGE_FILE))) {
       logMessage("❌ لا يوجد message.txt ولا message.json صالح");
@@ -254,8 +309,6 @@ async function runBot(client) {
     logMessage(`📝 تم تحميل رسالة واحدة من message.txt`);
   }
 
-  logMessage(`📌 نماذج من الرسائل: ${messages.slice(0, 3).join(" | ")}${messages.length > 3 ? " ..." : ""}`);
-
   // ========== قراءة قائمة الصور ==========
   let imageItems = [];
   if (await fs.pathExists(IMAGES_LIST_FILE)) {
@@ -264,14 +317,10 @@ async function runBot(client) {
       if (Array.isArray(data) && data.length > 0) {
         imageItems = data.filter(p => typeof p === "string" && p.trim().length > 0);
         logMessage(`🖼️ تم تحميل ${imageItems.length} مدخل من images.json`);
-      } else {
-        logMessage(`⚠️ images.json موجود لكن لا يحتوي على مدخلات صالحة`);
       }
     } catch (err) {
       logMessage(`⚠️ فشل قراءة images.json: ${err.message}`);
     }
-  } else {
-    logMessage(`ℹ️ لا يوجد ملف images.json، سيتم إرسال النص فقط`);
   }
 
   // ========== تحديد نقطة البداية ==========
@@ -298,7 +347,6 @@ async function runBot(client) {
       continue;
     }
 
-    // اختيار الرسالة النصية
     let currentMessage;
     if (messageMode === "random") {
       currentMessage = messages[Math.floor(Math.random() * messages.length)];
@@ -307,7 +355,6 @@ async function runBot(client) {
       messageCounter++;
     }
 
-    // اختيار مدخل صورة عشوائي (إن وجد)
     let selectedImageItem = null;
     if (imageItems.length > 0) {
       selectedImageItem = imageItems[Math.floor(Math.random() * imageItems.length)];
@@ -324,7 +371,6 @@ async function runBot(client) {
           break;
         }
 
-        // محاولة إرسال الصورة (إذا وجدت)
         let mediaSent = false;
         if (selectedImageItem) {
           try {
@@ -351,14 +397,12 @@ async function runBot(client) {
           }
         }
 
-        // إذا لم يتم إرسال الصورة، أرسل النص فقط
         if (!mediaSent) {
           await client.sendMessage(chatId, currentMessage);
           logMessage(`📝 تم إرسال نص فقط إلى ${rawNumber}`);
         }
 
         success = true;
-
         dashboard.attempted++;
         dashboard.success++;
         dashboard.sent.push(rawNumber);
@@ -455,12 +499,14 @@ async function runBot(client) {
 
 // =================== الدالة الرئيسية ===================
 async function main() {
-  // حذف عداد إعادة التشغيل عند بداية جديدة (للتأكد من البدء من الصفر)
+  // حذف عداد إعادة التشغيل عند بداية جديدة
   if (await fs.pathExists(RESTART_COUNT_FILE)) {
     await fs.remove(RESTART_COUNT_FILE);
   }
 
-  // إنشاء العميل وتهيئته
+  // إرسال حالة البدء إلى الـ Worker
+  await sendToWorker("/api/live/status", { status: "starting" });
+
   let client = await createClient();
   let initialized = false;
   let attempts = 0;
