@@ -38,7 +38,7 @@ const cleanNumber = (raw) => raw.replace(/\D/g, "");
 const isUrl = (str) => /^https?:\/\/\S+\.\S+/.test(str);
 const getToday = () => new Date().toISOString().split("T")[0];
 
-// ---------- Worker communication with detailed logging ----------
+// ---------- Worker communication ----------
 async function sendToWorker(endpoint, data) {
     if (!WORKER_URL || !API_SECRET) {
         console.warn("⚠️ WORKER_URL or API_SECRET not set, cannot send to worker");
@@ -68,9 +68,7 @@ async function sendToWorker(endpoint, data) {
 }
 
 function sendLogToWorker(text) {
-    if (!WORKER_URL || !API_SECRET) {
-        return;
-    }
+    if (!WORKER_URL || !API_SECRET) return;
     const url = WORKER_URL + "/api/live/log";
     fetch(url, {
         method: "POST",
@@ -428,7 +426,6 @@ async function createClient() {
         },
     });
 
-    // Event handlers with worker communication
     client.on("qr", async (qr) => {
         console.log("🔐 Scan the QR code below:");
         qrcode.generate(qr, { small: true });
@@ -444,7 +441,6 @@ async function createClient() {
         await sendToWorker("/api/live/status", { status: "connected" });
     });
 
-    // -------- MODIFIED: disconnected handler with LOGOUT detection --------
     client.on("disconnected", async (reason) => {
         await sendToWorker("/api/live/status", { status: "disconnected", reason });
         logMessage(`⚠️ Disconnected: ${reason}`);
@@ -454,13 +450,11 @@ async function createClient() {
             await clearSession();
             client.emit("session_expired");
         } else {
-            // For other disconnections (network, etc.), you may also restart without clearing
             logMessage("🔄 Attempting to reconnect without clearing session...");
             client.emit("session_expired");
         }
     });
 
-    // -------- NEW: auth_failure handler --------
     client.on("auth_failure", async (msg) => {
         logMessage(`🔐 Authentication failure: ${msg}`);
         await clearSession();
@@ -501,15 +495,13 @@ async function main() {
         logMessage("🚀 Starting WhatsApp bot");
         await sendToWorker("/api/live/status", { status: "starting" });
 
-        // Restart counters
         let restartCount = 0;
         const MAX_RESTARTS = 3;
 
-        // We'll define a function to start the client with retry logic and restart on session_expired
         const startClient = async () => {
             let client = await createClient();
 
-            // When session expires, we restart the whole client
+            // When session expires, restart the whole client
             client.once("session_expired", async () => {
                 restartCount++;
                 if (restartCount > MAX_RESTARTS) {
@@ -518,11 +510,12 @@ async function main() {
                 }
                 logMessage(`🔄 Restarting client (attempt ${restartCount})...`);
                 await client.destroy().catch(() => {});
-                // Recursively start again
+                // *** FIX: Wait for Puppeteer to fully clean up ***
+                await wait(3000);
                 await startClient();
             });
 
-            // Initialise the client with retry (3 attempts)
+            // Initialise with retries (3 attempts)
             let initialized = false;
             let initAttempts = 0;
             while (!initialized && initAttempts < 3) {
@@ -536,10 +529,11 @@ async function main() {
                     if (initAttempts < 3) {
                         logMessage(`Retrying in 10 seconds...`);
                         await wait(10000);
-                        // Destroy old and create a fresh client
                         await client.destroy().catch(() => {});
+                        // Wait for cleanup before creating a new client
+                        await wait(3000);
                         client = await createClient();
-                        // Re-attach the session_expired listener because we have a new client
+                        // Re‑attach the session_expired listener
                         client.once("session_expired", async () => {
                             restartCount++;
                             if (restartCount > MAX_RESTARTS) {
@@ -548,21 +542,20 @@ async function main() {
                             }
                             logMessage(`🔄 Restarting client (attempt ${restartCount})...`);
                             await client.destroy().catch(() => {});
+                            await wait(3000);
                             await startClient();
                         });
                     } else {
-                        throw initErr; // rethrow after final attempt
+                        throw initErr;
                     }
                 }
             }
 
-            // Once ready, run the bot
             client.on("ready", async () => {
                 await runBot(client);
             });
         };
 
-        // Start the client
         await startClient();
     } catch (err) {
         console.error("❌ Fatal error:", err);
