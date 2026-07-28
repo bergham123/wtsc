@@ -1,6 +1,4 @@
-# .gitignore
 node_modules/
-session/
 *.log
 *.lock
 .DS_Store
