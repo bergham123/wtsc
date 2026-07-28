@@ -81,7 +81,6 @@ function sendLogToWorker(text) {
         body: JSON.stringify({ session: SESSION_NAME, text }),
     }).catch((e) => console.error("💥 Log send error:", e.message));
 }
-// ---------- END NEW ----------
 
 // =================== File Helpers ===================
 async function loadJSON(file, defaultVal = null) {
@@ -163,6 +162,14 @@ async function loadCheckpoint() {
 
 async function saveCheckpoint(checkpoint) {
     await saveJSON(CHECKPOINT_FILE, checkpoint);
+}
+
+// =================== Session Management ===================
+async function clearSession() {
+    if (await fs.pathExists(SESSION_DIR)) {
+        await fs.remove(SESSION_DIR);
+        logMessage(`🗑️ Cleared session directory: ${SESSION_DIR}`);
+    }
 }
 
 // =================== Main Logic ===================
@@ -394,14 +401,13 @@ async function sendAdminReport(client, dashboard, msgCount, imgCount, mode) {
 // =================== Client Setup ===================
 async function createClient() {
     const client = new Client({
-
-         authStrategy: new LocalAuth({
-              clientId: "main",
-              dataPath: "./session", // مسار ثابت
-              restartOnAuthFail: true
-       }),
+        authStrategy: new LocalAuth({
+            clientId: "main",
+            dataPath: "./session",
+            restartOnAuthFail: true
+        }),
         puppeteer: {
-            headless: 'new',          // Use new headless mode (works in Puppeteer v22+)
+            headless: 'new',
             executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
             args: [
                 "--no-sandbox",
@@ -415,14 +421,11 @@ async function createClient() {
                 "--no-default-browser-check",
                 "--disable-features=site-per-process,Translate",
                 "--disable-ipc-flooding-protection",
-                "--disable-blink-features=AutomationControlled",  // Avoid detection
+                "--disable-blink-features=AutomationControlled",
             ],
-            // Increase default navigation timeout to 2 minutes
             timeout: 120000,
-            // Set protocol timeout (Puppeteer v21+)
             protocolTimeout: 120000,
         },
-        // restartOnAuthFail is not supported with LocalAuth, so we removed it
     });
 
     // Event handlers with worker communication
@@ -441,10 +444,27 @@ async function createClient() {
         await sendToWorker("/api/live/status", { status: "connected" });
     });
 
+    // -------- MODIFIED: disconnected handler with LOGOUT detection --------
     client.on("disconnected", async (reason) => {
-        await sendToWorker("/api/live/status", { status: "disconnected" });
+        await sendToWorker("/api/live/status", { status: "disconnected", reason });
         logMessage(`⚠️ Disconnected: ${reason}`);
-        process.exit(1);
+
+        if (reason === "LOGOUT") {
+            logMessage("🔄 Session expired – clearing session and restarting...");
+            await clearSession();
+            client.emit("session_expired");
+        } else {
+            // For other disconnections (network, etc.), you may also restart without clearing
+            logMessage("🔄 Attempting to reconnect without clearing session...");
+            client.emit("session_expired");
+        }
+    });
+
+    // -------- NEW: auth_failure handler --------
+    client.on("auth_failure", async (msg) => {
+        logMessage(`🔐 Authentication failure: ${msg}`);
+        await clearSession();
+        client.emit("session_expired");
     });
 
     client.on("message", async (message) => {
@@ -481,36 +501,69 @@ async function main() {
         logMessage("🚀 Starting WhatsApp bot");
         await sendToWorker("/api/live/status", { status: "starting" });
 
-        // Use let so we can reassign on retry
-        let client = await createClient();
+        // Restart counters
+        let restartCount = 0;
+        const MAX_RESTARTS = 3;
 
-        // Retry initialization up to 3 times
-        let initialized = false;
-        let attempts = 0;
-        while (!initialized && attempts < 3) {
-            try {
-                await client.initialize();
-                initialized = true;
-                logMessage("✅ Client initialized successfully");
-            } catch (initErr) {
-                attempts++;
-                logMessage(`❌ Initialization attempt ${attempts} failed: ${initErr.message}`);
-                if (attempts < 3) {
-                    logMessage(`Retrying in 10 seconds...`);
-                    await wait(10000);
-                    // Destroy the old client and create a new one for fresh attempt
-                    await client.destroy().catch(() => {});
-                    // Re-create the client
-                    client = await createClient();
-                } else {
-                    throw initErr; // rethrow after final attempt
+        // We'll define a function to start the client with retry logic and restart on session_expired
+        const startClient = async () => {
+            let client = await createClient();
+
+            // When session expires, we restart the whole client
+            client.once("session_expired", async () => {
+                restartCount++;
+                if (restartCount > MAX_RESTARTS) {
+                    logMessage(`❌ Too many restarts (${MAX_RESTARTS}), giving up.`);
+                    process.exit(1);
+                }
+                logMessage(`🔄 Restarting client (attempt ${restartCount})...`);
+                await client.destroy().catch(() => {});
+                // Recursively start again
+                await startClient();
+            });
+
+            // Initialise the client with retry (3 attempts)
+            let initialized = false;
+            let initAttempts = 0;
+            while (!initialized && initAttempts < 3) {
+                try {
+                    await client.initialize();
+                    initialized = true;
+                    logMessage("✅ Client initialized successfully");
+                } catch (initErr) {
+                    initAttempts++;
+                    logMessage(`❌ Initialization attempt ${initAttempts} failed: ${initErr.message}`);
+                    if (initAttempts < 3) {
+                        logMessage(`Retrying in 10 seconds...`);
+                        await wait(10000);
+                        // Destroy old and create a fresh client
+                        await client.destroy().catch(() => {});
+                        client = await createClient();
+                        // Re-attach the session_expired listener because we have a new client
+                        client.once("session_expired", async () => {
+                            restartCount++;
+                            if (restartCount > MAX_RESTARTS) {
+                                logMessage(`❌ Too many restarts, giving up.`);
+                                process.exit(1);
+                            }
+                            logMessage(`🔄 Restarting client (attempt ${restartCount})...`);
+                            await client.destroy().catch(() => {});
+                            await startClient();
+                        });
+                    } else {
+                        throw initErr; // rethrow after final attempt
+                    }
                 }
             }
-        }
 
-        client.on("ready", async () => {
-            await runBot(client);
-        });
+            // Once ready, run the bot
+            client.on("ready", async () => {
+                await runBot(client);
+            });
+        };
+
+        // Start the client
+        await startClient();
     } catch (err) {
         console.error("❌ Fatal error:", err);
         logStream?.end();
