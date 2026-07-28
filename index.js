@@ -6,6 +6,7 @@ import QRCode from "qrcode";
 import fs from "fs-extra";
 import path from "path";
 import { fileURLToPath } from "url";
+import { spawn } from "child_process"; // NEW
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -30,6 +31,10 @@ const MESSAGE_MODE = "random";
 const WORKER_URL = process.env.WORKER_URL;
 const API_SECRET = process.env.API_SECRET;
 const SESSION_NAME = "main";
+
+// Restart counter (persistent across restarts)
+const RESTART_COUNT_FILE = "./restart_count.json";
+const MAX_RESTARTS = 3;
 
 // =================== Helpers ===================
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -168,6 +173,45 @@ async function clearSession() {
         await fs.remove(SESSION_DIR);
         logMessage(`🗑️ Cleared session directory: ${SESSION_DIR}`);
     }
+}
+
+// =================== Process Restart ===================
+async function restartProcess() {
+    // Increment restart counter
+    let restartData = { count: 0 };
+    if (await fs.pathExists(RESTART_COUNT_FILE)) {
+        try {
+            restartData = await fs.readJson(RESTART_COUNT_FILE);
+        } catch {}
+    }
+    restartData.count = (restartData.count || 0) + 1;
+    await saveJSON(RESTART_COUNT_FILE, restartData);
+
+    if (restartData.count > MAX_RESTARTS) {
+        logMessage(`❌ Too many restarts (${MAX_RESTARTS}), giving up.`);
+        process.exit(1);
+    }
+
+    logMessage(`🔄 Restarting process (attempt ${restartData.count})...`);
+    // Close log stream before spawn
+    if (logStream) logStream.end();
+
+    // Spawn a new process with the same arguments
+    const child = spawn(process.argv[0], process.argv.slice(1), {
+        stdio: 'inherit',
+        env: process.env,
+        detached: false,
+    });
+
+    child.on('error', (err) => {
+        console.error('Failed to start new process:', err);
+        process.exit(1);
+    });
+
+    // Exit current process after a short delay to allow child to start
+    setTimeout(() => {
+        process.exit(0);
+    }, 1000);
 }
 
 // =================== Main Logic ===================
@@ -441,24 +485,26 @@ async function createClient() {
         await sendToWorker("/api/live/status", { status: "connected" });
     });
 
+    // -------- MODIFIED: disconnected handler with process restart --------
     client.on("disconnected", async (reason) => {
         await sendToWorker("/api/live/status", { status: "disconnected", reason });
         logMessage(`⚠️ Disconnected: ${reason}`);
 
         if (reason === "LOGOUT") {
-            logMessage("🔄 Session expired – clearing session and restarting...");
+            logMessage("🔄 Session expired – clearing session and restarting process...");
             await clearSession();
-            client.emit("session_expired");
+            await restartProcess();  // Restart the whole process
         } else {
-            logMessage("🔄 Attempting to reconnect without clearing session...");
-            client.emit("session_expired");
+            // For other disconnections, you may also restart without clearing
+            logMessage("🔄 Attempting to restart process without clearing session...");
+            await restartProcess();
         }
     });
 
     client.on("auth_failure", async (msg) => {
         logMessage(`🔐 Authentication failure: ${msg}`);
         await clearSession();
-        client.emit("session_expired");
+        await restartProcess();
     });
 
     client.on("message", async (message) => {
@@ -487,6 +533,11 @@ async function createClient() {
 // =================== Main Entry ===================
 async function main() {
     try {
+        // Reset restart counter on fresh start (if it exists, remove it)
+        if (await fs.pathExists(RESTART_COUNT_FILE)) {
+            await fs.remove(RESTART_COUNT_FILE);
+        }
+
         await fs.ensureDir(SESSION_DIR);
         await fs.ensureDir(LOGS_DIR);
         await fs.ensureDir(DASHBOARD_DIR);
@@ -495,68 +546,33 @@ async function main() {
         logMessage("🚀 Starting WhatsApp bot");
         await sendToWorker("/api/live/status", { status: "starting" });
 
-        let restartCount = 0;
-        const MAX_RESTARTS = 3;
-
-        const startClient = async () => {
-            let client = await createClient();
-
-            // When session expires, restart the whole client
-            client.once("session_expired", async () => {
-                restartCount++;
-                if (restartCount > MAX_RESTARTS) {
-                    logMessage(`❌ Too many restarts (${MAX_RESTARTS}), giving up.`);
-                    process.exit(1);
-                }
-                logMessage(`🔄 Restarting client (attempt ${restartCount})...`);
-                await client.destroy().catch(() => {});
-                // *** FIX: Wait for Puppeteer to fully clean up ***
-                await wait(3000);
-                await startClient();
-            });
-
-            // Initialise with retries (3 attempts)
-            let initialized = false;
-            let initAttempts = 0;
-            while (!initialized && initAttempts < 3) {
-                try {
-                    await client.initialize();
-                    initialized = true;
-                    logMessage("✅ Client initialized successfully");
-                } catch (initErr) {
-                    initAttempts++;
-                    logMessage(`❌ Initialization attempt ${initAttempts} failed: ${initErr.message}`);
-                    if (initAttempts < 3) {
-                        logMessage(`Retrying in 10 seconds...`);
-                        await wait(10000);
-                        await client.destroy().catch(() => {});
-                        // Wait for cleanup before creating a new client
-                        await wait(3000);
-                        client = await createClient();
-                        // Re‑attach the session_expired listener
-                        client.once("session_expired", async () => {
-                            restartCount++;
-                            if (restartCount > MAX_RESTARTS) {
-                                logMessage(`❌ Too many restarts, giving up.`);
-                                process.exit(1);
-                            }
-                            logMessage(`🔄 Restarting client (attempt ${restartCount})...`);
-                            await client.destroy().catch(() => {});
-                            await wait(3000);
-                            await startClient();
-                        });
-                    } else {
-                        throw initErr;
-                    }
+        // Create and initialize client
+        let client = await createClient();
+        let initialized = false;
+        let initAttempts = 0;
+        while (!initialized && initAttempts < 3) {
+            try {
+                await client.initialize();
+                initialized = true;
+                logMessage("✅ Client initialized successfully");
+            } catch (initErr) {
+                initAttempts++;
+                logMessage(`❌ Initialization attempt ${initAttempts} failed: ${initErr.message}`);
+                if (initAttempts < 3) {
+                    logMessage(`Retrying in 10 seconds...`);
+                    await wait(10000);
+                    await client.destroy().catch(() => {});
+                    client = await createClient();
+                } else {
+                    throw initErr;
                 }
             }
+        }
 
-            client.on("ready", async () => {
-                await runBot(client);
-            });
-        };
+        client.on("ready", async () => {
+            await runBot(client);
+        });
 
-        await startClient();
     } catch (err) {
         console.error("❌ Fatal error:", err);
         logStream?.end();
