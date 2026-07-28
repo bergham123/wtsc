@@ -731,6 +731,33 @@ function renderMessages() {
       <textarea id="messagesArea" style="width:100%; min-height:200px; background:var(--input-bg); color:var(--text-main); border:1px solid var(--border-color); border-radius:8px; padding:12px; font-family:'Consolas',monospace; font-size:13px; resize:vertical; direction:ltr; text-align:left;"></textarea>
       <div id="messagesStatus" class="status" style="margin-top:12px;"></div>
     </div>
+    <div class="page-header">
+      <h1><i class="fas fa-phone"></i> الأرقام (accounts.json)</h1>
+      <p style="color:var(--text-muted);">إدارة قائمة الأرقام (كل رقم في سطر)</p>
+    </div>
+
+    <div class="card">
+      <div style="display:flex; flex-wrap:wrap; gap:12px; margin-bottom:16px; align-items:center;">
+        <button id="loadAccountsBtn" class="btn" style="width:auto;">
+          <i class="fas fa-download"></i> تحميل
+        </button>
+
+        <button id="saveAccountsBtn" class="btn btn-primary" style="width:auto;">
+          <i class="fas fa-save"></i> حفظ
+        </button>
+
+        <span id="accountsCount" style="color:var(--text-muted); font-size:13px;">
+          0 رقم
+        </span>
+      </div>
+
+      <textarea
+        id="accountsArea"
+        style="width:100%; min-height:200px; background:var(--input-bg); color:var(--text-main); border:1px solid var(--border-color); border-radius:8px; padding:12px; font-family:'Consolas',monospace; font-size:13px; resize:vertical; direction:ltr; text-align:left;"
+      ></textarea>
+
+      <div id="accountsStatus" class="status" style="margin-top:12px;"></div>
+    </div>
   \`;
 }
 
@@ -784,38 +811,6 @@ function initMessages() {
     const count = this.value.split('\\n').filter(Boolean).length;
     document.getElementById('messagesCount').textContent = count + ' رسالة';
   });
-}
-// ----- صفحة الأرقام (accounts.json) -----
-function renderAccounts() {
-  return `
-    <div class="page-header">
-      <h1><i class="fas fa-phone"></i> الأرقام (accounts.json)</h1>
-      <p style="color:var(--text-muted);">إدارة قائمة الأرقام (كل رقم في سطر)</p>
-    </div>
-
-    <div class="card">
-      <div style="display:flex; flex-wrap:wrap; gap:12px; margin-bottom:16px; align-items:center;">
-        <button id="loadAccountsBtn" class="btn" style="width:auto;">
-          <i class="fas fa-download"></i> تحميل
-        </button>
-
-        <button id="saveAccountsBtn" class="btn btn-primary" style="width:auto;">
-          <i class="fas fa-save"></i> حفظ
-        </button>
-
-        <span id="accountsCount" style="color:var(--text-muted); font-size:13px;">
-          0 رقم
-        </span>
-      </div>
-
-      <textarea
-        id="accountsArea"
-        style="width:100%; min-height:200px; background:var(--input-bg); color:var(--text-main); border:1px solid var(--border-color); border-radius:8px; padding:12px; font-family:'Consolas',monospace; font-size:13px; resize:vertical; direction:ltr; text-align:left;"
-      ></textarea>
-
-      <div id="accountsStatus" class="status" style="margin-top:12px;"></div>
-    </div>
-  `;
 }
 
 async function loadAccounts() {
