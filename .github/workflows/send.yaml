@@ -4,7 +4,7 @@ on:
   schedule:
     - cron: '0 3 * * *'
   workflow_dispatch:
-  
+
 permissions:
   contents: write
 
@@ -31,7 +31,19 @@ jobs:
       - name: Install Node dependencies
         run: npm install
 
+      # إزالة ملفات القفل القديمة لتجنب مشاكل الجلسة
+      - name: Remove stale lock files
+        run: |
+          find session -name "SingletonLock" -delete 2>/dev/null || true
+          find session -name "SingletonCookie" -delete 2>/dev/null || true
+          find session -name "SingletonSocket" -delete 2>/dev/null || true
+          find session -name "*.lock" -delete 2>/dev/null || true
+
       - name: Run WhatsApp bot
+        env:
+          PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium-browser
+          WORKER_URL: ${{ secrets.WORKER_URL }}
+          API_SECRET: ${{ secrets.API_SECRET }}
         run: npm start
         continue-on-error: true   # استمر حتى لو فشل البوت (لحفظ الملفات)
 
@@ -39,7 +51,7 @@ jobs:
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          # إضافة جميع الملفات المهمة (بما فيها session)
-          git add dashboard aggregate.json logs session || true
+          # إضافة جميع الملفات المهمة (بما فيها session) - استخدم -f لتجاوز .gitignore إذا لزم الأمر
+          git add -f dashboard aggregate.json logs session || true
           git commit -m "update session, dashboard & logs $(date +'%Y-%m-%d %H:%M')" || echo "No changes to commit"
           git push
