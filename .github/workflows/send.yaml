@@ -28,10 +28,18 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libgbm-dev
 
+      - name: Restore session cache
+        uses: actions/cache@v4
+        id: session-cache
+        with:
+          path: session
+          key: whatsapp-session-${{ runner.os }}-v1
+          restore-keys: |
+            whatsapp-session-${{ runner.os }}-v1
+
       - name: Install Node dependencies
         run: npm install
 
-      # إزالة ملفات القفل القديمة لتجنب مشاكل الجلسة
       - name: Remove stale lock files
         run: |
           find session -name "SingletonLock" -delete 2>/dev/null || true
@@ -45,13 +53,20 @@ jobs:
           WORKER_URL: ${{ secrets.WORKER_URL }}
           API_SECRET: ${{ secrets.API_SECRET }}
         run: npm start
-        continue-on-error: true   # استمر حتى لو فشل البوت (لحفظ الملفات)
+        continue-on-error: true
 
-      - name: Commit updated files
+      - name: Save session cache
+        uses: actions/cache@v4
+        if: always()
+        with:
+          path: session
+          key: whatsapp-session-${{ runner.os }}-v1
+
+      - name: Commit updated files (excluding session)
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          # إضافة جميع الملفات المهمة (بما فيها session) - استخدم -f لتجاوز .gitignore إذا لزم الأمر
-          git add -f dashboard aggregate.json logs session || true
-          git commit -m "update session, dashboard & logs $(date +'%Y-%m-%d %H:%M')" || echo "No changes to commit"
+          # لا نضيف session لأنها في الكاش
+          git add dashboard aggregate.json logs || true
+          git commit -m "update dashboard & logs $(date +'%Y-%m-%d %H:%M')" || echo "No changes to commit"
           git push
