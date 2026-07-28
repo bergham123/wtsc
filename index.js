@@ -6,7 +6,7 @@ import QRCode from "qrcode";
 import fs from "fs-extra";
 import path from "path";
 import { fileURLToPath } from "url";
-import { spawn } from "child_process"; // NEW
+import { spawn } from "child_process";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -32,7 +32,7 @@ const WORKER_URL = process.env.WORKER_URL;
 const API_SECRET = process.env.API_SECRET;
 const SESSION_NAME = "main";
 
-// Restart counter (persistent across restarts)
+// Restart counter
 const RESTART_COUNT_FILE = "./restart_count.json";
 const MAX_RESTARTS = 3;
 
@@ -169,9 +169,25 @@ async function saveCheckpoint(checkpoint) {
 
 // =================== Session Management ===================
 async function clearSession() {
-    if (await fs.pathExists(SESSION_DIR)) {
-        await fs.remove(SESSION_DIR);
-        logMessage(`🗑️ Cleared session directory: ${SESSION_DIR}`);
+    // Retry up to 3 times with 1 second delay
+    for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+            if (await fs.pathExists(SESSION_DIR)) {
+                // Use Node's native fs.rm with force and recursive
+                await fs.rm(SESSION_DIR, { force: true, recursive: true });
+                logMessage(`🗑️ Cleared session directory: ${SESSION_DIR}`);
+                return; // success
+            }
+            return; // already gone
+        } catch (err) {
+            logMessage(`⚠️ Clear attempt ${attempt} failed: ${err.message}`);
+            if (attempt < 3) {
+                await wait(1000); // wait before retry
+            } else {
+                logMessage(`❌ Failed to clear session after 3 attempts, continuing anyway.`);
+                // Optionally, we could throw, but we'll continue
+            }
+        }
     }
 }
 
@@ -193,7 +209,6 @@ async function restartProcess() {
     }
 
     logMessage(`🔄 Restarting process (attempt ${restartData.count})...`);
-    // Close log stream before spawn
     if (logStream) logStream.end();
 
     // Spawn a new process with the same arguments
@@ -208,7 +223,6 @@ async function restartProcess() {
         process.exit(1);
     });
 
-    // Exit current process after a short delay to allow child to start
     setTimeout(() => {
         process.exit(0);
     }, 1000);
@@ -218,7 +232,6 @@ async function restartProcess() {
 async function runBot(client) {
     logMessage("✅ WhatsApp client ready");
 
-    // 1. Load accounts
     const numbers = await loadJSON(ACCOUNTS_FILE, []);
     if (!Array.isArray(numbers) || numbers.length === 0) {
         logMessage("❌ No numbers in accounts.json");
@@ -227,7 +240,6 @@ async function runBot(client) {
     const cleanNumbers = [...new Set(numbers.map(cleanNumber))];
     logMessage(`📞 Loaded ${cleanNumbers.length} unique numbers`);
 
-    // 2. Load messages
     let messages = [];
     let messageMode = MESSAGE_MODE;
     const loadedMessages = await loadJSON(MESSAGES_FILE, []);
@@ -249,7 +261,6 @@ async function runBot(client) {
         process.exit(1);
     }
 
-    // 3. Load images
     let imageItems = [];
     const loadedImages = await loadJSON(IMAGES_LIST_FILE, []);
     if (Array.isArray(loadedImages) && loadedImages.length > 0) {
@@ -257,32 +268,25 @@ async function runBot(client) {
         logMessage(`🖼️ Loaded ${imageItems.length} image items from images.json`);
     }
 
-    // 4. Load checkpoint
     const checkpoint = await loadCheckpoint();
     let startIndex = checkpoint.lastIndex;
     if (startIndex >= cleanNumbers.length) startIndex = 0;
     logMessage(`⏩ Starting from index ${startIndex} (${cleanNumbers[startIndex] || 'none'})`);
 
-    // 5. Load dashboard
     const { dashboard, dashboardPath } = await loadDashboard();
 
-    // 6. Prepare counters
     let messageCounter = 0;
-
-    // 7. Main loop
     let index = startIndex;
     while (index < cleanNumbers.length) {
         const rawNumber = cleanNumbers[index];
         const chatId = `${rawNumber}@c.us`;
 
-        // Skip already processed today
         if (dashboard.sent.includes(rawNumber) || dashboard.failedList.includes(rawNumber)) {
             logMessage(`⏭️ Number ${rawNumber} already processed today, skipping`);
             index++;
             continue;
         }
 
-        // Select message
         let currentMessage;
         if (messageMode === "random") {
             currentMessage = messages[Math.floor(Math.random() * messages.length)];
@@ -291,7 +295,6 @@ async function runBot(client) {
             messageCounter++;
         }
 
-        // Select image item (if any)
         let selectedImageItem = null;
         if (imageItems.length > 0) {
             selectedImageItem = imageItems[Math.floor(Math.random() * imageItems.length)];
@@ -340,7 +343,6 @@ async function runBot(client) {
                 }
 
                 success = true;
-
                 dashboard.attempted++;
                 dashboard.success++;
                 dashboard.sent.push(rawNumber);
@@ -485,24 +487,38 @@ async function createClient() {
         await sendToWorker("/api/live/status", { status: "connected" });
     });
 
-    // -------- MODIFIED: disconnected handler with process restart --------
     client.on("disconnected", async (reason) => {
         await sendToWorker("/api/live/status", { status: "disconnected", reason });
         logMessage(`⚠️ Disconnected: ${reason}`);
 
+        // Destroy the client to release browser resources
+        try {
+            await client.destroy();
+            logMessage("✅ Client destroyed");
+        } catch (destroyErr) {
+            logMessage(`⚠️ Error destroying client: ${destroyErr.message}`);
+        }
+
+        // Wait a moment for file handles to close
+        await wait(2000);
+
         if (reason === "LOGOUT") {
             logMessage("🔄 Session expired – clearing session and restarting process...");
             await clearSession();
-            await restartProcess();  // Restart the whole process
         } else {
-            // For other disconnections, you may also restart without clearing
             logMessage("🔄 Attempting to restart process without clearing session...");
-            await restartProcess();
         }
+
+        // Restart the process
+        await restartProcess();
     });
 
     client.on("auth_failure", async (msg) => {
         logMessage(`🔐 Authentication failure: ${msg}`);
+        try {
+            await client.destroy();
+        } catch {}
+        await wait(2000);
         await clearSession();
         await restartProcess();
     });
@@ -533,7 +549,7 @@ async function createClient() {
 // =================== Main Entry ===================
 async function main() {
     try {
-        // Reset restart counter on fresh start (if it exists, remove it)
+        // Reset restart counter on fresh start
         if (await fs.pathExists(RESTART_COUNT_FILE)) {
             await fs.remove(RESTART_COUNT_FILE);
         }
@@ -546,7 +562,6 @@ async function main() {
         logMessage("🚀 Starting WhatsApp bot");
         await sendToWorker("/api/live/status", { status: "starting" });
 
-        // Create and initialize client
         let client = await createClient();
         let initialized = false;
         let initAttempts = 0;
