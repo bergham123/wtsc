@@ -785,6 +785,130 @@ function initMessages() {
     document.getElementById('messagesCount').textContent = count + ' رسالة';
   });
 }
+// ----- صفحة الأرقام (accounts.json) -----
+function renderAccounts() {
+  return `
+    <div class="page-header">
+      <h1><i class="fas fa-phone"></i> الأرقام (accounts.json)</h1>
+      <p style="color:var(--text-muted);">إدارة قائمة الأرقام (كل رقم في سطر)</p>
+    </div>
+
+    <div class="card">
+      <div style="display:flex; flex-wrap:wrap; gap:12px; margin-bottom:16px; align-items:center;">
+        <button id="loadAccountsBtn" class="btn" style="width:auto;">
+          <i class="fas fa-download"></i> تحميل
+        </button>
+
+        <button id="saveAccountsBtn" class="btn btn-primary" style="width:auto;">
+          <i class="fas fa-save"></i> حفظ
+        </button>
+
+        <span id="accountsCount" style="color:var(--text-muted); font-size:13px;">
+          0 رقم
+        </span>
+      </div>
+
+      <textarea
+        id="accountsArea"
+        style="width:100%; min-height:200px; background:var(--input-bg); color:var(--text-main); border:1px solid var(--border-color); border-radius:8px; padding:12px; font-family:'Consolas',monospace; font-size:13px; resize:vertical; direction:ltr; text-align:left;"
+      ></textarea>
+
+      <div id="accountsStatus" class="status" style="margin-top:12px;"></div>
+    </div>
+  `;
+}
+
+async function loadAccounts() {
+  const area = document.getElementById("accountsArea");
+  const status = document.getElementById("accountsStatus");
+
+  status.textContent = "جاري التحميل...";
+  status.className = "status";
+
+  try {
+    const text = await loadFile("accounts");
+
+    if (text === null) throw new Error("فشل التحميل");
+
+    area.value = text;
+
+    const count = text.split("\n").filter(Boolean).length;
+
+    document.getElementById("accountsCount").textContent =
+      count + " رقم";
+
+    status.textContent = "✓ تم التحميل";
+    status.className = "status ok";
+
+  } catch (e) {
+
+    status.textContent = "خطأ: " + e.message;
+    status.className = "status err";
+
+  }
+}
+
+async function saveAccounts() {
+
+  const area = document.getElementById("accountsArea");
+  const status = document.getElementById("accountsStatus");
+
+  status.textContent = "جاري الحفظ...";
+  status.className = "status";
+
+  try {
+
+    const ok = await saveFile("accounts", area.value);
+
+    if (ok) {
+
+      const count = area.value.split("\n").filter(Boolean).length;
+
+      document.getElementById("accountsCount").textContent =
+        count + " رقم";
+
+      status.textContent = "✓ تم الحفظ";
+      status.className = "status ok";
+
+    } else {
+
+      status.textContent = "فشل الحفظ";
+      status.className = "status err";
+
+    }
+
+  } catch (e) {
+
+    status.textContent = "خطأ: " + e.message;
+    status.className = "status err";
+
+  }
+}
+
+function initAccounts() {
+
+  loadAccounts();
+
+  document
+    .getElementById("loadAccountsBtn")
+    .addEventListener("click", loadAccounts);
+
+  document
+    .getElementById("saveAccountsBtn")
+    .addEventListener("click", saveAccounts);
+
+  document
+    .getElementById("accountsArea")
+    .addEventListener("input", function () {
+
+      const count = this.value.split("\n").filter(Boolean).length;
+
+      document.getElementById("accountsCount").textContent =
+        count + " رقم";
+
+    });
+
+}
 
 // ----- صفحة الإرسال (Sender) مع progress bar -----
 function renderSender() {
