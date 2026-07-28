@@ -2,28 +2,23 @@ name: WhatsApp Automation
 
 on:
   schedule:
-    - cron: '30 4 * * *'
+    - cron: '0 3 * * *'
   workflow_dispatch:
-
+  
 permissions:
   contents: write
-
-concurrency:
-  group: whatsapp-bot
-  cancel-in-progress: false
 
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
 
     steps:
-      - name: Checkout repository
+      - name: Checkout repo
         uses: actions/checkout@v4
         with:
           persist-credentials: true
 
-      - name: Setup Node.js
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -31,71 +26,20 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            libgbm-dev \
-            libnss3 \
-            libatk-bridge2.0-0 \
-            libgtk-3-0 \
-            libxss1 \
-            libasound2t64 \
-            libx11-xcb1 \
-            libxcomposite1 \
-            libxcursor1 \
-            libxdamage1 \
-            libxrandr2 \
-            libxfixes3 \
-            libcups2 \
-            libxkbcommon0 \
-            libpango-1.0-0 \
-            libcairo2 \
-            chromium-browser
-
-      # استرجاع الجلسة المخزنة مؤقتاً (cache)
-      - name: Restore session cache
-        uses: actions/cache@v4
-        id: session-cache
-        with:
-          path: session
-          # نستخدم مفتاحاً ثابتاً مع إصدار يدوي لتحديث الكاش عند تغيير هيكل الجلسة
-          key: whatsapp-session-${{ runner.os }}-v1
-          restore-keys: |
-            whatsapp-session-${{ runner.os }}-v1
+          sudo apt-get install -y libgbm-dev
 
       - name: Install Node dependencies
         run: npm install
 
-      # إزالة ملفات القفل التي قد تمنع تشغيل الجلسة
-      - name: Remove stale lock files
-        run: |
-          find session -name "SingletonLock" -delete 2>/dev/null || true
-          find session -name "SingletonCookie" -delete 2>/dev/null || true
-          find session -name "SingletonSocket" -delete 2>/dev/null || true
-          find session -name "*.lock" -delete 2>/dev/null || true
-
       - name: Run WhatsApp bot
-        env:
-          PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium-browser
-          WORKER_URL: ${{ secrets.WORKER_URL }}
-          API_SECRET: ${{ secrets.API_SECRET }}
         run: npm start
-        # في حال فشل البوت نستمر لحفظ الجلسة (لكن قد لا تحفظ إذا كان الفشل مبكراً)
-        continue-on-error: true
+        continue-on-error: true   # استمر حتى لو فشل البوت (لحفظ الملفات)
 
-      # حفظ الجلسة بعد التشغيل (حتى لو فشل البوت)
-      - name: Save session cache
-        uses: actions/cache@v4
-        if: always()  # يحفظ دائماً
-        with:
-          path: session
-          # نفس المفتاح المستخدم في الاسترجاع لتحديث الكاش
-          key: whatsapp-session-${{ runner.os }}-v1
-
-      # حفظ الملفات الناتجة (dashboard, logs, aggregate)
       - name: Commit updated files
-        if: always()
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          git add dashboard/*.json aggregate.json logs/*.log || true
-          git commit -m "Update dashboard, aggregate & logs $(date +'%Y-%m-%d %H:%M')" || echo "No changes"
+          # إضافة جميع الملفات المهمة (بما فيها session)
+          git add dashboard aggregate.json logs session || true
+          git commit -m "update session, dashboard & logs $(date +'%Y-%m-%d %H:%M')" || echo "No changes to commit"
           git push
