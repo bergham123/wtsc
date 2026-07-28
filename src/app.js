@@ -450,6 +450,7 @@ function renderLayout() {
         <a href="#dashboard" class="nav-link active"><i class="fas fa-home"></i> الرئيسية</a>
         <a href="#contacts" class="nav-link"><i class="fas fa-address-book"></i> جهات الاتصال</a>
         <a href="#messages" class="nav-link"><i class="fas fa-envelope"></i> الرسائل</a>
+         <a href="#accounts" class="nav-link"><i class="fas fa-phone"></i> الأرقام</a> 
         <a href="#sender" class="nav-link"><i class="fas fa-paper-plane"></i> الإرسال</a>
         <a href="#schedule" class="nav-link"><i class="fas fa-clock"></i> الجدولة</a>
         <a href="#stats" class="nav-link"><i class="fas fa-chart-bar"></i> الإحصائيات</a>
@@ -718,7 +719,7 @@ function initContacts() {
 // ----- صفحة الرسائل (messages.json) -----
 function renderMessages() {
   return \`
-    <div class="page-header">
+ <div class="page-header">
       <h1><i class="fas fa-envelope"></i> الرسائل (messages.json)</h1>
       <p style="color:var(--text-muted);">إدارة قائمة الرسائل (كل رسالة في سطر)</p>
     </div>
@@ -728,36 +729,10 @@ function renderMessages() {
         <button id="saveMessagesBtn" class="btn btn-primary" style="width:auto;"><i class="fas fa-save"></i> حفظ</button>
         <span id="messagesCount" style="color:var(--text-muted); font-size:13px;">0 رسالة</span>
       </div>
-      <textarea id="messagesArea" style="width:100%; min-height:200px; background:var(--input-bg); color:var(--text-main); border:1px solid var(--border-color); border-radius:8px; padding:12px; font-family:'Consolas',monospace; font-size:13px; resize:vertical; direction:ltr; text-align:left;"></textarea>
+      <textarea id="messagesArea" ...></textarea>
       <div id="messagesStatus" class="status" style="margin-top:12px;"></div>
     </div>
-    <div class="page-header">
-      <h1><i class="fas fa-phone"></i> الأرقام (accounts.json)</h1>
-      <p style="color:var(--text-muted);">إدارة قائمة الأرقام (كل رقم في سطر)</p>
-    </div>
 
-    <div class="card">
-      <div style="display:flex; flex-wrap:wrap; gap:12px; margin-bottom:16px; align-items:center;">
-        <button id="loadAccountsBtn" class="btn" style="width:auto;">
-          <i class="fas fa-download"></i> تحميل
-        </button>
-
-        <button id="saveAccountsBtn" class="btn btn-primary" style="width:auto;">
-          <i class="fas fa-save"></i> حفظ
-        </button>
-
-        <span id="accountsCount" style="color:var(--text-muted); font-size:13px;">
-          0 رقم
-        </span>
-      </div>
-
-      <textarea
-        id="accountsArea"
-        style="width:100%; min-height:200px; background:var(--input-bg); color:var(--text-main); border:1px solid var(--border-color); border-radius:8px; padding:12px; font-family:'Consolas',monospace; font-size:13px; resize:vertical; direction:ltr; text-align:left;"
-      ></textarea>
-
-      <div id="accountsStatus" class="status" style="margin-top:12px;"></div>
-    </div>
   \`;
 }
 
@@ -1600,6 +1575,7 @@ const routes = {
   'dashboard': { render: renderDashboard, init: initDashboard },
   'contacts': { render: renderContacts, init: initContacts },
   'messages': { render: renderMessages, init: initMessages },
+  'accounts': { render: renderAccounts, init: initAccounts }, 
   'sender': { render: renderSender, init: initSender },
   'schedule': { render: renderSchedule, init: initSchedule },
   'stats': { render: renderStats, init: initStats },
