@@ -1,5 +1,3 @@
-// src/app.js
-
 export const HTML_PAGE = `
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -450,7 +448,7 @@ function renderLayout() {
         <a href="#dashboard" class="nav-link active"><i class="fas fa-home"></i> الرئيسية</a>
         <a href="#contacts" class="nav-link"><i class="fas fa-address-book"></i> جهات الاتصال</a>
         <a href="#messages" class="nav-link"><i class="fas fa-envelope"></i> الرسائل</a>
-         <a href="#accounts" class="nav-link"><i class="fas fa-phone"></i> الأرقام</a> 
+        <a href="#accounts" class="nav-link"><i class="fas fa-phone"></i> الأرقام</a>
         <a href="#sender" class="nav-link"><i class="fas fa-paper-plane"></i> الإرسال</a>
         <a href="#schedule" class="nav-link"><i class="fas fa-clock"></i> الجدولة</a>
         <a href="#stats" class="nav-link"><i class="fas fa-chart-bar"></i> الإحصائيات</a>
@@ -611,7 +609,6 @@ async function loadContacts() {
   try {
     const text = await loadFile('contacts');
     if (text === null) throw new Error('فشل التحميل');
-    // تحويل النص إلى مصفوفة كائنات (كل سطر هو JSON)
     const lines = text.split('\\n').filter(Boolean);
     contactsData = lines.map(line => {
       try { return JSON.parse(line); } catch (e) { return { name: '', gender: '', number: line, age: '' }; }
@@ -679,7 +676,6 @@ async function saveContacts() {
   status.textContent = 'جاري الحفظ...';
   status.className = 'status';
   try {
-    // تحويل المصفوفة إلى نصوص JSON سطراً سطراً
     const text = contactsData.map(row => JSON.stringify(row)).join('\\n');
     const ok = await saveFile('contacts', text);
     if (ok) {
@@ -719,7 +715,7 @@ function initContacts() {
 // ----- صفحة الرسائل (messages.json) -----
 function renderMessages() {
   return \`
- <div class="page-header">
+    <div class="page-header">
       <h1><i class="fas fa-envelope"></i> الرسائل (messages.json)</h1>
       <p style="color:var(--text-muted);">إدارة قائمة الرسائل (كل رسالة في سطر)</p>
     </div>
@@ -729,10 +725,9 @@ function renderMessages() {
         <button id="saveMessagesBtn" class="btn btn-primary" style="width:auto;"><i class="fas fa-save"></i> حفظ</button>
         <span id="messagesCount" style="color:var(--text-muted); font-size:13px;">0 رسالة</span>
       </div>
-      <textarea id="messagesArea" ...></textarea>
+      <textarea id="messagesArea" style="width:100%; min-height:200px; background:var(--input-bg); color:var(--text-main); border:1px solid var(--border-color); border-radius:8px; padding:12px; font-family:'Consolas',monospace; font-size:13px; resize:vertical; direction:ltr; text-align:left;"></textarea>
       <div id="messagesStatus" class="status" style="margin-top:12px;"></div>
     </div>
-
   \`;
 }
 
@@ -781,103 +776,123 @@ function initMessages() {
   loadMessages();
   document.getElementById('loadMessagesBtn').addEventListener('click', loadMessages);
   document.getElementById('saveMessagesBtn').addEventListener('click', saveMessages);
-  // تحديث العدد عند الكتابة
   document.getElementById('messagesArea').addEventListener('input', function() {
     const count = this.value.split('\\n').filter(Boolean).length;
     document.getElementById('messagesCount').textContent = count + ' رسالة';
   });
 }
 
-async function loadAccounts() {
-  const area = document.getElementById("accountsArea");
-  const status = document.getElementById("accountsStatus");
+// ----- صفحة الأرقام (accounts.json) - تُقرأ وتُكتب كمصفوفة JSON -----
+function renderAccounts() {
+  return \`
+    <div class="page-header">
+      <h1><i class="fas fa-phone"></i> الأرقام (accounts.json)</h1>
+      <p style="color:var(--text-muted);">إدارة قائمة الأرقام (مصفوفة JSON) - كل رقم في سطر</p>
+    </div>
 
-  status.textContent = "جاري التحميل...";
-  status.className = "status";
+    <div class="card">
+      <div style="display:flex; flex-wrap:wrap; gap:12px; margin-bottom:16px; align-items:center;">
+        <button id="loadAccountsBtn" class="btn" style="width:auto;">
+          <i class="fas fa-download"></i> تحميل
+        </button>
+
+        <button id="saveAccountsBtn" class="btn btn-primary" style="width:auto;">
+          <i class="fas fa-save"></i> حفظ
+        </button>
+
+        <span id="accountsCount" style="color:var(--text-muted); font-size:13px;">
+          0 رقم
+        </span>
+      </div>
+
+      <textarea
+        id="accountsArea"
+        style="width:100%; min-height:200px; background:var(--input-bg); color:var(--text-main); border:1px solid var(--border-color); border-radius:8px; padding:12px; font-family:'Consolas',monospace; font-size:13px; resize:vertical; direction:ltr; text-align:left;"
+      ></textarea>
+
+      <div id="accountsStatus" class="status" style="margin-top:12px;"></div>
+    </div>
+  \`;
+}
+
+async function loadAccounts() {
+  const area = document.getElementById('accountsArea');
+  const status = document.getElementById('accountsStatus');
+
+  status.textContent = 'جاري التحميل...';
+  status.className = 'status';
 
   try {
-    const text = await loadFile("accounts");
+    const text = await loadFile('accounts');
+    if (text === null) throw new Error('فشل التحميل');
 
-    if (text === null) throw new Error("فشل التحميل");
+    let numbers = [];
+    // نحاول التحليل كمصفوفة JSON
+    try {
+      const parsed = JSON.parse(text);
+      if (Array.isArray(parsed)) {
+        numbers = parsed;
+      } else {
+        // إذا لم يكن مصفوفة، نعتبر كل سطر رقماً (حالة احتياطية)
+        numbers = text.split('\\n').filter(Boolean);
+      }
+    } catch (e) {
+      // إذا فشل التحليل، نعتبره نصوصاً سطرية
+      numbers = text.split('\\n').filter(Boolean);
+    }
 
-    area.value = text;
+    area.value = numbers.join('\\n');
+    const count = numbers.length;
+    document.getElementById('accountsCount').textContent = count + ' رقم';
 
-    const count = text.split("\n").filter(Boolean).length;
-
-    document.getElementById("accountsCount").textContent =
-      count + " رقم";
-
-    status.textContent = "✓ تم التحميل";
-    status.className = "status ok";
+    status.textContent = '✓ تم التحميل';
+    status.className = 'status ok';
 
   } catch (e) {
-
-    status.textContent = "خطأ: " + e.message;
-    status.className = "status err";
-
+    status.textContent = 'خطأ: ' + e.message;
+    status.className = 'status err';
   }
 }
 
 async function saveAccounts() {
+  const area = document.getElementById('accountsArea');
+  const status = document.getElementById('accountsStatus');
 
-  const area = document.getElementById("accountsArea");
-  const status = document.getElementById("accountsStatus");
-
-  status.textContent = "جاري الحفظ...";
-  status.className = "status";
+  status.textContent = 'جاري الحفظ...';
+  status.className = 'status';
 
   try {
+    // استخراج الأرقام من textarea (سطر سطر)
+    const lines = area.value.split('\\n').filter(Boolean);
+    // تحويلها إلى مصفوفة JSON مع تنسيق جميل
+    const jsonString = JSON.stringify(lines, null, 2);
 
-    const ok = await saveFile("accounts", area.value);
-
+    const ok = await saveFile('accounts', jsonString);
     if (ok) {
-
-      const count = area.value.split("\n").filter(Boolean).length;
-
-      document.getElementById("accountsCount").textContent =
-        count + " رقم";
-
-      status.textContent = "✓ تم الحفظ";
-      status.className = "status ok";
-
+      document.getElementById('accountsCount').textContent = lines.length + ' رقم';
+      status.textContent = '✓ تم الحفظ';
+      status.className = 'status ok';
     } else {
-
-      status.textContent = "فشل الحفظ";
-      status.className = "status err";
-
+      status.textContent = 'فشل الحفظ';
+      status.className = 'status err';
     }
 
   } catch (e) {
-
-    status.textContent = "خطأ: " + e.message;
-    status.className = "status err";
-
+    status.textContent = 'خطأ: ' + e.message;
+    status.className = 'status err';
   }
 }
 
 function initAccounts() {
-
   loadAccounts();
 
-  document
-    .getElementById("loadAccountsBtn")
-    .addEventListener("click", loadAccounts);
+  document.getElementById('loadAccountsBtn').addEventListener('click', loadAccounts);
+  document.getElementById('saveAccountsBtn').addEventListener('click', saveAccounts);
 
-  document
-    .getElementById("saveAccountsBtn")
-    .addEventListener("click", saveAccounts);
-
-  document
-    .getElementById("accountsArea")
-    .addEventListener("input", function () {
-
-      const count = this.value.split("\n").filter(Boolean).length;
-
-      document.getElementById("accountsCount").textContent =
-        count + " رقم";
-
-    });
-
+  document.getElementById('accountsArea').addEventListener('input', function () {
+    const count = this.value.split('\\n').filter(Boolean).length;
+    document.getElementById('accountsCount').textContent = count + ' رقم';
+  });
 }
 
 // ----- صفحة الإرسال (Sender) مع progress bar -----
@@ -915,16 +930,20 @@ let senderInterval = null;
 
 async function updateSenderStats() {
   try {
-    // جلب عدد الأرقام من accounts.json
     const accountsRes = await fetch('/api/load?type=accounts', { headers: getHeaders() });
     const accountsData = await accountsRes.json();
     let numbersCount = 0;
     if (accountsData.ok && accountsData.text) {
-      numbersCount = accountsData.text.split('\\n').filter(Boolean).length;
+      try {
+        const parsed = JSON.parse(accountsData.text);
+        if (Array.isArray(parsed)) numbersCount = parsed.length;
+        else numbersCount = accountsData.text.split('\\n').filter(Boolean).length;
+      } catch (e) {
+        numbersCount = accountsData.text.split('\\n').filter(Boolean).length;
+      }
     }
     document.getElementById('senderNumbersCount').textContent = numbersCount;
 
-    // جلب عدد الرسائل من messages.json
     const messagesRes = await fetch('/api/load?type=messages', { headers: getHeaders() });
     const messagesData = await messagesRes.json();
     let messagesCount = 0;
@@ -933,7 +952,6 @@ async function updateSenderStats() {
     }
     document.getElementById('senderMessagesCount').textContent = messagesCount;
 
-    // حساب الوقت المتوقع (20-40 ثانية لكل رقم)
     if (numbersCount > 0) {
       const minTime = numbersCount * 20;
       const maxTime = numbersCount * 40;
@@ -946,7 +964,6 @@ async function updateSenderStats() {
   }
 }
 
-// محاكاة التقدم (للعرض فقط، لأننا لا نستطيع تتبع تقدم الـ Workflow الفعلي)
 function startProgressSimulation() {
   let progress = 0;
   const bar = document.getElementById('progressBar');
@@ -996,7 +1013,6 @@ function initSender() {
       status.textContent = '✓ تم التشغيل';
       status.className = 'status ok';
       showToast('تم تشغيل الـ Workflow بنجاح', 'success');
-      // بدء محاكاة التقدم
       startProgressSimulation();
     } catch (e) {
       status.textContent = 'خطأ: ' + e.message;
@@ -1495,7 +1511,6 @@ async function checkSession() {
   statusEl.className = 'status';
 
   try {
-    // جلب حالة الجلسة
     const res = await fetch('/api/live/status', { headers: getHeaders() });
     const data = await res.json();
     if (!data.ok) throw new Error(data.error);
@@ -1513,10 +1528,8 @@ async function checkSession() {
 
     lastUpdate.textContent = new Date().toLocaleTimeString();
 
-    // إذا كانت الحالة غير متصلة أو في انتظار المسح، نجلب QR
     if (status === 'waiting_scan' || status === 'disconnected' || status === 'starting') {
       await fetchQR();
-      // نبدأ تحديث QR كل 2 ثانية
       if (!sessionQRInterval) {
         sessionQRInterval = setInterval(fetchQR, 2000);
       }
@@ -1561,7 +1574,6 @@ function initSession() {
   checkSession();
   document.getElementById('checkSessionBtn').addEventListener('click', checkSession);
   document.getElementById('stopQRBtn').addEventListener('click', stopQRUpdate);
-  // إيقاف التحديث عند مغادرة الصفحة
   window.addEventListener('hashchange', () => {
     if (window.location.hash !== '#session') {
       stopQRUpdate();
@@ -1575,7 +1587,7 @@ const routes = {
   'dashboard': { render: renderDashboard, init: initDashboard },
   'contacts': { render: renderContacts, init: initContacts },
   'messages': { render: renderMessages, init: initMessages },
-  'accounts': { render: renderAccounts, init: initAccounts }, 
+  'accounts': { render: renderAccounts, init: initAccounts },
   'sender': { render: renderSender, init: initSender },
   'schedule': { render: renderSchedule, init: initSchedule },
   'stats': { render: renderStats, init: initStats },
