@@ -25,7 +25,7 @@ const RETRY_DELAY = 5000;
 const MIN_DELAY = 20000;
 const MAX_DELAY = 40000;
 const MESSAGE_MODE = "random";
-const QR_TIMEOUT_MS = 60000; // 60 seconds
+const QR_TIMEOUT_MS = 60000; // 60 ثانية
 
 // =================== Environment ===================
 const WORKER_URL = process.env.WORKER_URL || null;
@@ -58,10 +58,9 @@ function log(msg) {
     if (logStream) logStream.write(line + "\n");
 }
 
-// =================== Worker Communication (optional) ===================
+// =================== Worker Communication ===================
 async function sendToWorker(endpoint, data) {
     if (!WORKER_URL || !API_SECRET) return;
-    
     try {
         const response = await fetch(WORKER_URL + endpoint, {
             method: "POST",
@@ -113,7 +112,6 @@ async function removeLocks() {
         if (!await fs.pathExists(PROFILE_PATH)) return;
         const lockPatterns = ["SingletonLock", "SingletonSocket", "SingletonCookie", "DevToolsActivePort"];
         const files = await fs.readdir(PROFILE_PATH);
-        
         for (const file of files) {
             if (lockPatterns.includes(file) || file.endsWith(".lock")) {
                 await fs.remove(path.join(PROFILE_PATH, file)).catch(() => {});
@@ -127,9 +125,8 @@ async function removeLocks() {
 async function cleanTempFiles() {
     try {
         if (!await fs.pathExists(PROFILE_PATH)) return;
-        const tempDirs = ["Cache", "Code Cache", "GPUCache", "Crashpad", "BrowserMetrics", 
+        const tempDirs = ["Cache", "Code Cache", "GPUCache", "Crashpad", "BrowserMetrics",
                           "ShaderCache", "GraphiteDawnCache", "GrShaderCache", "DawnCache"];
-        
         for (const dir of tempDirs) {
             const fullPath = path.join(PROFILE_PATH, dir);
             if (await fs.pathExists(fullPath)) {
@@ -146,7 +143,6 @@ async function loadDashboard() {
     const today = getToday();
     const dashboardPath = path.join(DASHBOARD_DIR, `dashboard-${today}.json`);
     await fs.ensureDir(DASHBOARD_DIR);
-
     let dashboard = {
         date: today,
         attempted: 0,
@@ -155,7 +151,6 @@ async function loadDashboard() {
         sent: [],
         failedList: [],
     };
-
     if (await fs.pathExists(dashboardPath)) {
         try {
             const loaded = await fs.readJson(dashboardPath);
@@ -187,12 +182,10 @@ async function saveCheckpoint(checkpoint) {
 // =================== Main Bot Logic ===================
 async function runBot(client, stopSignal) {
     log("✅ WhatsApp client ready");
-    
     if (!stopSignal.isRunning) {
         log("⚠️ Bot already stopped before starting");
         return;
     }
-
     try {
         const numbers = await loadJSON(ACCOUNTS_FILE, []);
         if (!Array.isArray(numbers) || numbers.length === 0) {
@@ -243,11 +236,11 @@ async function runBot(client, stopSignal) {
                 continue;
             }
 
-            const currentMessage = MESSAGE_MODE === "random" 
+            const currentMessage = MESSAGE_MODE === "random"
                 ? messages[Math.floor(Math.random() * messages.length)]
                 : messages[messageCounter++ % messages.length];
 
-            const selectedImageItem = imageItems.length > 0 
+            const selectedImageItem = imageItems.length > 0
                 ? imageItems[Math.floor(Math.random() * imageItems.length)]
                 : null;
 
@@ -263,7 +256,6 @@ async function runBot(client, stopSignal) {
                     }
 
                     let mediaSent = false;
-
                     if (selectedImageItem) {
                         try {
                             let media;
@@ -302,14 +294,12 @@ async function runBot(client, stopSignal) {
                         await saveJSON(dashboardPath, dashboard);
                         await saveCheckpoint(checkpoint);
                     }
-
                 } catch (err) {
                     if (err.message && err.message.includes('detached')) {
                         log(`💥 Browser detached - stopping: ${err.message}`);
                         stopSignal.isRunning = false;
                         break;
                     }
-                    
                     attempts++;
                     if (attempts <= MAX_RETRIES && stopSignal.isRunning) {
                         log(`🔁 Retry ${attempts}/${MAX_RETRIES} for ${rawNumber}`);
@@ -324,7 +314,6 @@ async function runBot(client, stopSignal) {
             }
 
             if (!stopSignal.isRunning) break;
-
             const delay = randomDelay();
             await wait(delay);
             index++;
@@ -332,7 +321,6 @@ async function runBot(client, stopSignal) {
 
         await saveJSON(dashboardPath, dashboard);
         await saveCheckpoint(checkpoint);
-
         log("🏁 Batch complete");
         await fs.remove(CHECKPOINT_FILE).catch(() => {});
 
@@ -343,7 +331,6 @@ async function runBot(client, stopSignal) {
         log("✅ Script completed");
         if (logStream) logStream.end();
         process.exit(0);
-        
     } catch (err) {
         log(`💥 Bot error: ${err.message}`);
         if (logStream) logStream.end();
@@ -355,7 +342,6 @@ async function runBot(client, stopSignal) {
 async function sendAdminReport(client, dashboard, msgCount, imgCount) {
     const adminChatId = `${ADMIN_NUMBER}@c.us`;
     const report = `✅ WhatsApp Bot Report\n📅 Date: ${dashboard.date}\n📤 Attempted: ${dashboard.attempted}\n✔ Success: ${dashboard.success}\n❌ Failed: ${dashboard.failed}\n📝 Messages: ${msgCount}\n🖼️ Images: ${imgCount}`;
-
     try {
         const adminId = await client.getNumberId(adminChatId);
         if (adminId) {
@@ -367,10 +353,16 @@ async function sendAdminReport(client, dashboard, msgCount, imgCount) {
     }
 }
 
-// =================== Client Setup with Auto Session Reset ===================
+// =================== إنشاء العميل مع إمكانية إعادة التشغيل التلقائي ===================
 async function createClient(onReady) {
     const stopSignal = { isRunning: true };
     let qrTimeout;
+
+    // هذا الوعد سيحل عندما يحدث قطع (disconnect) قبل ready
+    let disconnectedResolve;
+    const disconnectedPromise = new Promise((resolve) => {
+        disconnectedResolve = resolve;
+    });
 
     const client = new Client({
         authStrategy: new LocalAuth({
@@ -402,37 +394,20 @@ async function createClient(onReady) {
 
     let qrEmitted = false;
 
-    // دالة إعادة تعيين الجلسة تلقائيًا
-    const resetSession = async () => {
-        log("🔄 جاري إعادة تعيين الجلسة...");
+    qrTimeout = setTimeout(async () => {
+        // إذا مرت المدة بدون QR ولا ready -> الجلسة تالفة
+        log("⏰ انتهت المهلة بدون استجابة - الجلسة غير صالحة");
         stopSignal.isRunning = false;
         try { await client.destroy(); } catch {}
         await clearSession();
-        // إعادة تشغيل العميل بنفس الطريقة
-        try {
-            const newClient = await createClient(onReady);
-            await removeLocks();
-            log("🔧 إعادة تهيئة بعد حذف الجلسة...");
-            await newClient.initialize();
-        } catch (e) {
-            log(`❌ فشلت إعادة التهيئة: ${e.message}`);
-            process.exit(1);
-        }
-    };
-
-    // المهلة: إذا لم يظهر QR أو ready خلال 60 ثانية
-    qrTimeout = setTimeout(async () => {
-        if (!stopSignal.isRunning) return;
-        log("⏰ انتهت المهلة بدون استجابة - الجلسة غير صالحة، جاري حذفها...");
-        await resetSession();
+        disconnectedResolve("TIMEOUT"); // نخلي main تعرف باش تعاود المحاولة
     }, QR_TIMEOUT_MS);
 
     client.on("qr", async (qr) => {
-        clearTimeout(qrTimeout); // ظهر QR، نلغي المهلة
+        clearTimeout(qrTimeout);
         qrEmitted = true;
         log("📲 QR code generated - scan now");
         qrcode.generate(qr, { small: true });
-        
         try {
             const qrDataUrl = await QRCode.toDataURL(qr);
             await sendToWorker("/api/live/qr", { qr: qrDataUrl });
@@ -442,14 +417,13 @@ async function createClient(onReady) {
     });
 
     client.on("ready", async () => {
-        clearTimeout(qrTimeout); // الجلسة صالحة
+        clearTimeout(qrTimeout);
         if (!qrEmitted) {
             log("♻️ Session restored from cache");
         }
         await sendToWorker("/api/live/status", { status: "connected" });
         log("⏳ Stabilizing connection...");
         await wait(3000);
-        
         if (onReady) {
             await onReady(client, stopSignal);
         }
@@ -459,34 +433,36 @@ async function createClient(onReady) {
         log(`⚠️ Disconnected: ${reason}`);
         clearTimeout(qrTimeout);
         stopSignal.isRunning = false;
-
         try { await client.destroy(); } catch {}
-
         await cleanTempFiles();
-
+        // إذا كان السبب LOGOUT، نعيد التشغيل بعد حذف الجلسة
         if (reason === "LOGOUT") {
-            log("✅ Session ended normally - keeping for next run");
+            log("🔄 جلسة مطرودة من الهاتف، جاري حذف الجلسة وإعادة المحاولة...");
+            await clearSession();
+            disconnectedResolve("LOGOUT"); // سيؤدي إلى إعادة المحاولة في main()
+        } else {
+            disconnectedResolve(reason); // أسباب أخرى -> خروج
         }
-
-        process.exit(0);
     });
 
     client.on("auth_failure", async (msg) => {
         log(`🔐 Auth failed: ${msg}`);
+        clearTimeout(qrTimeout);
         stopSignal.isRunning = false;
         try { await client.destroy(); } catch {}
         await clearSession();
-        process.exit(1);
+        disconnectedResolve("AUTH_FAILURE");
     });
 
     client.on("message", async (message) => {
         if (message.type === 'chat' && !message.fromMe) {
-            await sendToWorker("/api/live/message", { 
+            await sendToWorker("/api/live/message", {
                 message: { from: message.from, body: message.body, timestamp: message.timestamp }
             });
         }
     });
 
+    // نضيف دالة إغلاق نظيف
     const shutdown = async () => {
         log("🛑 Shutting down");
         stopSignal.isRunning = false;
@@ -498,60 +474,65 @@ async function createClient(onReady) {
     process.on("SIGINT", shutdown);
     process.on("SIGTERM", shutdown);
 
-    return client;
+    // نرجع العميل + الوعد اللي غادي يتحل فحالة القطع
+    return { client, disconnectedPromise };
 }
 
-// =================== Main Entry ===================
+// =================== الدالة الرئيسية ===================
 async function main() {
     process.on("unhandledRejection", (reason, promise) => {
         log(`❌ Unhandled rejection: ${reason?.message || reason}`);
         process.exit(0);
     });
 
-    try {
-        await fs.ensureDir(SESSION_DIR);
-        await fs.ensureDir(LOGS_DIR);
-        await fs.ensureDir(DASHBOARD_DIR);
-        initLogger();
+    await fs.ensureDir(SESSION_DIR);
+    await fs.ensureDir(LOGS_DIR);
+    await fs.ensureDir(DASHBOARD_DIR);
+    initLogger();
+    log("🚀 Starting WhatsApp bot");
+    await sendToWorker("/api/live/status", { status: "starting" });
 
-        log("🚀 Starting WhatsApp bot");
-        await sendToWorker("/api/live/status", { status: "starting" });
+    let keepTrying = true;
+    let attempt = 0;
 
+    while (keepTrying && attempt < 10) { // حد أقصى 10 محاولات
+        attempt++;
+        log(`🔄 المحاولة رقم ${attempt}`);
+
+        // تجهيز العميل
+        const { client, disconnectedPromise } = await createClient(runBot);
+
+        // إزالة الأقفال وبدء التشغيل
         await removeLocks();
-
-        // تمرير runBot كدالة callback بدل ما نديروها مباشرة
-        let client = await createClient(runBot);
-        let initialized = false;
-        let attempts = 0;
-
-        while (!initialized && attempts < 3) {
-            try {
-                await removeLocks();
-                log(`🔧 Init attempt ${attempts + 1}`);
-                await client.initialize();
-                initialized = true;
-                log("✅ Initialized");
-            } catch (err) {
-                attempts++;
-                log(`❌ Init failed: ${err.message}`);
-                
-                try { await client.destroy(); } catch {}
-
-                if (attempts < 3) {
-                    log(`⏳ Retrying in 5s...`);
-                    await wait(5000);
-                    client = await createClient(runBot);
-                } else {
-                    log("❌ Failed after 3 attempts");
-                    process.exit(1);
-                }
-            }
+        try {
+            log(`🔧 Init attempt ${attempt}`);
+            await client.initialize();
+            log("✅ Initialized");
+        } catch (err) {
+            log(`❌ Init failed: ${err.message}`);
+            try { await client.destroy(); } catch {}
+            await wait(5000);
+            continue; // نعاود من الأول
         }
-    } catch (err) {
-        console.error("💥 Fatal error:", err.message);
-        if (logStream) logStream.end();
-        process.exit(1);
+
+        // ننتظر إما ready+runBot تكمل وتخرج، أو قطع (disconnect)
+        const reason = await disconnectedPromise;
+        log(`ℹ️ السبب: ${reason}`);
+
+        // إذا كان السبب LOGOUT أو TIMEOUT، نواصل المحاولة
+        if (reason === "LOGOUT" || reason === "TIMEOUT") {
+            log("🔄 جاري إعادة المحاولة بحذف الجلسة...");
+            // الجلسة تّحذفات من داخل الحدث، نواصل
+        } else {
+            // أسباب أخرى: خروج
+            log("❌ الخروج بسبب خطأ غير متوقع.");
+            keepTrying = false;
+        }
     }
+
+    log("👋 انتهت جميع المحاولات.");
+    if (logStream) logStream.end();
+    process.exit(0);
 }
 
 main();
