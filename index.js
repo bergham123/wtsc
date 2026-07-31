@@ -369,7 +369,7 @@ async function createClient() {
         }),
         puppeteer: {
             headless: 'new',
-            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser',
             args: [
                 "--no-sandbox",
                 "--disable-setuid-sandbox",
