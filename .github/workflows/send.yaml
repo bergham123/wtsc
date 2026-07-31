@@ -28,14 +28,6 @@ jobs:
           key: whatsapp-session-${{ runner.os }}
           restore-keys: whatsapp-session-
 
-      # ========== CHROMIUM CACHE (HUGE speedup!) ==========
-      - name: Restore Chromium binary cache
-        uses: actions/cache/restore@v4
-        with:
-          path: ~/.cache/puppeteer
-          key: chromium-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: chromium-${{ runner.os }}-
-
       # ========== SETUP ==========
       - name: Ensure session directory
         run: mkdir -p session
@@ -48,15 +40,13 @@ jobs:
           find session -name "*.lock" -delete 2>/dev/null || true
           find session -name "DevToolsActivePort" -delete 2>/dev/null || true
 
+      - name: Install system Chromium
+        run: sudo apt-get update && sudo apt-get install -y chromium-browser
+
       - name: Install dependencies
         run: npm install --legacy-peer-deps
         env:
           PUPPETEER_SKIP_DOWNLOAD: "true"
-
-      - name: Install Chromium (cached)
-        run: npx puppeteer browsers install chrome
-        env:
-          PUPPETEER_EXECUTABLE_PATH: /home/runner/.cache/puppeteer/chrome
 
       # ========== RUN BOT ==========
       - name: Run WhatsApp bot
@@ -98,13 +88,6 @@ jobs:
         with:
           path: session
           key: whatsapp-session-${{ runner.os }}-${{ github.run_id }}
-
-      - name: Save Chromium cache
-        if: always()
-        uses: actions/cache/save@v4
-        with:
-          path: ~/.cache/puppeteer
-          key: chromium-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
 
       # ========== GIT COMMITS (ONLY ESSENTIAL) ==========
       - name: Commit session & dashboard only
