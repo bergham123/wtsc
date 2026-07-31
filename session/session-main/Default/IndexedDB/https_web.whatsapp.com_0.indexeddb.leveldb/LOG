@@ -1,0 +1,32 @@
+2026/07/31-23:42:38.887 1706 Creating DB /home/runner/work/wtsc/wtsc/session/session-main/Default/IndexedDB/https_web.whatsapp.com_0.indexeddb.leveldb since it was missing.
+2026/07/31-23:42:38.893 1706 Reusing MANIFEST /home/runner/work/wtsc/wtsc/session/session-main/Default/IndexedDB/https_web.whatsapp.com_0.indexeddb.leveldb/MANIFEST-000001
+2026/07/31-23:43:12.460 1706 Level-0 table #5: started
+2026/07/31-23:43:12.580 1706 Level-0 table #5: 1054231 bytes OK
+2026/07/31-23:43:12.586 1706 Delete type=0 #3
+2026/07/31-23:43:16.556 1706 Level-0 table #7: started
+2026/07/31-23:43:16.576 1706 Level-0 table #7: 1084415 bytes OK
+2026/07/31-23:43:16.578 1706 Delete type=0 #4
+2026/07/31-23:43:16.617 1705 Compacting 1@1 + 1@2 files
+2026/07/31-23:43:16.663 1705 Generated table #8@1: 22626 keys, 1139890 bytes
+2026/07/31-23:43:16.663 1705 Compacted 1@1 + 1@2 files => 1139890 bytes
+2026/07/31-23:43:16.664 1705 compacted to: files[ 0 0 1 0 0 0 0 ]
+2026/07/31-23:43:18.825 1706 Level-0 table #10: started
+2026/07/31-23:43:18.874 1706 Level-0 table #10: 1215563 bytes OK
+2026/07/31-23:43:18.875 1706 Delete type=0 #6
+2026/07/31-23:43:18.875 1706 Delete type=2 #7
+2026/07/31-23:43:18.875 1706 Delete type=2 #5
+2026/07/31-23:43:18.905 1707 Compacting 1@1 + 1@2 files
+2026/07/31-23:43:18.953 1707 Generated table #11@1: 31644 keys, 1757302 bytes
+2026/07/31-23:43:18.953 1707 Compacted 1@1 + 1@2 files => 1757302 bytes
+2026/07/31-23:43:18.953 1707 compacted to: files[ 0 0 1 0 0 0 0 ]
+2026/07/31-23:43:18.954 1707 Delete type=2 #10
+2026/07/31-23:43:18.954 1707 Delete type=2 #8
+2026/07/31-23:43:20.346 1706 Level-0 table #13: started
+2026/07/31-23:43:20.499 1706 Level-0 table #13: 1214251 bytes OK
+2026/07/31-23:43:20.501 1706 Delete type=0 #9
+2026/07/31-23:43:20.533 1707 Compacting 1@1 + 1@2 files
+2026/07/31-23:43:20.598 1707 Generated table #14@1: 34612 keys, 2200939 bytes
+2026/07/31-23:43:20.600 1707 Generated table #15@1: 276 keys, 5865 bytes
+2026/07/31-23:43:20.600 1707 Compacted 1@1 + 1@2 files => 2206804 bytes
+2026/07/31-23:43:20.600 1707 compacted to: files[ 0 0 2 0 0 0 0 ]
+2026/07/31-23:43:20.601 1707 Delete type=2 #13
