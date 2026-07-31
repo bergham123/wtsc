@@ -25,7 +25,8 @@ const RETRY_DELAY = 5000;
 const MIN_DELAY = 20000;
 const MAX_DELAY = 40000;
 const MESSAGE_MODE = "random";
-const QR_TIMEOUT_MS = 60000; // 60 ثانية
+const QR_TIMEOUT_MS = 60000;
+const RESTART_DELAY_MS = 3000; // وقت الاستراحة بين المحاولات
 
 // =================== Environment ===================
 const WORKER_URL = process.env.WORKER_URL || null;
@@ -329,12 +330,8 @@ async function runBot(client, stopSignal) {
         }
 
         log("✅ Script completed");
-        if (logStream) logStream.end();
-        process.exit(0);
     } catch (err) {
         log(`💥 Bot error: ${err.message}`);
-        if (logStream) logStream.end();
-        process.exit(1);
     }
 }
 
@@ -353,136 +350,139 @@ async function sendAdminReport(client, dashboard, msgCount, imgCount) {
     }
 }
 
-// =================== إنشاء العميل مع إمكانية إعادة التشغيل التلقائي ===================
-async function createClient(onReady) {
-    const stopSignal = { isRunning: true };
-    let qrTimeout;
+// =================== محاولة واحدة لتشغيل البوت (ترجع وعد) ===================
+async function attemptBot() {
+    return new Promise(async (resolve, reject) => {
+        const stopSignal = { isRunning: true };
+        let client;
+        let qrTimeout;
+        let resolved = false;
 
-    // هذا الوعد سيحل عندما يحدث قطع (disconnect) قبل ready
-    let disconnectedResolve;
-    const disconnectedPromise = new Promise((resolve) => {
-        disconnectedResolve = resolve;
-    });
+        // دالة لإنهاء المحاولة بشكل آمن
+        const finish = async (result) => {
+            if (resolved) return;
+            resolved = true;
+            clearTimeout(qrTimeout);
+            try { if (client) await client.destroy(); } catch {}
+            await cleanTempFiles();
+            resolve(result);
+        };
 
-    const client = new Client({
-        authStrategy: new LocalAuth({
-            clientId: SESSION_NAME,
-            dataPath: SESSION_DIR,
-            restartOnAuthFail: true
-        }),
-        puppeteer: {
-            headless: 'new',
-            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser',
-            args: [
-                "--no-sandbox",
-                "--disable-setuid-sandbox",
-                "--disable-dev-shm-usage",
-                "--disable-gpu",
-                "--disable-extensions",
-                "--disable-background-networking",
-                "--disable-sync",
-                "--no-first-run",
-                "--no-default-browser-check",
-                "--disable-features=site-per-process,Translate",
-                "--disable-ipc-flooding-protection",
-                "--disable-blink-features=AutomationControlled",
-            ],
-            timeout: 120000,
-            protocolTimeout: 120000,
-        },
-    });
-
-    let qrEmitted = false;
-
-    qrTimeout = setTimeout(async () => {
-        // إذا مرت المدة بدون QR ولا ready -> الجلسة تالفة
-        log("⏰ انتهت المهلة بدون استجابة - الجلسة غير صالحة");
-        stopSignal.isRunning = false;
-        try { await client.destroy(); } catch {}
-        await clearSession();
-        disconnectedResolve("TIMEOUT"); // نخلي main تعرف باش تعاود المحاولة
-    }, QR_TIMEOUT_MS);
-
-    client.on("qr", async (qr) => {
-        clearTimeout(qrTimeout);
-        qrEmitted = true;
-        log("📲 QR code generated - scan now");
-        qrcode.generate(qr, { small: true });
-        try {
-            const qrDataUrl = await QRCode.toDataURL(qr);
-            await sendToWorker("/api/live/qr", { qr: qrDataUrl });
-        } catch (e) {
-            log(`⚠️ QR send failed: ${e.message}`);
-        }
-    });
-
-    client.on("ready", async () => {
-        clearTimeout(qrTimeout);
-        if (!qrEmitted) {
-            log("♻️ Session restored from cache");
-        }
-        await sendToWorker("/api/live/status", { status: "connected" });
-        log("⏳ Stabilizing connection...");
-        await wait(3000);
-        if (onReady) {
-            await onReady(client, stopSignal);
-        }
-    });
-
-    client.on("disconnected", async (reason) => {
-        log(`⚠️ Disconnected: ${reason}`);
-        clearTimeout(qrTimeout);
-        stopSignal.isRunning = false;
-        try { await client.destroy(); } catch {}
-        await cleanTempFiles();
-        // إذا كان السبب LOGOUT، نعيد التشغيل بعد حذف الجلسة
-        if (reason === "LOGOUT") {
-            log("🔄 جلسة مطرودة من الهاتف، جاري حذف الجلسة وإعادة المحاولة...");
+        // المهلة في حالة الجمود
+        qrTimeout = setTimeout(async () => {
+            log("⏰ مهلة بدون استجابة – الجلسة غير صالحة");
+            stopSignal.isRunning = false;
             await clearSession();
-            disconnectedResolve("LOGOUT"); // سيؤدي إلى إعادة المحاولة في main()
-        } else {
-            disconnectedResolve(reason); // أسباب أخرى -> خروج
+            finish("TIMEOUT");
+        }, QR_TIMEOUT_MS);
+
+        // بناء العميل
+        client = new Client({
+            authStrategy: new LocalAuth({
+                clientId: SESSION_NAME,
+                dataPath: SESSION_DIR,
+                restartOnAuthFail: true
+            }),
+            puppeteer: {
+                headless: 'new',
+                executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser',
+                args: [
+                    "--no-sandbox",
+                    "--disable-setuid-sandbox",
+                    "--disable-dev-shm-usage",
+                    "--disable-gpu",
+                    "--disable-extensions",
+                    "--disable-background-networking",
+                    "--disable-sync",
+                    "--no-first-run",
+                    "--no-default-browser-check",
+                    "--disable-features=site-per-process,Translate",
+                    "--disable-ipc-flooding-protection",
+                    "--disable-blink-features=AutomationControlled",
+                ],
+                timeout: 120000,
+                protocolTimeout: 120000,
+            },
+        });
+
+        client.on("qr", async (qr) => {
+            clearTimeout(qrTimeout);
+            log("📲 QR code generated - scan now");
+            qrcode.generate(qr, { small: true });
+            try {
+                const qrDataUrl = await QRCode.toDataURL(qr);
+                await sendToWorker("/api/live/qr", { qr: qrDataUrl });
+            } catch (e) {
+                log(`⚠️ QR send failed: ${e.message}`);
+            }
+        });
+
+        client.on("ready", async () => {
+            clearTimeout(qrTimeout);
+            log("♻️ Session ready");
+            await sendToWorker("/api/live/status", { status: "connected" });
+            log("⏳ Stabilizing...");
+            await wait(3000);
+            // نبدأ البوت
+            await runBot(client, stopSignal);
+            // بعد ما يسالي البوت (سواء كمل ولا توقف) نخرج بنجاح
+            finish("DONE");
+        });
+
+        client.on("disconnected", async (reason) => {
+            log(`⚠️ Disconnected: ${reason}`);
+            clearTimeout(qrTimeout);
+            stopSignal.isRunning = false;
+            try { await client.destroy(); } catch {}
+            await cleanTempFiles();
+
+            if (reason === "LOGOUT") {
+                log("🔄 جلسة مطرودة، جاري حذف الجلسة...");
+                await clearSession();
+                finish("LOGOUT");
+            } else {
+                finish(`DISCONNECTED:${reason}`);
+            }
+        });
+
+        client.on("auth_failure", async (msg) => {
+            log(`🔐 Auth failed: ${msg}`);
+            clearTimeout(qrTimeout);
+            stopSignal.isRunning = false;
+            try { await client.destroy(); } catch {}
+            await clearSession();
+            finish("AUTH_FAILURE");
+        });
+
+        client.on("message", async (message) => {
+            if (message.type === 'chat' && !message.fromMe) {
+                await sendToWorker("/api/live/message", {
+                    message: { from: message.from, body: message.body, timestamp: message.timestamp }
+                });
+            }
+        });
+
+        // بدء التهيئة
+        try {
+            await removeLocks();
+            await client.initialize();
+            log("✅ Initialized");
+        } catch (err) {
+            log(`❌ Init failed: ${err.message}`);
+            clearTimeout(qrTimeout);
+            try { await client.destroy(); } catch {}
+            await cleanTempFiles();
+            finish("INIT_FAILED");
         }
     });
-
-    client.on("auth_failure", async (msg) => {
-        log(`🔐 Auth failed: ${msg}`);
-        clearTimeout(qrTimeout);
-        stopSignal.isRunning = false;
-        try { await client.destroy(); } catch {}
-        await clearSession();
-        disconnectedResolve("AUTH_FAILURE");
-    });
-
-    client.on("message", async (message) => {
-        if (message.type === 'chat' && !message.fromMe) {
-            await sendToWorker("/api/live/message", {
-                message: { from: message.from, body: message.body, timestamp: message.timestamp }
-            });
-        }
-    });
-
-    // نضيف دالة إغلاق نظيف
-    const shutdown = async () => {
-        log("🛑 Shutting down");
-        stopSignal.isRunning = false;
-        try { await client.destroy(); } catch {}
-        await cleanTempFiles();
-        if (logStream) logStream.end();
-        process.exit(0);
-    };
-    process.on("SIGINT", shutdown);
-    process.on("SIGTERM", shutdown);
-
-    // نرجع العميل + الوعد اللي غادي يتحل فحالة القطع
-    return { client, disconnectedPromise };
 }
 
 // =================== الدالة الرئيسية ===================
 async function main() {
+    // معالجة الأخطاء غير الملتقطة – فقط نسجلها وما نوقفوش العملية
     process.on("unhandledRejection", (reason, promise) => {
-        log(`❌ Unhandled rejection: ${reason?.message || reason}`);
-        process.exit(0);
+        log(`⚠️ Unhandled rejection: ${reason?.message || reason}`);
+        // لا نقوم بـ process.exit هنا حتى لا نقطع حلقة إعادة المحاولة
     });
 
     await fs.ensureDir(SESSION_DIR);
@@ -492,45 +492,30 @@ async function main() {
     log("🚀 Starting WhatsApp bot");
     await sendToWorker("/api/live/status", { status: "starting" });
 
-    let keepTrying = true;
-    let attempt = 0;
+    let retryCount = 0;
+    const maxAttempts = 10;
 
-    while (keepTrying && attempt < 10) { // حد أقصى 10 محاولات
-        attempt++;
-        log(`🔄 المحاولة رقم ${attempt}`);
+    while (retryCount < maxAttempts) {
+        retryCount++;
+        log(`🔄 المحاولة رقم ${retryCount}`);
+        const result = await attemptBot();
+        log(`ℹ️ نتيجة المحاولة: ${result}`);
 
-        // تجهيز العميل
-        const { client, disconnectedPromise } = await createClient(runBot);
-
-        // إزالة الأقفال وبدء التشغيل
-        await removeLocks();
-        try {
-            log(`🔧 Init attempt ${attempt}`);
-            await client.initialize();
-            log("✅ Initialized");
-        } catch (err) {
-            log(`❌ Init failed: ${err.message}`);
-            try { await client.destroy(); } catch {}
-            await wait(5000);
-            continue; // نعاود من الأول
-        }
-
-        // ننتظر إما ready+runBot تكمل وتخرج، أو قطع (disconnect)
-        const reason = await disconnectedPromise;
-        log(`ℹ️ السبب: ${reason}`);
-
-        // إذا كان السبب LOGOUT أو TIMEOUT، نواصل المحاولة
-        if (reason === "LOGOUT" || reason === "TIMEOUT") {
-            log("🔄 جاري إعادة المحاولة بحذف الجلسة...");
-            // الجلسة تّحذفات من داخل الحدث، نواصل
+        if (result === "DONE") {
+            // البوت اشتغل بنجاح و خلص
+            break;
+        } else if (result === "LOGOUT" || result === "TIMEOUT") {
+            // نحتاجو نعاودو – الجلسة تحذفات تلقائياً
+            log("⏳ انتظار 3 ثواني قبل إعادة المحاولة...");
+            await wait(RESTART_DELAY_MS);
         } else {
-            // أسباب أخرى: خروج
-            log("❌ الخروج بسبب خطأ غير متوقع.");
-            keepTrying = false;
+            // خطأ آخر: نوقف
+            log(`❌ خطأ غير متوقع: ${result}`);
+            break;
         }
     }
 
-    log("👋 انتهت جميع المحاولات.");
+    log("👋 انتهى البرنامج.");
     if (logStream) logStream.end();
     process.exit(0);
 }
