@@ -1,15 +1,32 @@
 {
-  "name": "whatsapp-automation",
-  "version": "1.0.0",
+  "name": "whatsapp-bot",
+  "version": "2.0.0",
+  "description": "Optimized WhatsApp automation bot with fast GitHub Actions workflow",
   "type": "module",
+  "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "setup": "node setup-qr.js",
+    "test": "node -c index.js"
+  },
+  "keywords": [
+    "whatsapp",
+    "automation",
+    "github-actions"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=24.0.0"
   },
   "dependencies": {
-    "whatsapp-web.js": "^1.26.0",
-    "puppeteer": "^23.0.0",
-    "qrcode": "^1.5.3",
+    "whatsapp-web.js": "^1.26.1",
     "qrcode-terminal": "^0.12.0",
-    "fs-extra": "^11.1.1"
+    "qrcode": "^1.5.3",
+    "fs-extra": "^11.2.0"
+  },
+  "devDependencies": {},
+  "optionalDependencies": {
+    "puppeteer": "^22.0.0"
   }
 }
