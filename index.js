@@ -18,7 +18,6 @@ const DASHBOARD_DIR = "./dashboard";
 const SESSION_DIR = "./session";
 const LOGS_DIR = "./logs";
 const CHECKPOINT_FILE = "./checkpoint.json";
-const AGGREGATE_FILE = "./aggregate.json";
 const ADMIN_NUMBER = "212642284241";
 
 const MAX_RETRIES = 2;
@@ -28,11 +27,9 @@ const MAX_DELAY = 40000;
 const MESSAGE_MODE = "random";
 
 // =================== Environment ===================
-const WORKER_URL = process.env.WORKER_URL;
-const API_SECRET = process.env.API_SECRET;
-const SESSION_NAME = "main"; // keep as defined
-
-// =================== Session paths ===================
+const WORKER_URL = process.env.WORKER_URL || null;
+const API_SECRET = process.env.API_SECRET || null;
+const SESSION_NAME = "main";
 const PROFILE_PATH = path.join(SESSION_DIR, SESSION_NAME);
 
 // =================== Helpers ===================
@@ -42,16 +39,30 @@ const cleanNumber = (raw) => raw.replace(/\D/g, "");
 const isUrl = (str) => /^https?:\/\/\S+\.\S+/.test(str);
 const getToday = () => new Date().toISOString().split("T")[0];
 
-// ---------- Worker communication with QR as base64 ----------
+// =================== Logging ===================
+let logStream = null;
+
+function initLogger() {
+    const today = getToday();
+    const logPath = path.join(LOGS_DIR, `${today}.log`);
+    fs.ensureDirSync(LOGS_DIR);
+    logStream = fs.createWriteStream(logPath, { flags: "a" });
+    return logPath;
+}
+
+function log(msg) {
+    const timestamp = new Date().toISOString();
+    const line = `[${timestamp}] ${msg}`;
+    console.log(msg);
+    if (logStream) logStream.write(line + "\n");
+}
+
+// =================== Worker Communication (optional) ===================
 async function sendToWorker(endpoint, data) {
-    if (!WORKER_URL || !API_SECRET) {
-        console.warn("⚠️ WORKER_URL or API_SECRET not set, cannot send to worker");
-        return;
-    }
-    const url = WORKER_URL + endpoint;
-    console.log(`📤 Sending to ${url}`);
+    if (!WORKER_URL || !API_SECRET) return;
+    
     try {
-        const response = await fetch(url, {
+        const response = await fetch(WORKER_URL + endpoint, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -59,29 +70,12 @@ async function sendToWorker(endpoint, data) {
             },
             body: JSON.stringify({ session: SESSION_NAME, ...data }),
         });
-        const responseText = await response.text();
-        console.log(`📥 Response status: ${response.status}, body: ${responseText}`);
         if (!response.ok) {
-            console.warn(`❌ Failed to send to worker: ${response.status} - ${responseText}`);
-        } else {
-            console.log(`✅ Successfully sent to worker: ${endpoint}`);
+            log(`⚠️ Worker response ${response.status} for ${endpoint}`);
         }
     } catch (e) {
-        console.error(`💥 Error sending to worker (${endpoint}):`, e.message);
+        log(`⚠️ Worker error: ${e.message}`);
     }
-}
-
-function sendLogToWorker(text) {
-    if (!WORKER_URL || !API_SECRET) return;
-    const url = WORKER_URL + "/api/live/log";
-    fetch(url, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "X-API-Key": API_SECRET,
-        },
-        body: JSON.stringify({ session: SESSION_NAME, text }),
-    }).catch((e) => console.error("💥 Log send error:", e.message));
 }
 
 // =================== File Helpers ===================
@@ -90,7 +84,7 @@ async function loadJSON(file, defaultVal = null) {
         try {
             return await fs.readJson(file);
         } catch (e) {
-            console.warn(`Failed to load ${file}: ${e.message}`);
+            log(`⚠️ Failed to load ${file}`);
             return defaultVal;
         }
     }
@@ -101,22 +95,49 @@ async function saveJSON(file, data) {
     await fs.writeJson(file, data, { spaces: 2 });
 }
 
-// =================== Logger ===================
-let logStream = null;
-function initLogger() {
-    const today = getToday();
-    const logPath = path.join(LOGS_DIR, `${today}.log`);
-    fs.ensureDirSync(LOGS_DIR);
-    logStream = fs.createWriteStream(logPath, { flags: "a" });
-    return logPath;
+// =================== Session Management ===================
+async function clearSession() {
+    try {
+        if (await fs.pathExists(SESSION_DIR)) {
+            await fs.rm(SESSION_DIR, { force: true, recursive: true });
+            log(`🗑️ Session cleared`);
+        }
+    } catch (err) {
+        log(`⚠️ Failed to clear session: ${err.message}`);
+    }
 }
 
-function logMessage(msg) {
-    const timestamp = new Date().toISOString();
-    const line = `[${timestamp}] ${msg}`;
-    console.log(msg);
-    if (logStream) logStream.write(line + "\n");
-    sendLogToWorker(msg);
+async function removeLocks() {
+    try {
+        if (!await fs.pathExists(PROFILE_PATH)) return;
+        const lockPatterns = ["SingletonLock", "SingletonSocket", "SingletonCookie", "DevToolsActivePort"];
+        const files = await fs.readdir(PROFILE_PATH);
+        
+        for (const file of files) {
+            if (lockPatterns.includes(file) || file.endsWith(".lock")) {
+                await fs.remove(path.join(PROFILE_PATH, file)).catch(() => {});
+            }
+        }
+    } catch (err) {
+        log(`⚠️ Error removing locks: ${err.message}`);
+    }
+}
+
+async function cleanTempFiles() {
+    try {
+        if (!await fs.pathExists(PROFILE_PATH)) return;
+        const tempDirs = ["Cache", "Code Cache", "GPUCache", "Crashpad", "BrowserMetrics", 
+                          "ShaderCache", "GraphiteDawnCache", "GrShaderCache", "DawnCache"];
+        
+        for (const dir of tempDirs) {
+            const fullPath = path.join(PROFILE_PATH, dir);
+            if (await fs.pathExists(fullPath)) {
+                await fs.rm(fullPath, { force: true, recursive: true }).catch(() => {});
+            }
+        }
+    } catch (err) {
+        log(`⚠️ Error cleaning temp files: ${err.message}`);
+    }
 }
 
 // =================== Dashboard ===================
@@ -140,24 +161,20 @@ async function loadDashboard() {
             dashboard = { ...dashboard, ...loaded };
             if (!Array.isArray(dashboard.sent)) dashboard.sent = [];
             if (!Array.isArray(dashboard.failedList)) dashboard.failedList = [];
-            logMessage(`📂 Loaded daily dashboard (${dashboard.success} success, ${dashboard.failed} failed)`);
         } catch (err) {
-            logMessage(`⚠️ Failed to load dashboard: ${err.message}`);
+            log(`⚠️ Failed to load dashboard: ${err.message}`);
         }
     }
     return { dashboard, dashboardPath };
 }
 
-// =================== Checkpoint ===================
 async function loadCheckpoint() {
     let checkpoint = { lastIndex: 0 };
     if (await fs.pathExists(CHECKPOINT_FILE)) {
         try {
             const data = await fs.readJson(CHECKPOINT_FILE);
             if (typeof data.lastIndex === "number") checkpoint.lastIndex = data.lastIndex;
-        } catch {
-            // ignore
-        }
+        } catch {}
     }
     return checkpoint;
 }
@@ -166,180 +183,74 @@ async function saveCheckpoint(checkpoint) {
     await saveJSON(CHECKPOINT_FILE, checkpoint);
 }
 
-// =================== Session Management ===================
-async function clearSession() {
-    for (let attempt = 1; attempt <= 3; attempt++) {
-        try {
-            if (await fs.pathExists(SESSION_DIR)) {
-                await fs.rm(SESSION_DIR, { force: true, recursive: true });
-                logMessage(`🗑️ Cleared session directory: ${SESSION_DIR}`);
-                return;
-            }
-            return;
-        } catch (err) {
-            logMessage(`⚠️ Clear attempt ${attempt} failed: ${err.message}`);
-            if (attempt < 3) await wait(1000);
-        }
-    }
-    logMessage(`❌ Failed to clear session after 3 attempts`);
-}
-
-// Remove lock files that prevent Puppeteer from starting
-async function removeLocks() {
-    try {
-        if (!await fs.pathExists(PROFILE_PATH)) return;
-        const files = await fs.readdir(PROFILE_PATH);
-        const lockPatterns = [
-            "SingletonLock",
-            "SingletonSocket",
-            "SingletonCookie",
-            "DevToolsActivePort",
-        ];
-        for (const file of files) {
-            if (lockPatterns.includes(file) || file.endsWith(".lock")) {
-                const fullPath = path.join(PROFILE_PATH, file);
-                try {
-                    await fs.remove(fullPath);
-                    logMessage(`🗑️ Removed lock file: ${file}`);
-                } catch (err) {
-                    logMessage(`⚠️ Failed to remove lock file ${file}: ${err.message}`);
-                }
-            }
-        }
-    } catch (err) {
-        logMessage(`⚠️ Error while removing locks: ${err.message}`);
-    }
-}
-
-// Clean only temporary Chromium files, preserving authentication data
-async function cleanTempFiles() {
-    try {
-        if (!await fs.pathExists(PROFILE_PATH)) return;
-        const tempDirs = [
-            "Cache",
-            "Code Cache",
-            "GPUCache",
-            "Crashpad",
-            "BrowserMetrics",
-            "ShaderCache",
-            "GraphiteDawnCache",
-            "GrShaderCache",
-            "Service Worker/CacheStorage",
-            "DawnCache", // إضافة مجلد إضافي
-        ];
-        for (const dir of tempDirs) {
-            const fullPath = path.join(PROFILE_PATH, dir);
-            if (await fs.pathExists(fullPath)) {
-                try {
-                    await fs.rm(fullPath, { force: true, recursive: true });
-                    logMessage(`🧹 Removed temporary directory: ${dir}`);
-                } catch (err) {
-                    logMessage(`⚠️ Failed to remove ${dir}: ${err.message}`);
-                }
-            }
-        }
-    } catch (err) {
-        logMessage(`⚠️ Error during temp file cleaning: ${err.message}`);
-    }
-}
-
-// التحقق من صحة الجلسة (وجود بيانات المصادقة)
-async function isSessionValid() {
-    try {
-        if (!await fs.pathExists(PROFILE_PATH)) return false;
-        const authDirs = ["IndexedDB", "Local Storage"];
-        for (const dir of authDirs) {
-            const fullPath = path.join(PROFILE_PATH, dir);
-            if (await fs.pathExists(fullPath)) return true;
-        }
-        return false;
-    } catch {
-        return false;
-    }
-}
-
-// =================== Main Logic ===================
+// =================== Main Bot Logic ===================
 async function runBot(client) {
-    logMessage("✅ WhatsApp client ready");
+    log("✅ WhatsApp client ready");
 
-    // 1. Load accounts
+    // Load accounts
     const numbers = await loadJSON(ACCOUNTS_FILE, []);
     if (!Array.isArray(numbers) || numbers.length === 0) {
-        logMessage("❌ No numbers in accounts.json");
+        log("❌ No numbers in accounts.json");
         process.exit(1);
     }
     const cleanNumbers = [...new Set(numbers.map(cleanNumber))];
-    logMessage(`📞 Loaded ${cleanNumbers.length} unique numbers`);
+    log(`📞 ${cleanNumbers.length} unique numbers loaded`);
 
-    // 2. Load messages
+    // Load messages
     let messages = [];
-    let messageMode = MESSAGE_MODE;
     const loadedMessages = await loadJSON(MESSAGES_FILE, []);
     if (Array.isArray(loadedMessages) && loadedMessages.length > 0) {
         messages = loadedMessages.filter((m) => typeof m === "string" && m.trim().length > 0);
-        logMessage(`📝 Loaded ${messages.length} messages from message.json`);
+    }
+    if (messages.length === 0 && await fs.pathExists(MESSAGE_FILE)) {
+        const text = await fs.readFile(MESSAGE_FILE, "utf8");
+        if (text.trim()) messages = [text.trim()];
     }
     if (messages.length === 0) {
-        if (await fs.pathExists(MESSAGE_FILE)) {
-            const text = await fs.readFile(MESSAGE_FILE, "utf8");
-            if (text.trim()) {
-                messages = [text.trim()];
-                logMessage(`📝 Loaded one message from message.txt`);
-            }
-        }
-    }
-    if (messages.length === 0) {
-        logMessage("❌ No valid messages found");
+        log("❌ No messages found");
         process.exit(1);
     }
+    log(`📝 ${messages.length} messages loaded`);
 
-    // 3. Load images
+    // Load images
     let imageItems = [];
     const loadedImages = await loadJSON(IMAGES_LIST_FILE, []);
     if (Array.isArray(loadedImages) && loadedImages.length > 0) {
         imageItems = loadedImages.filter((p) => typeof p === "string" && p.trim().length > 0);
-        logMessage(`🖼️ Loaded ${imageItems.length} image items from images.json`);
     }
+    if (imageItems.length > 0) log(`🖼️ ${imageItems.length} images available`);
 
-    // 4. Load checkpoint
+    // Load state
     const checkpoint = await loadCheckpoint();
-    let startIndex = checkpoint.lastIndex;
-    if (startIndex >= cleanNumbers.length) startIndex = 0;
-    logMessage(`⏩ Starting from index ${startIndex} (${cleanNumbers[startIndex] || 'none'})`);
-
-    // 5. Load dashboard
+    let startIndex = checkpoint.lastIndex >= cleanNumbers.length ? 0 : checkpoint.lastIndex;
     const { dashboard, dashboardPath } = await loadDashboard();
 
-    // 6. Prepare counters
-    let messageCounter = 0;
+    log(`⏩ Starting from index ${startIndex}`);
 
-    // 7. Main loop
+    // Main loop
+    let messageCounter = 0;
     let index = startIndex;
+
     while (index < cleanNumbers.length) {
         const rawNumber = cleanNumbers[index];
         const chatId = `${rawNumber}@c.us`;
 
-        // Skip already processed today
+        // Skip if already processed
         if (dashboard.sent.includes(rawNumber) || dashboard.failedList.includes(rawNumber)) {
-            logMessage(`⏭️ Number ${rawNumber} already processed today, skipping`);
+            log(`⏭️ ${rawNumber} already processed, skipping`);
             index++;
             continue;
         }
 
         // Select message
-        let currentMessage;
-        if (messageMode === "random") {
-            currentMessage = messages[Math.floor(Math.random() * messages.length)];
-        } else {
-            currentMessage = messages[messageCounter % messages.length];
-            messageCounter++;
-        }
+        const currentMessage = messageMode === "random" 
+            ? messages[Math.floor(Math.random() * messages.length)]
+            : messages[messageCounter++ % messages.length];
 
-        // Select image item (if any)
-        let selectedImageItem = null;
-        if (imageItems.length > 0) {
-            selectedImageItem = imageItems[Math.floor(Math.random() * imageItems.length)];
-        }
+        // Select image (optional)
+        const selectedImageItem = imageItems.length > 0 
+            ? imageItems[Math.floor(Math.random() * imageItems.length)]
+            : null;
 
         let success = false;
         let attempts = 0;
@@ -348,139 +259,103 @@ async function runBot(client) {
             try {
                 const numberId = await client.getNumberId(chatId);
                 if (!numberId) {
-                    logMessage(`⚠️ Number ${rawNumber} not on WhatsApp`);
+                    log(`⚠️ ${rawNumber} not on WhatsApp`);
                     break;
                 }
 
                 let mediaSent = false;
+
+                // Try to send image + caption if available
                 if (selectedImageItem) {
                     try {
                         let media;
                         if (isUrl(selectedImageItem)) {
-                            logMessage(`🌐 Loading image from URL: ${selectedImageItem}`);
                             media = await MessageMedia.fromUrl(selectedImageItem);
                         } else {
                             const fullPath = path.join(__dirname, selectedImageItem);
                             if (await fs.pathExists(fullPath)) {
                                 media = MessageMedia.fromFilePath(fullPath);
                             } else {
-                                logMessage(`⚠️ Local file not found: ${fullPath}`);
-                                throw new Error("Local file not found");
+                                throw new Error("File not found");
                             }
                         }
                         if (media) {
                             await client.sendMessage(chatId, media, { caption: currentMessage });
                             mediaSent = true;
-                            logMessage(`🖼️ Sent image + caption to ${rawNumber}`);
+                            log(`🖼️ Image sent to ${rawNumber}`);
                         }
-                    } catch (imgErr) {
-                        logMessage(`⚠️ Failed to send image (${selectedImageItem}): ${imgErr.message}`);
+                    } catch (err) {
+                        log(`⚠️ Image failed: ${err.message}`);
                     }
                 }
 
+                // Send text if no image or as fallback
                 if (!mediaSent) {
                     await client.sendMessage(chatId, currentMessage);
-                    logMessage(`📝 Sent text only to ${rawNumber}`);
+                    log(`📝 Message sent to ${rawNumber}`);
                 }
 
+                // Mark success
                 success = true;
-
                 dashboard.attempted++;
                 dashboard.success++;
                 dashboard.sent.push(rawNumber);
-                logMessage(`✔ Successfully sent to ${rawNumber}`);
-
                 checkpoint.lastIndex = index + 1;
-                await saveCheckpoint(checkpoint);
-                await saveJSON(dashboardPath, dashboard);
+
+                // Batch save (only save periodically)
+                if (dashboard.success % 10 === 0) {
+                    await saveJSON(dashboardPath, dashboard);
+                    await saveCheckpoint(checkpoint);
+                }
 
             } catch (err) {
                 attempts++;
                 if (attempts <= MAX_RETRIES) {
-                    logMessage(`🔁 Retry ${attempts}/${MAX_RETRIES} for ${rawNumber}: ${err.message}`);
+                    log(`🔁 Retry ${attempts}/${MAX_RETRIES} for ${rawNumber}`);
                     await wait(RETRY_DELAY);
                 } else {
                     dashboard.attempted++;
                     dashboard.failed++;
                     dashboard.failedList.push(rawNumber);
-                    logMessage(`❌ Final failure for ${rawNumber}: ${err.message}`);
-                    await saveJSON(dashboardPath, dashboard);
+                    log(`❌ Failed: ${rawNumber}`);
                 }
             }
         }
 
+        // Random delay between sends
         const delay = randomDelay();
-        logMessage(`⏳ Waiting ${(delay / 1000).toFixed(1)}s`);
         await wait(delay);
         index++;
     }
 
-    logMessage("🏁 Main loop finished");
-    await fs.remove(CHECKPOINT_FILE).catch(() => {});
-    await updateAggregate();
-    await sendAdminReport(client, dashboard, messages.length, imageItems.length, messageMode);
+    // Final save
+    await saveJSON(dashboardPath, dashboard);
+    await saveCheckpoint(checkpoint);
 
-    logMessage("✅ Script completed successfully");
-    logStream?.end();
+    log("🏁 Batch complete");
+    await fs.remove(CHECKPOINT_FILE).catch(() => {});
+
+    // Send admin report
+    await sendAdminReport(client, dashboard, messages.length, imageItems.length);
+
+    log("✅ Script completed");
+    if (logStream) logStream.end();
     process.exit(0);
 }
 
-// =================== Aggregate ===================
-async function updateAggregate() {
-    try {
-        const files = await fs.readdir(DASHBOARD_DIR);
-        const aggregate = [];
-        for (const file of files) {
-            if (file.endsWith(".json")) {
-                const data = await fs.readJson(path.join(DASHBOARD_DIR, file));
-                aggregate.push({
-                    date: data.date,
-                    attempted: data.attempted || 0,
-                    success: data.success || 0,
-                    failed: data.failed || 0,
-                });
-            }
-        }
-        await saveJSON(AGGREGATE_FILE, aggregate);
-        logMessage("📊 Updated aggregate.json");
-    } catch (err) {
-        logMessage(`⚠️ Failed to update aggregate: ${err.message}`);
-    }
-}
-
 // =================== Admin Report ===================
-async function sendAdminReport(client, dashboard, msgCount, imgCount, mode) {
+async function sendAdminReport(client, dashboard, msgCount, imgCount) {
     const adminChatId = `${ADMIN_NUMBER}@c.us`;
-    const report = `
-✅ Report
-📅 Date: ${dashboard.date}
-📤 Attempted: ${dashboard.attempted}
-✔ Success: ${dashboard.success}
-❌ Failed: ${dashboard.failed}
-📌 Sent: ${dashboard.sent.length} numbers
-❌ Failed list: ${dashboard.failedList.join(", ") || "none"}
-📝 Messages used: ${msgCount}
-🖼️ Images available: ${imgCount}
-🔄 Mode: ${mode}
-`;
+    const report = `✅ WhatsApp Bot Report\n📅 Date: ${dashboard.date}\n📤 Attempted: ${dashboard.attempted}\n✔ Success: ${dashboard.success}\n❌ Failed: ${dashboard.failed}\n📝 Messages: ${msgCount}\n🖼️ Images: ${imgCount}`;
 
     try {
         const adminId = await client.getNumberId(adminChatId);
-        if (!adminId) {
-            logMessage(`⚠️ Admin number ${ADMIN_NUMBER} not on WhatsApp`);
-            return;
-        }
-        await client.sendMessage(adminChatId, report);
-        logMessage("📨 Admin report sent");
-    } catch (err) {
-        logMessage(`⚠️ Failed to send admin report: ${err.message}`);
-        try {
-            await wait(5000);
+        if (adminId) {
             await client.sendMessage(adminChatId, report);
-            logMessage("📨 Admin report sent on retry");
-        } catch (err2) {
-            logMessage(`⚠️ Second attempt failed: ${err2.message}`);
+            log("📨 Admin report sent");
         }
+    } catch (err) {
+        log(`⚠️ Admin report failed: ${err.message}`);
     }
 }
 
@@ -516,90 +391,69 @@ async function createClient() {
 
     let qrEmitted = false;
 
-    // Event: QR
+    // QR code event
     client.on("qr", async (qr) => {
         qrEmitted = true;
-        console.log("🔐 Scan the QR code below:");
+        log("📲 QR code generated - scan now");
         qrcode.generate(qr, { small: true });
+        
         try {
             const qrDataUrl = await QRCode.toDataURL(qr);
             await sendToWorker("/api/live/qr", { qr: qrDataUrl });
         } catch (e) {
-            console.warn("Failed to send QR to worker:", e.message);
+            log(`⚠️ QR send failed: ${e.message}`);
         }
-        logMessage("📲 QR code generated");
     });
 
-    // Event: Ready
+    // Ready event
     client.on("ready", async () => {
         if (!qrEmitted) {
-            logMessage("♻️ Session restored from disk");
+            log("♻️ Session restored from cache");
         }
         await sendToWorker("/api/live/status", { status: "connected" });
-        logMessage("✅ Client ready, starting bot");
-        // Start the bot
         await runBot(client);
     });
 
-    // Event: Disconnected
+    // Disconnected event
     client.on("disconnected", async (reason) => {
-        await sendToWorker("/api/live/status", { status: "disconnected", reason });
-        logMessage(`⚠️ Disconnected: ${reason}`);
-
-        try {
-            await client.destroy();
-            logMessage("✅ Client destroyed");
-        } catch (err) {
-            logMessage(`⚠️ Error destroying client: ${err.message}`);
-        }
-        await wait(2000);
-
-        if (reason === "LOGOUT") {
-            logMessage("🔄 Session expired – clearing session...");
-            await clearSession(); // clears all authentication data
-            // Clean temp files (though session is gone, but do it anyway)
-            await cleanTempFiles();
-            logMessage("🛑 Exiting after LOGOUT.");
-            process.exit(0);
-        } else {
-            // Ordinary disconnect – clean temporary files but keep authentication
-            logMessage("🧹 Cleaning temporary files (keeping authentication)...");
-            await cleanTempFiles();
-            logMessage(`🛑 Exiting after disconnect (${reason}) without clearing session.`);
-            process.exit(0);
-        }
-    });
-
-    // Event: Auth failure
-    client.on("auth_failure", async (msg) => {
-        logMessage(`🔐 Authentication failure: ${msg}`);
-        await sendToWorker("/api/live/status", { status: "auth_failure", message: msg });
+        log(`⚠️ Disconnected: ${reason}`);
+        
         try {
             await client.destroy();
         } catch {}
-        await wait(2000);
-        logMessage("🗑️ Clearing session due to auth failure...");
-        await clearSession();
+        
         await cleanTempFiles();
-        logMessage("🛑 Exiting with error code 1.");
+
+        if (reason === "LOGOUT") {
+            log("🔄 Session expired - clearing");
+            await clearSession();
+        }
+        
+        process.exit(0);
+    });
+
+    // Auth failure
+    client.on("auth_failure", async (msg) => {
+        log(`🔐 Auth failed: ${msg}`);
+        try {
+            await client.destroy();
+        } catch {}
+        await clearSession();
         process.exit(1);
     });
 
-    // Event: incoming messages (optional)
+    // Incoming messages (optional)
     client.on("message", async (message) => {
         if (message.type === 'chat' && !message.fromMe) {
-            const msgData = {
-                from: message.from,
-                body: message.body,
-                timestamp: message.timestamp,
-            };
-            await sendToWorker("/api/live/message", { message: msgData });
+            await sendToWorker("/api/live/message", { 
+                message: { from: message.from, body: message.body, timestamp: message.timestamp }
+            });
         }
     });
 
-    // Shutdown handling
+    // Graceful shutdown
     const shutdown = async () => {
-        logMessage("🛑 Shutting down...");
+        log("🛑 Shutting down");
         try {
             await client.destroy();
         } catch {}
@@ -621,45 +475,44 @@ async function main() {
         await fs.ensureDir(DASHBOARD_DIR);
         initLogger();
 
-        logMessage("🚀 Starting WhatsApp bot");
+        log("🚀 Starting WhatsApp bot");
         await sendToWorker("/api/live/status", { status: "starting" });
 
-        // Remove leftover lock files before any initialization attempt
+        // Cleanup locks before init
         await removeLocks();
 
         let client = await createClient();
         let initialized = false;
         let attempts = 0;
+
         while (!initialized && attempts < 3) {
             try {
-                // Remove locks again before each attempt to be safe
                 await removeLocks();
-                logMessage(`🔧 Initialization attempt ${attempts + 1}...`);
+                log(`🔧 Init attempt ${attempts + 1}`);
                 await client.initialize();
                 initialized = true;
-                logMessage("✅ Client initialized successfully");
-            } catch (initErr) {
+                log("✅ Initialized");
+            } catch (err) {
                 attempts++;
-                logMessage(`❌ Initialization attempt ${attempts} failed: ${initErr.message}`);
+                log(`❌ Init failed: ${err.message}`);
+                
+                try {
+                    await client.destroy();
+                } catch {}
+
                 if (attempts < 3) {
-                    logMessage(`Retrying in 10 seconds...`);
-                    await wait(10000);
-                    try {
-                        await client.destroy();
-                    } catch {}
-                    // Create a new client for the next attempt
+                    log(`⏳ Retrying in 5s...`);
+                    await wait(5000);
                     client = await createClient();
                 } else {
-                    logMessage(`❌ Failed to initialize after 3 attempts. Exiting.`);
-                    await sendToWorker("/api/live/status", { status: "init_failed", error: initErr.message });
+                    log("❌ Failed after 3 attempts");
                     process.exit(1);
                 }
             }
         }
     } catch (err) {
-        console.error("❌ Fatal error:", err);
-        logMessage(`💥 Fatal error: ${err.message}`);
-        logStream?.end();
+        console.error("💥 Fatal error:", err.message);
+        if (logStream) logStream.end();
         process.exit(1);
     }
 }
