@@ -2,11 +2,10 @@ import pkg from "whatsapp-web.js";
 const { Client, LocalAuth, MessageMedia } = pkg;
 
 import qrcode from "qrcode-terminal";
-import QRCode from "qrcode";               // لإنتاج صورة QR base64
+import QRCode from "qrcode";
 import fs from "fs-extra";
 import path from "path";
 import { fileURLToPath } from "url";
-import { spawn } from "child_process";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -28,14 +27,13 @@ const MIN_DELAY = 20000;
 const MAX_DELAY = 40000;
 const MESSAGE_MODE = "random";
 
-// Restart counter
-const RESTART_COUNT_FILE = "./restart_count.json";
-const MAX_RESTARTS = 3;
-
 // =================== Environment ===================
 const WORKER_URL = process.env.WORKER_URL;
 const API_SECRET = process.env.API_SECRET;
-const SESSION_NAME = "main";
+const SESSION_NAME = "main"; // keep as defined
+
+// =================== Session paths ===================
+const PROFILE_PATH = path.join(SESSION_DIR, SESSION_NAME);
 
 // =================== Helpers ===================
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -186,39 +184,62 @@ async function clearSession() {
     logMessage(`❌ Failed to clear session after 3 attempts`);
 }
 
-// =================== Process Restart ===================
-async function restartProcess() {
-    let restartData = { count: 0 };
-    if (await fs.pathExists(RESTART_COUNT_FILE)) {
-        try {
-            restartData = await fs.readJson(RESTART_COUNT_FILE);
-        } catch {}
+// Remove lock files that prevent Puppeteer from starting
+async function removeLocks() {
+    try {
+        if (!await fs.pathExists(PROFILE_PATH)) return;
+        const files = await fs.readdir(PROFILE_PATH);
+        const lockPatterns = [
+            "SingletonLock",
+            "SingletonSocket",
+            "SingletonCookie",
+            "DevToolsActivePort",
+        ];
+        for (const file of files) {
+            if (lockPatterns.includes(file) || file.endsWith(".lock")) {
+                const fullPath = path.join(PROFILE_PATH, file);
+                try {
+                    await fs.remove(fullPath);
+                    logMessage(`🗑️ Removed lock file: ${file}`);
+                } catch (err) {
+                    logMessage(`⚠️ Failed to remove lock file ${file}: ${err.message}`);
+                }
+            }
+        }
+    } catch (err) {
+        logMessage(`⚠️ Error while removing locks: ${err.message}`);
     }
-    restartData.count = (restartData.count || 0) + 1;
-    await saveJSON(RESTART_COUNT_FILE, restartData);
+}
 
-    if (restartData.count > MAX_RESTARTS) {
-        logMessage(`❌ Too many restarts (${MAX_RESTARTS}), giving up.`);
-        process.exit(1);
+// Clean only temporary Chromium files, preserving authentication data
+async function cleanTempFiles() {
+    try {
+        if (!await fs.pathExists(PROFILE_PATH)) return;
+        const tempDirs = [
+            "Cache",
+            "Code Cache",
+            "GPUCache",
+            "Crashpad",
+            "BrowserMetrics",
+            "ShaderCache",
+            "GraphiteDawnCache",
+            "GrShaderCache",
+            "Service Worker/CacheStorage",
+        ];
+        for (const dir of tempDirs) {
+            const fullPath = path.join(PROFILE_PATH, dir);
+            if (await fs.pathExists(fullPath)) {
+                try {
+                    await fs.rm(fullPath, { force: true, recursive: true });
+                    logMessage(`🧹 Removed temporary directory: ${dir}`);
+                } catch (err) {
+                    logMessage(`⚠️ Failed to remove ${dir}: ${err.message}`);
+                }
+            }
+        }
+    } catch (err) {
+        logMessage(`⚠️ Error during temp file cleaning: ${err.message}`);
     }
-
-    logMessage(`🔄 Restarting process (attempt ${restartData.count})...`);
-    if (logStream) logStream.end();
-
-    const child = spawn(process.argv[0], process.argv.slice(1), {
-        stdio: 'inherit',
-        env: process.env,
-        detached: false,
-    });
-
-    child.on('error', (err) => {
-        console.error('Failed to start new process:', err);
-        process.exit(1);
-    });
-
-    setTimeout(() => {
-        process.exit(0);
-    }, 1000);
 }
 
 // =================== Main Logic ===================
@@ -451,7 +472,7 @@ async function sendAdminReport(client, dashboard, msgCount, imgCount, mode) {
 async function createClient() {
     const client = new Client({
         authStrategy: new LocalAuth({
-            clientId: "main",
+            clientId: SESSION_NAME,
             dataPath: SESSION_DIR,
             restartOnAuthFail: true
         }),
@@ -477,22 +498,29 @@ async function createClient() {
         },
     });
 
+    let qrEmitted = false;
+
     // Event: QR
     client.on("qr", async (qr) => {
+        qrEmitted = true;
         console.log("🔐 Scan the QR code below:");
         qrcode.generate(qr, { small: true });
         try {
-            // Convert QR to base64 data URL
             const qrDataUrl = await QRCode.toDataURL(qr);
             await sendToWorker("/api/live/qr", { qr: qrDataUrl });
         } catch (e) {
             console.warn("Failed to send QR to worker:", e.message);
         }
+        logMessage("📲 QR code generated");
     });
 
     // Event: Ready
     client.on("ready", async () => {
+        if (!qrEmitted) {
+            logMessage("♻️ Session restored from disk");
+        }
         await sendToWorker("/api/live/status", { status: "connected" });
+        logMessage("✅ Client ready, starting bot");
         // Start the bot
         await runBot(client);
     });
@@ -511,12 +539,19 @@ async function createClient() {
         await wait(2000);
 
         if (reason === "LOGOUT") {
-            logMessage("🔄 Session expired – clearing session and restarting...");
-            await clearSession();
+            logMessage("🔄 Session expired – clearing session...");
+            await clearSession(); // clears all authentication data
+            // Clean temp files (though session is gone, but do it anyway)
+            await cleanTempFiles();
+            logMessage("🛑 Exiting after LOGOUT.");
+            process.exit(0);
         } else {
-            logMessage("🔄 Attempting to restart without clearing session...");
+            // Ordinary disconnect – clean temporary files but keep authentication
+            logMessage("🧹 Cleaning temporary files (keeping authentication)...");
+            await cleanTempFiles();
+            logMessage(`🛑 Exiting after disconnect (${reason}) without clearing session.`);
+            process.exit(0);
         }
-        await restartProcess();
     });
 
     // Event: Auth failure
@@ -527,8 +562,11 @@ async function createClient() {
             await client.destroy();
         } catch {}
         await wait(2000);
+        logMessage("🗑️ Clearing session due to auth failure...");
         await clearSession();
-        await restartProcess();
+        await cleanTempFiles();
+        logMessage("🛑 Exiting with error code 1.");
+        process.exit(1);
     });
 
     // Event: incoming messages (optional)
@@ -546,8 +584,11 @@ async function createClient() {
     // Shutdown handling
     const shutdown = async () => {
         logMessage("🛑 Shutting down...");
-        await client.destroy();
-        logStream?.end();
+        try {
+            await client.destroy();
+        } catch {}
+        await cleanTempFiles();
+        if (logStream) logStream.end();
         process.exit(0);
     };
     process.on("SIGINT", shutdown);
@@ -559,11 +600,6 @@ async function createClient() {
 // =================== Main Entry ===================
 async function main() {
     try {
-        // Reset restart counter on fresh start
-        if (await fs.pathExists(RESTART_COUNT_FILE)) {
-            await fs.remove(RESTART_COUNT_FILE);
-        }
-
         await fs.ensureDir(SESSION_DIR);
         await fs.ensureDir(LOGS_DIR);
         await fs.ensureDir(DASHBOARD_DIR);
@@ -572,11 +608,17 @@ async function main() {
         logMessage("🚀 Starting WhatsApp bot");
         await sendToWorker("/api/live/status", { status: "starting" });
 
+        // Remove leftover lock files before any initialization attempt
+        await removeLocks();
+
         let client = await createClient();
         let initialized = false;
         let attempts = 0;
         while (!initialized && attempts < 3) {
             try {
+                // Remove locks again before each attempt to be safe
+                await removeLocks();
+                logMessage(`🔧 Initialization attempt ${attempts + 1}...`);
                 await client.initialize();
                 initialized = true;
                 logMessage("✅ Client initialized successfully");
@@ -586,15 +628,21 @@ async function main() {
                 if (attempts < 3) {
                     logMessage(`Retrying in 10 seconds...`);
                     await wait(10000);
-                    await client.destroy().catch(() => {});
+                    try {
+                        await client.destroy();
+                    } catch {}
+                    // Create a new client for the next attempt
                     client = await createClient();
                 } else {
-                    throw initErr;
+                    logMessage(`❌ Failed to initialize after 3 attempts. Exiting.`);
+                    await sendToWorker("/api/live/status", { status: "init_failed", error: initErr.message });
+                    process.exit(1);
                 }
             }
         }
     } catch (err) {
         console.error("❌ Fatal error:", err);
+        logMessage(`💥 Fatal error: ${err.message}`);
         logStream?.end();
         process.exit(1);
     }
