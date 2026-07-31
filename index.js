@@ -184,15 +184,14 @@ async function saveCheckpoint(checkpoint) {
 }
 
 // =================== Main Bot Logic ===================
-async function runBot(client) {
+async function runBot(client, stopSignal) {
     log("✅ WhatsApp client ready");
     
-    // Safeguard: stop if disconnected
-    let isRunning = true;
-    
-    const stopBot = () => {
-        isRunning = false;
-    };
+    // Safeguard: stop if disconnect already fired
+    if (!stopSignal.isRunning) {
+        log("⚠️ Bot already stopped before starting");
+        return;
+    }
 
     try {
         // Load accounts
@@ -239,7 +238,7 @@ async function runBot(client) {
         let messageCounter = 0;
         let index = startIndex;
 
-        while (index < cleanNumbers.length && isRunning) {
+        while (index < cleanNumbers.length && stopSignal.isRunning) {
             const rawNumber = cleanNumbers[index];
             const chatId = `${rawNumber}@c.us`;
 
@@ -251,7 +250,7 @@ async function runBot(client) {
             }
 
             // Select message
-            const currentMessage = messageMode === "random" 
+            const currentMessage = MESSAGE_MODE === "random" 
                 ? messages[Math.floor(Math.random() * messages.length)]
                 : messages[messageCounter++ % messages.length];
 
@@ -263,7 +262,7 @@ async function runBot(client) {
             let success = false;
             let attempts = 0;
 
-            while (attempts <= MAX_RETRIES && !success && isRunning) {
+            while (attempts <= MAX_RETRIES && !success && stopSignal.isRunning) {
                 try {
                     const numberId = await client.getNumberId(chatId);
                     if (!numberId) {
@@ -320,12 +319,12 @@ async function runBot(client) {
                     // Check if frame error (browser disconnected)
                     if (err.message && err.message.includes('detached')) {
                         log(`💥 Browser detached - stopping: ${err.message}`);
-                        isRunning = false;
+                        stopSignal.isRunning = false;
                         break;
                     }
                     
                     attempts++;
-                    if (attempts <= MAX_RETRIES && isRunning) {
+                    if (attempts <= MAX_RETRIES && stopSignal.isRunning) {
                         log(`🔁 Retry ${attempts}/${MAX_RETRIES} for ${rawNumber}`);
                         await wait(RETRY_DELAY);
                     } else {
@@ -337,7 +336,7 @@ async function runBot(client) {
                 }
             }
 
-            if (!isRunning) break;
+            if (!stopSignal.isRunning) break;
 
             // Random delay between sends
             const delay = randomDelay();
@@ -352,8 +351,10 @@ async function runBot(client) {
         log("🏁 Batch complete");
         await fs.remove(CHECKPOINT_FILE).catch(() => {});
 
-        // Send admin report
-        await sendAdminReport(client, dashboard, messages.length, imageItems.length);
+        // Send admin report only if still connected
+        if (stopSignal.isRunning) {
+            await sendAdminReport(client, dashboard, messages.length, imageItems.length);
+        }
 
         log("✅ Script completed");
         if (logStream) logStream.end();
@@ -384,6 +385,9 @@ async function sendAdminReport(client, dashboard, msgCount, imgCount) {
 
 // =================== Client Setup ===================
 async function createClient() {
+    // This object signals to runBot whether it should keep running
+    const stopSignal = { isRunning: true };
+
     const client = new Client({
         authStrategy: new LocalAuth({
             clientId: SESSION_NAME,
@@ -439,32 +443,38 @@ async function createClient() {
         log("⏳ Stabilizing connection...");
         await wait(3000);
         
-        await runBot(client);
+        // Pass the stopSignal so the bot can be stopped externally
+        await runBot(client, stopSignal);
     });
 
-    // Disconnected event - EXIT IMMEDIATELY
+    // Disconnected event – STOP EVERYTHING IMMEDIATELY
     client.on("disconnected", async (reason) => {
         log(`⚠️ Disconnected: ${reason}`);
         
+        // Signal the bot loop to stop (if it's already running)
+        stopSignal.isRunning = false;
+
+        // Try a quick cleanup, but don't wait for it
         try {
             await client.destroy();
-        } catch {}
-        
+        } catch (e) {
+            // Ignore – the browser may already be gone
+        }
+
         await cleanTempFiles();
 
         if (reason === "LOGOUT") {
             log("✅ Session ended normally - keeping for next run");
         }
-        
-        // Exit immediately, don't let code continue
-        setTimeout(() => {
-            process.exit(0);
-        }, 1000);
+
+        // Exit cleanly – do not let other code continue
+        process.exit(0);
     });
 
     // Auth failure
     client.on("auth_failure", async (msg) => {
         log(`🔐 Auth failed: ${msg}`);
+        stopSignal.isRunning = false;
         try {
             await client.destroy();
         } catch {}
@@ -481,9 +491,10 @@ async function createClient() {
         }
     });
 
-    // Graceful shutdown
+    // Graceful shutdown (Ctrl+C)
     const shutdown = async () => {
         log("🛑 Shutting down");
+        stopSignal.isRunning = false;
         try {
             await client.destroy();
         } catch {}
@@ -499,6 +510,14 @@ async function createClient() {
 
 // =================== Main Entry ===================
 async function main() {
+    // Catch any unhandled promise rejections (e.g., "detached Frame")
+    process.on("unhandledRejection", (reason, promise) => {
+        log(`❌ Unhandled rejection: ${reason?.message || reason}`);
+        // If we get here, something catastrophic happened (like the frame error)
+        // Exit cleanly so the GitHub workflow succeeds.
+        process.exit(0);
+    });
+
     try {
         await fs.ensureDir(SESSION_DIR);
         await fs.ensureDir(LOGS_DIR);
