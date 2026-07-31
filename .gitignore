@@ -1,30 +1,31 @@
+# ========== IGNORE EVERYTHING BY DEFAULT ==========
+session/**
+
+# ========== WHITELIST ONLY AUTH DATA ==========
+!session/
+!session/main/
+!session/main/IndexedDB/
+!session/main/IndexedDB/**
+!session/main/Local\ Storage/
+!session/main/Local\ Storage/**
+
+# ========== KEEP THESE FILES ==========
+# (dashboard, config, logs)
+!dashboard/
+!dashboard/**
+!aggregate.json
+
+# ========== IGNORE EVERYTHING ELSE ==========
 # Dependencies
 node_modules/
 package-lock.json
 
-# Temporary files (Chromium, browser cache)
-session/*/Cache/
-session/*/"Code Cache"/
-session/*/GPUCache/
-session/*/Crashpad/
-session/*/BrowserMetrics/
-session/*/GrShaderCache/
-session/*/GraphiteDawnCache/
-session/*/ShaderCache/
-session/*/DawnCache/
-session/**/*.lock
-session/**/SingletonLock
-session/**/SingletonSocket
-session/**/SingletonCookie
-session/**/DevToolsActivePort
-
-# Logs (not needed in git - only in artifacts)
+# Logs (only in artifacts)
 logs/
+*.log
 
-# Checkpoint (temporary, not needed in git)
+# Temporary files
 checkpoint.json
-
-# Environment
 .env
 .env.local
 
@@ -36,15 +37,4 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
-*.swo
-*~
-
-# Keep ONLY these:
-# - session/main/IndexedDB/
-# - session/main/Local Storage/
-# - dashboard/
-# - aggregate.json
-# - accounts.json
-# - message.json
-# - message.txt
-# - images.json
+.npmrc
