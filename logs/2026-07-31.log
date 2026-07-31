@@ -1,0 +1,20 @@
+[2026-07-31T19:14:11.939Z] 🚀 Starting WhatsApp bot
+[2026-07-31T19:14:12.256Z] 🔧 Initialization attempt 1...
+[2026-07-31T19:14:16.634Z] ✅ Client initialized successfully
+[2026-07-31T19:14:17.084Z] 📲 QR code generated
+[2026-07-31T19:14:57.227Z] ✅ Client ready, starting bot
+[2026-07-31T19:14:57.228Z] ✅ WhatsApp client ready
+[2026-07-31T19:14:57.233Z] 📞 Loaded 2 unique numbers
+[2026-07-31T19:14:57.235Z] 📝 Loaded 1 messages from message.json
+[2026-07-31T19:14:57.237Z] 🖼️ Loaded 1 image items from images.json
+[2026-07-31T19:14:57.239Z] ⏩ Starting from index 0 (none)
+[2026-07-31T19:14:57.245Z] 🔁 Retry 1/2 for : t
+[2026-07-31T19:15:02.250Z] 🔁 Retry 2/2 for : t
+[2026-07-31T19:15:07.253Z] ❌ Final failure for : t
+[2026-07-31T19:15:07.255Z] ⏳ Waiting 40.0s
+[2026-07-31T19:15:48.043Z] 🖼️ Sent image + caption to 212607301499
+[2026-07-31T19:15:48.044Z] ✔ Successfully sent to 212607301499
+[2026-07-31T19:15:48.046Z] ⏳ Waiting 36.2s
+[2026-07-31T19:16:24.295Z] 🏁 Main loop finished
+[2026-07-31T19:16:24.302Z] 📊 Updated aggregate.json
+[2026-07-31T19:16:24.473Z] 📨 Admin report sent
