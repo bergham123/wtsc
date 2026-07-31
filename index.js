@@ -186,161 +186,184 @@ async function saveCheckpoint(checkpoint) {
 // =================== Main Bot Logic ===================
 async function runBot(client) {
     log("✅ WhatsApp client ready");
+    
+    // Safeguard: stop if disconnected
+    let isRunning = true;
+    
+    const stopBot = () => {
+        isRunning = false;
+    };
 
-    // Load accounts
-    const numbers = await loadJSON(ACCOUNTS_FILE, []);
-    if (!Array.isArray(numbers) || numbers.length === 0) {
-        log("❌ No numbers in accounts.json");
-        process.exit(1);
-    }
-    const cleanNumbers = [...new Set(numbers.map(cleanNumber))];
-    log(`📞 ${cleanNumbers.length} unique numbers loaded`);
-
-    // Load messages
-    let messages = [];
-    const loadedMessages = await loadJSON(MESSAGES_FILE, []);
-    if (Array.isArray(loadedMessages) && loadedMessages.length > 0) {
-        messages = loadedMessages.filter((m) => typeof m === "string" && m.trim().length > 0);
-    }
-    if (messages.length === 0 && await fs.pathExists(MESSAGE_FILE)) {
-        const text = await fs.readFile(MESSAGE_FILE, "utf8");
-        if (text.trim()) messages = [text.trim()];
-    }
-    if (messages.length === 0) {
-        log("❌ No messages found");
-        process.exit(1);
-    }
-    log(`📝 ${messages.length} messages loaded`);
-
-    // Load images
-    let imageItems = [];
-    const loadedImages = await loadJSON(IMAGES_LIST_FILE, []);
-    if (Array.isArray(loadedImages) && loadedImages.length > 0) {
-        imageItems = loadedImages.filter((p) => typeof p === "string" && p.trim().length > 0);
-    }
-    if (imageItems.length > 0) log(`🖼️ ${imageItems.length} images available`);
-
-    // Load state
-    const checkpoint = await loadCheckpoint();
-    let startIndex = checkpoint.lastIndex >= cleanNumbers.length ? 0 : checkpoint.lastIndex;
-    const { dashboard, dashboardPath } = await loadDashboard();
-
-    log(`⏩ Starting from index ${startIndex}`);
-
-    // Main loop
-    let messageCounter = 0;
-    let index = startIndex;
-
-    while (index < cleanNumbers.length) {
-        const rawNumber = cleanNumbers[index];
-        const chatId = `${rawNumber}@c.us`;
-
-        // Skip if already processed
-        if (dashboard.sent.includes(rawNumber) || dashboard.failedList.includes(rawNumber)) {
-            log(`⏭️ ${rawNumber} already processed, skipping`);
-            index++;
-            continue;
+    try {
+        // Load accounts
+        const numbers = await loadJSON(ACCOUNTS_FILE, []);
+        if (!Array.isArray(numbers) || numbers.length === 0) {
+            log("❌ No numbers in accounts.json");
+            process.exit(1);
         }
+        const cleanNumbers = [...new Set(numbers.map(cleanNumber))];
+        log(`📞 ${cleanNumbers.length} unique numbers loaded`);
 
-        // Select message
-        const currentMessage = messageMode === "random" 
-            ? messages[Math.floor(Math.random() * messages.length)]
-            : messages[messageCounter++ % messages.length];
+        // Load messages
+        let messages = [];
+        const loadedMessages = await loadJSON(MESSAGES_FILE, []);
+        if (Array.isArray(loadedMessages) && loadedMessages.length > 0) {
+            messages = loadedMessages.filter((m) => typeof m === "string" && m.trim().length > 0);
+        }
+        if (messages.length === 0 && await fs.pathExists(MESSAGE_FILE)) {
+            const text = await fs.readFile(MESSAGE_FILE, "utf8");
+            if (text.trim()) messages = [text.trim()];
+        }
+        if (messages.length === 0) {
+            log("❌ No messages found");
+            process.exit(1);
+        }
+        log(`📝 ${messages.length} messages loaded`);
 
-        // Select image (optional)
-        const selectedImageItem = imageItems.length > 0 
-            ? imageItems[Math.floor(Math.random() * imageItems.length)]
-            : null;
+        // Load images
+        let imageItems = [];
+        const loadedImages = await loadJSON(IMAGES_LIST_FILE, []);
+        if (Array.isArray(loadedImages) && loadedImages.length > 0) {
+            imageItems = loadedImages.filter((p) => typeof p === "string" && p.trim().length > 0);
+        }
+        if (imageItems.length > 0) log(`🖼️ ${imageItems.length} images available`);
 
-        let success = false;
-        let attempts = 0;
+        // Load state
+        const checkpoint = await loadCheckpoint();
+        let startIndex = checkpoint.lastIndex >= cleanNumbers.length ? 0 : checkpoint.lastIndex;
+        const { dashboard, dashboardPath } = await loadDashboard();
 
-        while (attempts <= MAX_RETRIES && !success) {
-            try {
-                const numberId = await client.getNumberId(chatId);
-                if (!numberId) {
-                    log(`⚠️ ${rawNumber} not on WhatsApp`);
-                    break;
-                }
+        log(`⏩ Starting from index ${startIndex}`);
 
-                let mediaSent = false;
+        // Main loop
+        let messageCounter = 0;
+        let index = startIndex;
 
-                // Try to send image + caption if available
-                if (selectedImageItem) {
-                    try {
-                        let media;
-                        if (isUrl(selectedImageItem)) {
-                            media = await MessageMedia.fromUrl(selectedImageItem);
-                        } else {
-                            const fullPath = path.join(__dirname, selectedImageItem);
-                            if (await fs.pathExists(fullPath)) {
-                                media = MessageMedia.fromFilePath(fullPath);
+        while (index < cleanNumbers.length && isRunning) {
+            const rawNumber = cleanNumbers[index];
+            const chatId = `${rawNumber}@c.us`;
+
+            // Skip if already processed
+            if (dashboard.sent.includes(rawNumber) || dashboard.failedList.includes(rawNumber)) {
+                log(`⏭️ ${rawNumber} already processed, skipping`);
+                index++;
+                continue;
+            }
+
+            // Select message
+            const currentMessage = messageMode === "random" 
+                ? messages[Math.floor(Math.random() * messages.length)]
+                : messages[messageCounter++ % messages.length];
+
+            // Select image (optional)
+            const selectedImageItem = imageItems.length > 0 
+                ? imageItems[Math.floor(Math.random() * imageItems.length)]
+                : null;
+
+            let success = false;
+            let attempts = 0;
+
+            while (attempts <= MAX_RETRIES && !success && isRunning) {
+                try {
+                    const numberId = await client.getNumberId(chatId);
+                    if (!numberId) {
+                        log(`⚠️ ${rawNumber} not on WhatsApp`);
+                        break;
+                    }
+
+                    let mediaSent = false;
+
+                    // Try to send image + caption if available
+                    if (selectedImageItem) {
+                        try {
+                            let media;
+                            if (isUrl(selectedImageItem)) {
+                                media = await MessageMedia.fromUrl(selectedImageItem);
                             } else {
-                                throw new Error("File not found");
+                                const fullPath = path.join(__dirname, selectedImageItem);
+                                if (await fs.pathExists(fullPath)) {
+                                    media = MessageMedia.fromFilePath(fullPath);
+                                } else {
+                                    throw new Error("File not found");
+                                }
                             }
+                            if (media) {
+                                await client.sendMessage(chatId, media, { caption: currentMessage });
+                                mediaSent = true;
+                                log(`🖼️ Image sent to ${rawNumber}`);
+                            }
+                        } catch (err) {
+                            log(`⚠️ Image failed: ${err.message}`);
                         }
-                        if (media) {
-                            await client.sendMessage(chatId, media, { caption: currentMessage });
-                            mediaSent = true;
-                            log(`🖼️ Image sent to ${rawNumber}`);
-                        }
-                    } catch (err) {
-                        log(`⚠️ Image failed: ${err.message}`);
+                    }
+
+                    // Send text if no image or as fallback
+                    if (!mediaSent) {
+                        await client.sendMessage(chatId, currentMessage);
+                        log(`📝 Message sent to ${rawNumber}`);
+                    }
+
+                    // Mark success
+                    success = true;
+                    dashboard.attempted++;
+                    dashboard.success++;
+                    dashboard.sent.push(rawNumber);
+                    checkpoint.lastIndex = index + 1;
+
+                    // Batch save (only save periodically)
+                    if (dashboard.success % 10 === 0) {
+                        await saveJSON(dashboardPath, dashboard);
+                        await saveCheckpoint(checkpoint);
+                    }
+
+                } catch (err) {
+                    // Check if frame error (browser disconnected)
+                    if (err.message && err.message.includes('detached')) {
+                        log(`💥 Browser detached - stopping: ${err.message}`);
+                        isRunning = false;
+                        break;
+                    }
+                    
+                    attempts++;
+                    if (attempts <= MAX_RETRIES && isRunning) {
+                        log(`🔁 Retry ${attempts}/${MAX_RETRIES} for ${rawNumber}`);
+                        await wait(RETRY_DELAY);
+                    } else {
+                        dashboard.attempted++;
+                        dashboard.failed++;
+                        dashboard.failedList.push(rawNumber);
+                        log(`❌ Failed: ${rawNumber}`);
                     }
                 }
-
-                // Send text if no image or as fallback
-                if (!mediaSent) {
-                    await client.sendMessage(chatId, currentMessage);
-                    log(`📝 Message sent to ${rawNumber}`);
-                }
-
-                // Mark success
-                success = true;
-                dashboard.attempted++;
-                dashboard.success++;
-                dashboard.sent.push(rawNumber);
-                checkpoint.lastIndex = index + 1;
-
-                // Batch save (only save periodically)
-                if (dashboard.success % 10 === 0) {
-                    await saveJSON(dashboardPath, dashboard);
-                    await saveCheckpoint(checkpoint);
-                }
-
-            } catch (err) {
-                attempts++;
-                if (attempts <= MAX_RETRIES) {
-                    log(`🔁 Retry ${attempts}/${MAX_RETRIES} for ${rawNumber}`);
-                    await wait(RETRY_DELAY);
-                } else {
-                    dashboard.attempted++;
-                    dashboard.failed++;
-                    dashboard.failedList.push(rawNumber);
-                    log(`❌ Failed: ${rawNumber}`);
-                }
             }
+
+            if (!isRunning) break;
+
+            // Random delay between sends
+            const delay = randomDelay();
+            await wait(delay);
+            index++;
         }
 
-        // Random delay between sends
-        const delay = randomDelay();
-        await wait(delay);
-        index++;
+        // Final save
+        await saveJSON(dashboardPath, dashboard);
+        await saveCheckpoint(checkpoint);
+
+        log("🏁 Batch complete");
+        await fs.remove(CHECKPOINT_FILE).catch(() => {});
+
+        // Send admin report
+        await sendAdminReport(client, dashboard, messages.length, imageItems.length);
+
+        log("✅ Script completed");
+        if (logStream) logStream.end();
+        process.exit(0);
+        
+    } catch (err) {
+        log(`💥 Bot error: ${err.message}`);
+        if (logStream) logStream.end();
+        process.exit(1);
     }
-
-    // Final save
-    await saveJSON(dashboardPath, dashboard);
-    await saveCheckpoint(checkpoint);
-
-    log("🏁 Batch complete");
-    await fs.remove(CHECKPOINT_FILE).catch(() => {});
-
-    // Send admin report
-    await sendAdminReport(client, dashboard, messages.length, imageItems.length);
-
-    log("✅ Script completed");
-    if (logStream) logStream.end();
-    process.exit(0);
 }
 
 // =================== Admin Report ===================
@@ -411,10 +434,15 @@ async function createClient() {
             log("♻️ Session restored from cache");
         }
         await sendToWorker("/api/live/status", { status: "connected" });
+        
+        // Wait for WhatsApp to stabilize before starting operations
+        log("⏳ Stabilizing connection...");
+        await wait(3000);
+        
         await runBot(client);
     });
 
-    // Disconnected event
+    // Disconnected event - EXIT IMMEDIATELY
     client.on("disconnected", async (reason) => {
         log(`⚠️ Disconnected: ${reason}`);
         
@@ -424,13 +452,14 @@ async function createClient() {
         
         await cleanTempFiles();
 
-        // Only clear on auth failure, not on normal disconnect
-        // LOGOUT just means normal disconnect, not auth failure
         if (reason === "LOGOUT") {
             log("✅ Session ended normally - keeping for next run");
         }
         
-        process.exit(0);
+        // Exit immediately, don't let code continue
+        setTimeout(() => {
+            process.exit(0);
+        }, 1000);
     });
 
     // Auth failure
