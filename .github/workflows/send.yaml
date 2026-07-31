@@ -1,19 +1,19 @@
-name: WhatsApp Automation
+name: WhatsApp Bot Scheduler
 
 on:
   schedule:
-    - cron: "0 3 * * *"
+    - cron: '*/10 * * * *'  # كل 10 دقائق – يمكنك تعديل التوقيت
   workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  run:
+  run-bot:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout repo
         uses: actions/checkout@v4
         with:
           persist-credentials: true
@@ -22,11 +22,11 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 20
           cache: npm
 
       - name: Restore session cache
-        id: restore-cache
+        id: cache-restore
         uses: actions/cache/restore@v4
         with:
           path: session
@@ -36,7 +36,7 @@ jobs:
       - name: Ensure session directory
         run: mkdir -p session
 
-      - name: Remove Chromium locks
+      - name: Remove Chromium locks (if any)
         run: |
           find session -name "SingletonLock" -delete || true
           find session -name "SingletonSocket" -delete || true
@@ -52,14 +52,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run Bot
+      - name: Run bot
         env:
           PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium-browser
-          WORKER_URL: ${{ secrets.WORKER_URL }}
-          API_SECRET: ${{ secrets.API_SECRET }}
+          WORKER_URL: ${{ secrets.WORKER_URL }}   # اختياري
+          API_SECRET: ${{ secrets.API_SECRET }}   # اختياري
         run: node index.js
 
-      - name: Clean Chromium cache
+      - name: Clean temporary Chromium files
         if: always()
         run: |
           rm -rf session/**/Cache || true
@@ -89,24 +89,35 @@ jobs:
           path: session
           key: session-${{ github.run_id }}
 
-      - name: Compress session
-        if: always()
-        run: |
-          tar -czf session.tar.gz session
-
-      - name: Upload session artifact
+      - name: Upload session as artifact (backup)
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: whatsapp-session
-          path: session.tar.gz
+          path: session
           retention-days: 30
 
-      - name: Commit dashboard/logs
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bot-logs
+          path: logs/
+
+      - name: Upload dashboard and aggregate
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-data
+          path: |
+            dashboard/
+            aggregate.json
+
+      - name: Commit logs and dashboard
         if: always()
         run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
-          git add dashboard aggregate.json logs
-          git commit -m "Update $(date '+%F %T')" || true
+          git add logs/ dashboard/ aggregate.json checkpoint.json
+          git commit -m "Update logs and dashboard $(date '+%F %T')" || true
           git push
