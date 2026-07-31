@@ -1,1 +1,50 @@
+# Dependencies
+node_modules/
+package-lock.json
 
+# Temporary files (Chromium, browser cache)
+session/*/Cache/
+session/*/"Code Cache"/
+session/*/GPUCache/
+session/*/Crashpad/
+session/*/BrowserMetrics/
+session/*/GrShaderCache/
+session/*/GraphiteDawnCache/
+session/*/ShaderCache/
+session/*/DawnCache/
+session/**/*.lock
+session/**/SingletonLock
+session/**/SingletonSocket
+session/**/SingletonCookie
+session/**/DevToolsActivePort
+
+# Logs (not needed in git - only in artifacts)
+logs/
+
+# Checkpoint (temporary, not needed in git)
+checkpoint.json
+
+# Environment
+.env
+.env.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Keep ONLY these:
+# - session/main/IndexedDB/
+# - session/main/Local Storage/
+# - dashboard/
+# - aggregate.json
+# - accounts.json
+# - message.json
+# - message.txt
+# - images.json
