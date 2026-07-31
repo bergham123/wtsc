@@ -1,18 +1,13 @@
-name: WhatsApp Bot Scheduler
+name: WhatsApp Automation
 
 on:
-  schedule:
-    - cron: '*/10 * * * *'  # كل 10 دقائق – يمكنك تعديل التوقيت
-  workflow_dispatch:
+  workflow_dispatch:  # يمكنك إضافة جدول زمني لاحقاً
 
 permissions:
   contents: write
 
-env:
-  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true  # لتجنب تحذير Node.js 20
-
 jobs:
-  run-bot:
+  run:
     runs-on: ubuntu-latest
 
     steps:
@@ -20,13 +15,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: true
-          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
 
       - name: Restore session cache
         id: cache-restore
@@ -53,9 +46,9 @@ jobs:
           sudo apt-get install -y chromium-browser libgbm-dev
 
       - name: Install dependencies
-        run: npm install   # ✅ استخدم npm install بدلاً من npm ci لتجنب مشكلة lock file
+        run: npm install
 
-      - name: Run bot
+      - name: Run WhatsApp bot
         env:
           PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium-browser
           WORKER_URL: ${{ secrets.WORKER_URL }}
@@ -92,14 +85,14 @@ jobs:
           path: session
           key: session-${{ github.run_id }}
 
-      - name: Upload session as artifact (backup)
+      - name: Upload session artifact (backup)
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: whatsapp-session
           path: session
           retention-days: 30
-          if-no-files-found: ignore   # ✅ تجاهل إذا لم توجد ملفات
+          if-no-files-found: ignore
 
       - name: Upload logs
         if: always()
@@ -119,11 +112,11 @@ jobs:
             aggregate.json
           if-no-files-found: ignore
 
-      - name: Commit logs and dashboard
+      - name: Commit session, dashboard & aggregate
         if: always()
         run: |
-          git config user.name github-actions
-          git config user.email github-actions@github.com
-          git add logs/ dashboard/ aggregate.json checkpoint.json || true
-          git commit -m "Update logs and dashboard $(date '+%F %T')" --allow-empty || true
-          git push || true   # ✅ تجاهل أخطاء الدفع (مثل عدم وجود تغييرات)
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add session dashboard aggregate.json logs/ checkpoint.json || true
+          git commit -m "update session, dashboard & aggregate $(date '+%F %T')" --allow-empty || echo "No changes"
+          git push || echo "No push needed"
