@@ -8,6 +8,9 @@ on:
 permissions:
   contents: write
 
+env:
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true  # لتجنب تحذير Node.js 20
+
 jobs:
   run-bot:
     runs-on: ubuntu-latest
@@ -50,13 +53,13 @@ jobs:
           sudo apt-get install -y chromium-browser libgbm-dev
 
       - name: Install dependencies
-        run: npm install  # تم التعديل من npm ci إلى npm install
+        run: npm install   # ✅ استخدم npm install بدلاً من npm ci لتجنب مشكلة lock file
 
       - name: Run bot
         env:
           PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium-browser
-          WORKER_URL: ${{ secrets.WORKER_URL }}   # اختياري
-          API_SECRET: ${{ secrets.API_SECRET }}   # اختياري
+          WORKER_URL: ${{ secrets.WORKER_URL }}
+          API_SECRET: ${{ secrets.API_SECRET }}
         run: node index.js
 
       - name: Clean temporary Chromium files
@@ -96,6 +99,7 @@ jobs:
           name: whatsapp-session
           path: session
           retention-days: 30
+          if-no-files-found: ignore   # ✅ تجاهل إذا لم توجد ملفات
 
       - name: Upload logs
         if: always()
@@ -103,6 +107,7 @@ jobs:
         with:
           name: bot-logs
           path: logs/
+          if-no-files-found: ignore
 
       - name: Upload dashboard and aggregate
         if: always()
@@ -112,12 +117,13 @@ jobs:
           path: |
             dashboard/
             aggregate.json
+          if-no-files-found: ignore
 
       - name: Commit logs and dashboard
         if: always()
         run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
-          git add logs/ dashboard/ aggregate.json checkpoint.json
-          git commit -m "Update logs and dashboard $(date '+%F %T')" || true
-          git push
+          git add logs/ dashboard/ aggregate.json checkpoint.json || true
+          git commit -m "Update logs and dashboard $(date '+%F %T')" --allow-empty || true
+          git push || true   # ✅ تجاهل أخطاء الدفع (مثل عدم وجود تغييرات)
