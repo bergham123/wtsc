@@ -1,3 +1,3 @@
-2026/07/31-23:46:19.114 18ba Reusing MANIFEST /home/runner/work/wtsc/wtsc/session/session-main/Default/shared_proto_db/MANIFEST-000001
-2026/07/31-23:46:19.116 18ba Recovering log #3
-2026/07/31-23:46:19.116 18ba Reusing old log /home/runner/work/wtsc/wtsc/session/session-main/Default/shared_proto_db/000003.log 
+2026/07/31-23:51:02.939 16fe Reusing MANIFEST /home/runner/work/wtsc/wtsc/session/session-main/Default/shared_proto_db/MANIFEST-000001
+2026/07/31-23:51:02.939 16fe Recovering log #3
+2026/07/31-23:51:02.940 16fe Reusing old log /home/runner/work/wtsc/wtsc/session/session-main/Default/shared_proto_db/000003.log 
