@@ -1,12 +1,17 @@
-2026/07/31-23:46:19.670 18b2 Reusing MANIFEST /home/runner/work/wtsc/wtsc/session/session-main/Default/IndexedDB/https_web.whatsapp.com_0.indexeddb.leveldb/MANIFEST-000001
-2026/07/31-23:46:19.670 18b2 Recovering log #12
-2026/07/31-23:46:19.714 18b2 Reusing old log /home/runner/work/wtsc/wtsc/session/session-main/Default/IndexedDB/https_web.whatsapp.com_0.indexeddb.leveldb/000012.log 
-2026/07/31-23:46:19.715 18b2 Delete type=2 #11
-2026/07/31-23:46:23.118 18b3 Level-0 table #18: started
-2026/07/31-23:46:23.139 18b3 Level-0 table #18: 1140553 bytes OK
-2026/07/31-23:46:23.140 18b3 Delete type=0 #12
-2026/07/31-23:46:23.247 18b3 Compacting 1@1 + 2@2 files
-2026/07/31-23:46:23.344 18b3 Generated table #19@1: 32794 keys, 2202149 bytes
-2026/07/31-23:46:23.354 18b3 Generated table #20@1: 5856 keys, 274554 bytes
-2026/07/31-23:46:23.355 18b3 Compacted 1@1 + 2@2 files => 2476703 bytes
-2026/07/31-23:46:23.355 18b3 compacted to: files[ 0 0 2 0 0 0 0 ]
+2026/07/31-23:51:03.460 16fd Reusing MANIFEST /home/runner/work/wtsc/wtsc/session/session-main/Default/IndexedDB/https_web.whatsapp.com_0.indexeddb.leveldb/MANIFEST-000001
+2026/07/31-23:51:03.461 16fd Recovering log #17
+2026/07/31-23:51:03.497 16fd Reusing old log /home/runner/work/wtsc/wtsc/session/session-main/Default/IndexedDB/https_web.whatsapp.com_0.indexeddb.leveldb/000017.log 
+2026/07/31-23:51:03.498 16fd Delete type=2 #14
+2026/07/31-23:51:03.498 16fd Delete type=2 #18
+2026/07/31-23:51:03.498 16fd Delete type=2 #15
+2026/07/31-23:51:08.122 16fe Level-0 table #23: started
+2026/07/31-23:51:08.145 16fe Level-0 table #23: 1157868 bytes OK
+2026/07/31-23:51:08.145 16fe Delete type=0 #17
+2026/07/31-23:51:08.151 16fe Compacting 1@1 + 2@2 files
+2026/07/31-23:51:08.208 16fe Generated table #24@1: 35376 keys, 2198421 bytes
+2026/07/31-23:51:08.218 16fe Generated table #25@1: 11455 keys, 585218 bytes
+2026/07/31-23:51:08.219 16fe Compacted 1@1 + 2@2 files => 2783639 bytes
+2026/07/31-23:51:08.219 16fe compacted to: files[ 0 0 2 0 0 0 0 ]
+2026/07/31-23:51:08.219 16fe Delete type=2 #23
+2026/07/31-23:51:08.219 16fe Delete type=2 #20
+2026/07/31-23:51:08.219 16fe Delete type=2 #19
