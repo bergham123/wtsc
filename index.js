@@ -225,6 +225,7 @@ async function cleanTempFiles() {
             "GraphiteDawnCache",
             "GrShaderCache",
             "Service Worker/CacheStorage",
+            "DawnCache", // إضافة مجلد إضافي
         ];
         for (const dir of tempDirs) {
             const fullPath = path.join(PROFILE_PATH, dir);
@@ -239,6 +240,21 @@ async function cleanTempFiles() {
         }
     } catch (err) {
         logMessage(`⚠️ Error during temp file cleaning: ${err.message}`);
+    }
+}
+
+// التحقق من صحة الجلسة (وجود بيانات المصادقة)
+async function isSessionValid() {
+    try {
+        if (!await fs.pathExists(PROFILE_PATH)) return false;
+        const authDirs = ["IndexedDB", "Local Storage"];
+        for (const dir of authDirs) {
+            const fullPath = path.join(PROFILE_PATH, dir);
+            if (await fs.pathExists(fullPath)) return true;
+        }
+        return false;
+    } catch {
+        return false;
     }
 }
 
