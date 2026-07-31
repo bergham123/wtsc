@@ -49,7 +49,7 @@ jobs:
           find session -name "DevToolsActivePort" -delete 2>/dev/null || true
 
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        run: npm install --legacy-peer-deps
         env:
           PUPPETEER_SKIP_DOWNLOAD: "true"
 
