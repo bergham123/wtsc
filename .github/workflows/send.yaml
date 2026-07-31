@@ -48,10 +48,9 @@ jobs:
         env:
           PUPPETEER_SKIP_DOWNLOAD: "true"
 
-      # ========== RUN BOT (المعدل) ==========
+      # ========== RUN BOT ==========
       - name: Run WhatsApp bot
         env:
-          # ✅ تم حذف PUPPETEER_EXECUTABLE_PATH لاستخدام المسار الافتراضي في index.js
           WORKER_URL: ${{ secrets.WORKER_URL }}
           API_SECRET: ${{ secrets.API_SECRET }}
         run: node index.js
@@ -87,7 +86,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: session
-          key: whatsapp-session-${{ runner.os }}-${{ github.run_id }}
+          key: whatsapp-session-${{ runner.os }}
 
       # ========== GIT COMMITS (ONLY ESSENTIAL) ==========
       - name: Commit session & dashboard only
