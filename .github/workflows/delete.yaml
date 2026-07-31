@@ -1,0 +1,57 @@
+name: Cleanup Session
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Show size before cleanup
+        run: |
+          echo "=== BEFORE ==="
+          du -sh session || true
+
+      - name: Cleanup session
+        run: |
+          echo "🧹 Cleaning session directory..."
+
+          if [ -d "session" ]; then
+            find session -type f \
+              -not -path "*/IndexedDB/*" \
+              -not -path "*/Local Storage/*" \
+              -delete
+
+            find session -type d -empty -delete
+          else
+            echo "session directory not found."
+          fi
+
+      - name: Show size after cleanup
+        run: |
+          echo "=== AFTER ==="
+          du -sh session || true
+
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+
+          git commit -m "cleanup: remove session temp files"
+          git push
