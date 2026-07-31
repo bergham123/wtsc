@@ -25,6 +25,7 @@ const RETRY_DELAY = 5000;
 const MIN_DELAY = 20000;
 const MAX_DELAY = 40000;
 const MESSAGE_MODE = "random";
+const QR_TIMEOUT_MS = 60000; // 60 seconds
 
 // =================== Environment ===================
 const WORKER_URL = process.env.WORKER_URL || null;
@@ -187,14 +188,12 @@ async function saveCheckpoint(checkpoint) {
 async function runBot(client, stopSignal) {
     log("✅ WhatsApp client ready");
     
-    // Safeguard: stop if disconnect already fired
     if (!stopSignal.isRunning) {
         log("⚠️ Bot already stopped before starting");
         return;
     }
 
     try {
-        // Load accounts
         const numbers = await loadJSON(ACCOUNTS_FILE, []);
         if (!Array.isArray(numbers) || numbers.length === 0) {
             log("❌ No numbers in accounts.json");
@@ -203,7 +202,6 @@ async function runBot(client, stopSignal) {
         const cleanNumbers = [...new Set(numbers.map(cleanNumber))];
         log(`📞 ${cleanNumbers.length} unique numbers loaded`);
 
-        // Load messages
         let messages = [];
         const loadedMessages = await loadJSON(MESSAGES_FILE, []);
         if (Array.isArray(loadedMessages) && loadedMessages.length > 0) {
@@ -219,7 +217,6 @@ async function runBot(client, stopSignal) {
         }
         log(`📝 ${messages.length} messages loaded`);
 
-        // Load images
         let imageItems = [];
         const loadedImages = await loadJSON(IMAGES_LIST_FILE, []);
         if (Array.isArray(loadedImages) && loadedImages.length > 0) {
@@ -227,14 +224,12 @@ async function runBot(client, stopSignal) {
         }
         if (imageItems.length > 0) log(`🖼️ ${imageItems.length} images available`);
 
-        // Load state
         const checkpoint = await loadCheckpoint();
         let startIndex = checkpoint.lastIndex >= cleanNumbers.length ? 0 : checkpoint.lastIndex;
         const { dashboard, dashboardPath } = await loadDashboard();
 
         log(`⏩ Starting from index ${startIndex}`);
 
-        // Main loop
         let messageCounter = 0;
         let index = startIndex;
 
@@ -242,19 +237,16 @@ async function runBot(client, stopSignal) {
             const rawNumber = cleanNumbers[index];
             const chatId = `${rawNumber}@c.us`;
 
-            // Skip if already processed
             if (dashboard.sent.includes(rawNumber) || dashboard.failedList.includes(rawNumber)) {
                 log(`⏭️ ${rawNumber} already processed, skipping`);
                 index++;
                 continue;
             }
 
-            // Select message
             const currentMessage = MESSAGE_MODE === "random" 
                 ? messages[Math.floor(Math.random() * messages.length)]
                 : messages[messageCounter++ % messages.length];
 
-            // Select image (optional)
             const selectedImageItem = imageItems.length > 0 
                 ? imageItems[Math.floor(Math.random() * imageItems.length)]
                 : null;
@@ -272,7 +264,6 @@ async function runBot(client, stopSignal) {
 
                     let mediaSent = false;
 
-                    // Try to send image + caption if available
                     if (selectedImageItem) {
                         try {
                             let media;
@@ -296,27 +287,23 @@ async function runBot(client, stopSignal) {
                         }
                     }
 
-                    // Send text if no image or as fallback
                     if (!mediaSent) {
                         await client.sendMessage(chatId, currentMessage);
                         log(`📝 Message sent to ${rawNumber}`);
                     }
 
-                    // Mark success
                     success = true;
                     dashboard.attempted++;
                     dashboard.success++;
                     dashboard.sent.push(rawNumber);
                     checkpoint.lastIndex = index + 1;
 
-                    // Batch save (only save periodically)
                     if (dashboard.success % 10 === 0) {
                         await saveJSON(dashboardPath, dashboard);
                         await saveCheckpoint(checkpoint);
                     }
 
                 } catch (err) {
-                    // Check if frame error (browser disconnected)
                     if (err.message && err.message.includes('detached')) {
                         log(`💥 Browser detached - stopping: ${err.message}`);
                         stopSignal.isRunning = false;
@@ -338,20 +325,17 @@ async function runBot(client, stopSignal) {
 
             if (!stopSignal.isRunning) break;
 
-            // Random delay between sends
             const delay = randomDelay();
             await wait(delay);
             index++;
         }
 
-        // Final save
         await saveJSON(dashboardPath, dashboard);
         await saveCheckpoint(checkpoint);
 
         log("🏁 Batch complete");
         await fs.remove(CHECKPOINT_FILE).catch(() => {});
 
-        // Send admin report only if still connected
         if (stopSignal.isRunning) {
             await sendAdminReport(client, dashboard, messages.length, imageItems.length);
         }
@@ -383,10 +367,10 @@ async function sendAdminReport(client, dashboard, msgCount, imgCount) {
     }
 }
 
-// =================== Client Setup ===================
-async function createClient() {
-    // This object signals to runBot whether it should keep running
+// =================== Client Setup with Auto Session Reset ===================
+async function createClient(onReady) {
     const stopSignal = { isRunning: true };
+    let qrTimeout;
 
     const client = new Client({
         authStrategy: new LocalAuth({
@@ -418,8 +402,33 @@ async function createClient() {
 
     let qrEmitted = false;
 
-    // QR code event
+    // دالة إعادة تعيين الجلسة تلقائيًا
+    const resetSession = async () => {
+        log("🔄 جاري إعادة تعيين الجلسة...");
+        stopSignal.isRunning = false;
+        try { await client.destroy(); } catch {}
+        await clearSession();
+        // إعادة تشغيل العميل بنفس الطريقة
+        try {
+            const newClient = await createClient(onReady);
+            await removeLocks();
+            log("🔧 إعادة تهيئة بعد حذف الجلسة...");
+            await newClient.initialize();
+        } catch (e) {
+            log(`❌ فشلت إعادة التهيئة: ${e.message}`);
+            process.exit(1);
+        }
+    };
+
+    // المهلة: إذا لم يظهر QR أو ready خلال 60 ثانية
+    qrTimeout = setTimeout(async () => {
+        if (!stopSignal.isRunning) return;
+        log("⏰ انتهت المهلة بدون استجابة - الجلسة غير صالحة، جاري حذفها...");
+        await resetSession();
+    }, QR_TIMEOUT_MS);
+
     client.on("qr", async (qr) => {
+        clearTimeout(qrTimeout); // ظهر QR، نلغي المهلة
         qrEmitted = true;
         log("📲 QR code generated - scan now");
         qrcode.generate(qr, { small: true });
@@ -432,34 +441,26 @@ async function createClient() {
         }
     });
 
-    // Ready event
     client.on("ready", async () => {
+        clearTimeout(qrTimeout); // الجلسة صالحة
         if (!qrEmitted) {
             log("♻️ Session restored from cache");
         }
         await sendToWorker("/api/live/status", { status: "connected" });
-        
-        // Wait for WhatsApp to stabilize before starting operations
         log("⏳ Stabilizing connection...");
         await wait(3000);
         
-        // Pass the stopSignal so the bot can be stopped externally
-        await runBot(client, stopSignal);
+        if (onReady) {
+            await onReady(client, stopSignal);
+        }
     });
 
-    // Disconnected event – STOP EVERYTHING IMMEDIATELY
     client.on("disconnected", async (reason) => {
         log(`⚠️ Disconnected: ${reason}`);
-        
-        // Signal the bot loop to stop (if it's already running)
+        clearTimeout(qrTimeout);
         stopSignal.isRunning = false;
 
-        // Try a quick cleanup, but don't wait for it
-        try {
-            await client.destroy();
-        } catch (e) {
-            // Ignore – the browser may already be gone
-        }
+        try { await client.destroy(); } catch {}
 
         await cleanTempFiles();
 
@@ -467,22 +468,17 @@ async function createClient() {
             log("✅ Session ended normally - keeping for next run");
         }
 
-        // Exit cleanly – do not let other code continue
         process.exit(0);
     });
 
-    // Auth failure
     client.on("auth_failure", async (msg) => {
         log(`🔐 Auth failed: ${msg}`);
         stopSignal.isRunning = false;
-        try {
-            await client.destroy();
-        } catch {}
+        try { await client.destroy(); } catch {}
         await clearSession();
         process.exit(1);
     });
 
-    // Incoming messages (optional)
     client.on("message", async (message) => {
         if (message.type === 'chat' && !message.fromMe) {
             await sendToWorker("/api/live/message", { 
@@ -491,13 +487,10 @@ async function createClient() {
         }
     });
 
-    // Graceful shutdown (Ctrl+C)
     const shutdown = async () => {
         log("🛑 Shutting down");
         stopSignal.isRunning = false;
-        try {
-            await client.destroy();
-        } catch {}
+        try { await client.destroy(); } catch {}
         await cleanTempFiles();
         if (logStream) logStream.end();
         process.exit(0);
@@ -510,11 +503,8 @@ async function createClient() {
 
 // =================== Main Entry ===================
 async function main() {
-    // Catch any unhandled promise rejections (e.g., "detached Frame")
     process.on("unhandledRejection", (reason, promise) => {
         log(`❌ Unhandled rejection: ${reason?.message || reason}`);
-        // If we get here, something catastrophic happened (like the frame error)
-        // Exit cleanly so the GitHub workflow succeeds.
         process.exit(0);
     });
 
@@ -527,10 +517,10 @@ async function main() {
         log("🚀 Starting WhatsApp bot");
         await sendToWorker("/api/live/status", { status: "starting" });
 
-        // Cleanup locks before init
         await removeLocks();
 
-        let client = await createClient();
+        // تمرير runBot كدالة callback بدل ما نديروها مباشرة
+        let client = await createClient(runBot);
         let initialized = false;
         let attempts = 0;
 
@@ -545,14 +535,12 @@ async function main() {
                 attempts++;
                 log(`❌ Init failed: ${err.message}`);
                 
-                try {
-                    await client.destroy();
-                } catch {}
+                try { await client.destroy(); } catch {}
 
                 if (attempts < 3) {
                     log(`⏳ Retrying in 5s...`);
                     await wait(5000);
-                    client = await createClient();
+                    client = await createClient(runBot);
                 } else {
                     log("❌ Failed after 3 attempts");
                     process.exit(1);
