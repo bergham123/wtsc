@@ -424,9 +424,10 @@ async function createClient() {
         
         await cleanTempFiles();
 
+        // Only clear on auth failure, not on normal disconnect
+        // LOGOUT just means normal disconnect, not auth failure
         if (reason === "LOGOUT") {
-            log("🔄 Session expired - clearing");
-            await clearSession();
+            log("✅ Session ended normally - keeping for next run");
         }
         
         process.exit(0);
