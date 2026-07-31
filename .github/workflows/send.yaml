@@ -1,123 +1,42 @@
-name: WhatsApp Automation
+name: Send Message
 
 on:
   workflow_dispatch:
-
-permissions:
-  contents: write
+    inputs:
+      message:
+        description: 'Message to send'
+        required: true
+        type: string
+      number:
+        description: 'Recipient number (with country code)'
+        required: true
+        type: string
 
 jobs:
-  run:
+  send:
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: true
 
-      - name: Setup Node.js 24
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 24
-
-      # ========== SESSION CACHE ==========
-      - name: Restore session from cache
-        uses: actions/cache/restore@v4
-        with:
-          path: session
-          key: whatsapp-session-${{ runner.os }}
-          restore-keys: whatsapp-session-
-
-      # ========== SETUP ==========
-      - name: Ensure session directory
-        run: mkdir -p session
-
-      - name: Remove Chromium locks
-        run: |
-          find session -name "SingletonLock" -delete 2>/dev/null || true
-          find session -name "SingletonSocket" -delete 2>/dev/null || true
-          find session -name "SingletonCookie" -delete 2>/dev/null || true
-          find session -name "*.lock" -delete 2>/dev/null || true
-          find session -name "DevToolsActivePort" -delete 2>/dev/null || true
-
-      - name: Install system Chromium
-        run: sudo apt-get update && sudo apt-get install -y chromium-browser
+          node-version: '18'
 
       - name: Install dependencies
-        run: npm install --legacy-peer-deps
-        env:
-          PUPPETEER_SKIP_DOWNLOAD: "true"
+        run: npm install
 
-      # ========== RUN BOT ==========
+      - name: Install system Chromium
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y chromium-browser
+
       - name: Run WhatsApp bot
         env:
-          PUPPETEER_EXECUTABLE_PATH: /home/runner/.cache/puppeteer/chrome
           WORKER_URL: ${{ secrets.WORKER_URL }}
           API_SECRET: ${{ secrets.API_SECRET }}
-        run: node index.js
-
-      # ========== CLEANUP BEFORE CACHE ==========
-      - name: Clean temporary Chromium files
-        if: always()
-        run: |
-          rm -rf session/*/Cache 2>/dev/null || true
-          rm -rf session/*/"Code Cache" 2>/dev/null || true
-          rm -rf session/*/GPUCache 2>/dev/null || true
-          rm -rf session/*/Crashpad 2>/dev/null || true
-          rm -rf session/*/BrowserMetrics 2>/dev/null || true
-          rm -rf session/*/GrShaderCache 2>/dev/null || true
-          rm -rf session/*/GraphiteDawnCache 2>/dev/null || true
-          rm -rf session/*/ShaderCache 2>/dev/null || true
-          rm -rf session/*/DawnCache 2>/dev/null || true
-
-      # ========== CHECK SESSION VALIDITY ==========
-      - name: Check session validity
-        id: check-session
-        if: always()
-        run: |
-          if [ -d "session/main/IndexedDB" ] || [ -d "session/main/Local Storage" ]; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-          fi
-
-      # ========== SAVE CACHES ==========
-      - name: Save session cache
-        if: always() && steps.check-session.outputs.exists == 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: session
-          key: whatsapp-session-${{ runner.os }}-${{ github.run_id }}
-
-      # ========== GIT COMMITS (ONLY ESSENTIAL) ==========
-      - name: Commit session & dashboard only
-        if: always()
-        run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          
-          # Only add session and dashboard (not logs, artifacts, or temp files)
-          git add session/ dashboard/ aggregate.json 2>/dev/null || true
-          
-          # Commit with timestamp
-          git commit -m "🤖 session update $(date '+%F %H:%M')" --allow-empty || echo "Nothing to commit"
-          git push || echo "No push needed"
-
-      # ========== LOGS & DATA (ARTIFACTS ONLY - not committed) ==========
-      - name: Upload logs (artifact)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: bot-logs-${{ github.run_id }}
-          path: logs/
-          retention-days: 7
-          if-no-files-found: ignore
-
-      - name: Upload dashboard snapshot (artifact)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: dashboard-${{ github.run_id }}
-          path: dashboard/
-          retention-days: 7
-          if-no-files-found: ignore
+          # ✅ تم حذف السطر التالي لأن المتغير كان يفرض مساراً قديماً
+          # PUPPETEER_EXECUTABLE_PATH: /home/runner/.cache/puppeteer/chrome
+        run: node index.js "${{ github.event.inputs.message }}" "${{ github.event.inputs.number }}"
