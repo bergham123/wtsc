@@ -1,7 +1,7 @@
 name: WhatsApp Automation
 
 on:
-  workflow_dispatch:  # يمكنك إضافة جدول زمني لاحقاً
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -9,65 +9,78 @@ permissions:
 jobs:
   run:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
         with:
           persist-credentials: true
 
-      - name: Setup Node.js
+      - name: Setup Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
 
-      - name: Restore session cache
-        id: cache-restore
+      # ========== SESSION CACHE ==========
+      - name: Restore session from cache
         uses: actions/cache/restore@v4
         with:
           path: session
-          key: session-${{ github.run_id }}
-          restore-keys: session-
+          key: whatsapp-session-${{ runner.os }}
+          restore-keys: whatsapp-session-
 
+      # ========== CHROMIUM CACHE (HUGE speedup!) ==========
+      - name: Restore Chromium binary cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.cache/puppeteer
+          key: chromium-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: chromium-${{ runner.os }}-
+
+      # ========== SETUP ==========
       - name: Ensure session directory
         run: mkdir -p session
 
-      - name: Remove Chromium locks (if any)
+      - name: Remove Chromium locks
         run: |
-          find session -name "SingletonLock" -delete || true
-          find session -name "SingletonSocket" -delete || true
-          find session -name "SingletonCookie" -delete || true
-          find session -name "*.lock" -delete || true
-          find session -name "DevToolsActivePort" -delete || true
-
-      - name: Install system packages
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y chromium-browser libgbm-dev
+          find session -name "SingletonLock" -delete 2>/dev/null || true
+          find session -name "SingletonSocket" -delete 2>/dev/null || true
+          find session -name "SingletonCookie" -delete 2>/dev/null || true
+          find session -name "*.lock" -delete 2>/dev/null || true
+          find session -name "DevToolsActivePort" -delete 2>/dev/null || true
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci --legacy-peer-deps
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: "true"
 
+      - name: Install Chromium (cached)
+        run: npx puppeteer browsers install chrome
+        env:
+          PUPPETEER_EXECUTABLE_PATH: /home/runner/.cache/puppeteer/chrome
+
+      # ========== RUN BOT ==========
       - name: Run WhatsApp bot
         env:
-          PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium-browser
+          PUPPETEER_EXECUTABLE_PATH: /home/runner/.cache/puppeteer/chrome
           WORKER_URL: ${{ secrets.WORKER_URL }}
           API_SECRET: ${{ secrets.API_SECRET }}
         run: node index.js
 
+      # ========== CLEANUP BEFORE CACHE ==========
       - name: Clean temporary Chromium files
         if: always()
         run: |
-          rm -rf session/**/Cache || true
-          rm -rf session/**/"Code Cache" || true
-          rm -rf session/**/GPUCache || true
-          rm -rf session/**/Crashpad || true
-          rm -rf session/**/BrowserMetrics || true
-          rm -rf session/**/GrShaderCache || true
-          rm -rf session/**/GraphiteDawnCache || true
-          rm -rf session/**/ShaderCache || true
-          rm -rf session/**/DawnCache || true
+          rm -rf session/*/Cache 2>/dev/null || true
+          rm -rf session/*/"Code Cache" 2>/dev/null || true
+          rm -rf session/*/GPUCache 2>/dev/null || true
+          rm -rf session/*/Crashpad 2>/dev/null || true
+          rm -rf session/*/BrowserMetrics 2>/dev/null || true
+          rm -rf session/*/GrShaderCache 2>/dev/null || true
+          rm -rf session/*/GraphiteDawnCache 2>/dev/null || true
+          rm -rf session/*/ShaderCache 2>/dev/null || true
+          rm -rf session/*/DawnCache 2>/dev/null || true
 
+      # ========== CHECK SESSION VALIDITY ==========
       - name: Check session validity
         id: check-session
         if: always()
@@ -78,45 +91,50 @@ jobs:
             echo "exists=false" >> $GITHUB_OUTPUT
           fi
 
+      # ========== SAVE CACHES ==========
       - name: Save session cache
         if: always() && steps.check-session.outputs.exists == 'true'
         uses: actions/cache/save@v4
         with:
           path: session
-          key: session-${{ github.run_id }}
+          key: whatsapp-session-${{ runner.os }}-${{ github.run_id }}
 
-      - name: Upload session artifact (backup)
+      - name: Save Chromium cache
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/cache/save@v4
         with:
-          name: whatsapp-session
-          path: session
-          retention-days: 30
-          if-no-files-found: ignore
+          path: ~/.cache/puppeteer
+          key: chromium-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
 
-      - name: Upload logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: bot-logs
-          path: logs/
-          if-no-files-found: ignore
-
-      - name: Upload dashboard and aggregate
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: dashboard-data
-          path: |
-            dashboard/
-            aggregate.json
-          if-no-files-found: ignore
-
-      - name: Commit session, dashboard & aggregate
+      # ========== GIT COMMITS (ONLY ESSENTIAL) ==========
+      - name: Commit session & dashboard only
         if: always()
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          git add session dashboard aggregate.json logs/ checkpoint.json || true
-          git commit -m "update session, dashboard & aggregate $(date '+%F %T')" --allow-empty || echo "No changes"
+          
+          # Only add session and dashboard (not logs, artifacts, or temp files)
+          git add session/ dashboard/ aggregate.json 2>/dev/null || true
+          
+          # Commit with timestamp
+          git commit -m "🤖 session update $(date '+%F %H:%M')" --allow-empty || echo "Nothing to commit"
           git push || echo "No push needed"
+
+      # ========== LOGS & DATA (ARTIFACTS ONLY - not committed) ==========
+      - name: Upload logs (artifact)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bot-logs-${{ github.run_id }}
+          path: logs/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Upload dashboard snapshot (artifact)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-${{ github.run_id }}
+          path: dashboard/
+          retention-days: 7
+          if-no-files-found: ignore
