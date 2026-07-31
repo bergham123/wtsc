@@ -1,12 +1,1 @@
-node_modules/
-*.log
-*.lock
-session/
-.DS_Store
-*.tmp
-*.swp
-.env
-coverage/
-dist/
-.vscode/
-.idea/
+
