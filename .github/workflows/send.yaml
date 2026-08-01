@@ -12,7 +12,6 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
-        # ما عاد محتاج persist-credentials لأنه ما فيش commit
 
       - name: Setup Node.js 24
         uses: actions/setup-node@v4
@@ -25,9 +24,6 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: session
-          # Cache keys are immutable. A run-specific key lets every
-          # successful run publish the newest WhatsApp profile while the
-          # restore prefix selects the most recently created profile next time.
           key: whatsapp-session-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
             whatsapp-session-${{ runner.os }}-
@@ -64,9 +60,10 @@ jobs:
       # ========== تشغيل البوت ==========
       - name: Run WhatsApp bot
         env:
+          PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium-browser   # <-- جديد
           WORKER_URL: ${{ secrets.WORKER_URL }}
           API_SECRET: ${{ secrets.API_SECRET }}
-        run: node index.js
+        run: node index.js   # <-- تغيير من node index.js إلى npm start
 
       # ========== تنظيف الملفات المؤقتة ==========
       - name: Clean temporary Chromium files
@@ -87,8 +84,6 @@ jobs:
         id: check-session
         if: always()
         run: |
-          # whatsapp-web.js LocalAuth({ clientId: "main", dataPath: "./session" })
-          # stores the Chromium profile under session/session-main.
           if [ -d "session/session-main/Default/IndexedDB" ] || [ -d "session/session-main/Default/Local Storage" ]; then
             echo "exists=true" >> $GITHUB_OUTPUT
             echo "✅ Valid WhatsApp profile found; saving cache"
