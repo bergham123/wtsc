@@ -12,8 +12,7 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
-        with:
-          persist-credentials: true
+        # ما عاد محتاج persist-credentials لأنه ما فيش commit
 
       - name: Setup Node.js 24
         uses: actions/setup-node@v4
@@ -70,7 +69,7 @@ jobs:
           rm -rf session/*/ShaderCache 2>/dev/null || true
           rm -rf session/*/DawnCache 2>/dev/null || true
 
-      # ========== التحقق من صلاحية الجلسة (المسار الصحيح داخل Default) ==========
+      # ========== التحقق من صلاحية الجلسة ==========
       - name: Check session validity
         id: check-session
         if: always()
@@ -89,19 +88,7 @@ jobs:
           path: session
           key: whatsapp-session-${{ runner.os }}
 
-      # ========== رفع الجلسة ولوحة التحكم إلى المستودع ==========
-      - name: Commit session & dashboard only
-        if: always() && steps.check-session.outputs.exists == 'true'
-        run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          
-          git add session/ dashboard/ aggregate.json 2>/dev/null || true
-          
-          git commit -m "🤖 session update $(date '+%F %H:%M')" --allow-empty || echo "Nothing to commit"
-          git push || echo "No push needed"
-
-      # ========== رفع السجلات ولوحة التحكم كـ artifacts ==========
+      # ========== رفع dashboard و logs كـ artifact للتصفح فقط ==========
       - name: Upload logs (artifact)
         if: always()
         uses: actions/upload-artifact@v4
