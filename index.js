@@ -25,10 +25,8 @@ const RETRY_DELAY = 5000;
 const MIN_DELAY = 20000;
 const MAX_DELAY = 40000;
 const MESSAGE_MODE = "random";
-const QR_TIMEOUT_MS = 120000;
-const RESTART_DELAY_MS = 3000;
-const INIT_MAX_RETRIES = 3;
-const INIT_RETRY_DELAY = 5000;
+const QR_TIMEOUT_MS = 120000;  // 2 دقائق
+const RESTART_DELAY_MS = 5000;  // زيادة إلى 5 ثواني
 
 // =================== Environment ===================
 const WORKER_URL = process.env.WORKER_URL || null;
@@ -266,60 +264,7 @@ async function sendAdminReport(client, dashboard, msgCount, imgCount) {
     catch (err) { log(`⚠️ Admin report failed: ${err.message}`); }
 }
 
-// =================== Client Factory ===================
-function createClient() {
-    return new Client({
-        authStrategy: new LocalAuth({ clientId: SESSION_NAME, dataPath: SESSION_DIR }),
-        puppeteer: {
-            headless: true,
-            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || "/usr/bin/chromium-browser",
-            args: [
-                "--no-sandbox",
-                "--disable-setuid-sandbox",
-                "--disable-dev-shm-usage",
-                "--disable-gpu",
-                "--disable-extensions",
-                "--disable-background-networking",
-                "--disable-sync",
-                "--no-first-run",
-                "--no-default-browser-check",
-                "--disable-features=Translate",
-                "--disable-ipc-flooding-protection",
-                "--disable-blink-features=AutomationControlled",
-            ],
-            timeout: 120000,
-            protocolTimeout: 120000,
-        },
-    });
-}
-
-// =================== Initialize with retry ===================
-async function initializeWithRetry(client) {
-    for (let attempt = 1; attempt <= INIT_MAX_RETRIES; attempt++) {
-        try {
-            await client.initialize();
-            log("✅ Initialized");
-            return true;
-        } catch (err) {
-            const msg = err.message || "";
-            const isNavError = msg.includes("Execution context was destroyed")
-                || msg.includes("navigation")
-                || msg.includes("Target closed")
-                || msg.includes("Session closed");
-
-            if (isNavError && attempt < INIT_MAX_RETRIES) {
-                log(`⚠️ Init attempt ${attempt}/${INIT_MAX_RETRIES} failed (navigation), retrying...`);
-                try { await client.destroy(); } catch {}
-                await wait(INIT_RETRY_DELAY);
-            } else {
-                throw err;
-            }
-        }
-    }
-    return false;
-}
-
-// =================== محاولة واحدة لتشغيل البوت ===================
+// =================== محاولة واحدة لتشغيل البوت (مع إعادة محاولة التهيئة داخلياً) ===================
 async function attemptBot() {
     return new Promise(async (resolve) => {
         const stopSignal = { isRunning: true };
@@ -348,7 +293,32 @@ async function attemptBot() {
             finish("TIMEOUT");
         }, QR_TIMEOUT_MS);
 
-        client = createClient();
+        client = new Client({
+            authStrategy: new LocalAuth({ clientId: SESSION_NAME, dataPath: SESSION_DIR, restartOnAuthFail: true }),
+            puppeteer: {
+                headless: 'new',
+                executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser',
+                args: [
+                    "--no-sandbox",
+                    "--disable-setuid-sandbox",
+                    "--disable-dev-shm-usage",
+                    "--disable-gpu",
+                    "--disable-extensions",
+                    "--disable-background-networking",
+                    "--disable-sync",
+                    "--no-first-run",
+                    "--no-default-browser-check",
+                    "--disable-features=Translate,BackForwardCache,site-per-process",
+                    "--disable-ipc-flooding-protection",
+                    "--disable-blink-features=AutomationControlled",
+                    "--disable-software-rasterizer",
+                    "--disable-crashpad",
+                    "--aggressive-cache-discard"
+                ],
+                timeout: 120000,
+                protocolTimeout: 120000,
+            },
+        });
 
         client.on("qr", async (qr) => {
             clearTimeout(qrTimeout);
@@ -394,11 +364,25 @@ async function attemptBot() {
             }
         });
 
-        try {
-            await removeLocks();
-            await initializeWithRetry(client);
-        } catch (err) {
-            log(`❌ Init failed: ${err.message}`);
+        // ============ إعادة محاولة التهيئة حتى 3 مرات ============
+        let initSuccess = false;
+        for (let attempt = 1; attempt <= 3; attempt++) {
+            try {
+                await removeLocks();
+                log(`🔧 Init attempt ${attempt}`);
+                await client.initialize();
+                initSuccess = true;
+                log("✅ Initialized");
+                break;
+            } catch (err) {
+                log(`❌ Init failed (attempt ${attempt}): ${err.message}`);
+                if (attempt < 3) {
+                    await wait(3000);
+                }
+            }
+        }
+
+        if (!initSuccess) {
             clearTimeout(qrTimeout);
             try { await client.destroy(); } catch {}
             await cleanTempFiles();
@@ -427,11 +411,15 @@ async function main() {
         const result = await attemptBot();
         log(`ℹ️ نتيجة المحاولة: ${result}`);
 
+        // الآن نقبل INIT_FAILED كحالة قابلة لإعادة المحاولة
         if (result === "DONE") break;
         else if (result === "LOGOUT" || result === "TIMEOUT" || result === "INIT_FAILED") {
-            log("⏳ انتظار 3 ثواني قبل إعادة المحاولة...");
+            log("⏳ انتظار 5 ثواني قبل إعادة المحاولة...");
             await wait(RESTART_DELAY_MS);
-        } else { log(`❌ خطأ غير متوقع: ${result}`); break; }
+        } else {
+            log(`❌ خطأ غير متوقع: ${result}`);
+            break;
+        }
     }
 
     log("👋 انتهى البرنامج.");
