@@ -25,8 +25,8 @@ const RETRY_DELAY = 5000;
 const MIN_DELAY = 20000;
 const MAX_DELAY = 40000;
 const MESSAGE_MODE = "random";
-const QR_TIMEOUT_MS = 120000;  // 2 دقائق بدل 1
-const RESTART_DELAY_MS = 3000;
+const QR_TIMEOUT_MS = 120000;  // 2 دقائق
+const RESTART_DELAY_MS = 5000;  // زيادة إلى 5 ثواني
 
 // =================== Environment ===================
 const WORKER_URL = process.env.WORKER_URL || null;
@@ -264,7 +264,7 @@ async function sendAdminReport(client, dashboard, msgCount, imgCount) {
     catch (err) { log(`⚠️ Admin report failed: ${err.message}`); }
 }
 
-// =================== محاولة واحدة لتشغيل البوت ===================
+// =================== محاولة واحدة لتشغيل البوت (مع إعادة محاولة التهيئة داخلياً) ===================
 async function attemptBot() {
     return new Promise(async (resolve) => {
         const stopSignal = { isRunning: true };
@@ -279,7 +279,6 @@ async function attemptBot() {
             resolve(result);
         };
 
-        // فحص أولي: هل مجلد الجلسة موجود؟
         const sessionExists = await fs.pathExists(PROFILE_PATH);
         if (sessionExists) {
             log("📁 تم العثور على مجلد الجلسة، سيتم محاولة استعادتها...");
@@ -299,12 +298,25 @@ async function attemptBot() {
             puppeteer: {
                 headless: 'new',
                 executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser',
-                args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage", "--disable-gpu",
-                       "--disable-extensions", "--disable-background-networking", "--disable-sync",
-                       "--no-first-run", "--no-default-browser-check",
-                       "--disable-features=site-per-process,Translate", "--disable-ipc-flooding-protection",
-                       "--disable-blink-features=AutomationControlled"],
-                timeout: 120000, protocolTimeout: 120000,
+                args: [
+                    "--no-sandbox",
+                    "--disable-setuid-sandbox",
+                    "--disable-dev-shm-usage",
+                    "--disable-gpu",
+                    "--disable-extensions",
+                    "--disable-background-networking",
+                    "--disable-sync",
+                    "--no-first-run",
+                    "--no-default-browser-check",
+                    "--disable-features=Translate,BackForwardCache,site-per-process",
+                    "--disable-ipc-flooding-protection",
+                    "--disable-blink-features=AutomationControlled",
+                    "--disable-software-rasterizer",
+                    "--disable-crashpad",
+                    "--aggressive-cache-discard"
+                ],
+                timeout: 120000,
+                protocolTimeout: 120000,
             },
         });
 
@@ -352,12 +364,25 @@ async function attemptBot() {
             }
         });
 
-        try {
-            await removeLocks();
-            await client.initialize();
-            log("✅ Initialized");
-        } catch (err) {
-            log(`❌ Init failed: ${err.message}`);
+        // ============ إعادة محاولة التهيئة حتى 3 مرات ============
+        let initSuccess = false;
+        for (let attempt = 1; attempt <= 3; attempt++) {
+            try {
+                await removeLocks();
+                log(`🔧 Init attempt ${attempt}`);
+                await client.initialize();
+                initSuccess = true;
+                log("✅ Initialized");
+                break;
+            } catch (err) {
+                log(`❌ Init failed (attempt ${attempt}): ${err.message}`);
+                if (attempt < 3) {
+                    await wait(3000);
+                }
+            }
+        }
+
+        if (!initSuccess) {
             clearTimeout(qrTimeout);
             try { await client.destroy(); } catch {}
             await cleanTempFiles();
@@ -386,11 +411,15 @@ async function main() {
         const result = await attemptBot();
         log(`ℹ️ نتيجة المحاولة: ${result}`);
 
+        // الآن نقبل INIT_FAILED كحالة قابلة لإعادة المحاولة
         if (result === "DONE") break;
-        else if (result === "LOGOUT" || result === "TIMEOUT") {
-            log("⏳ انتظار 3 ثواني قبل إعادة المحاولة...");
+        else if (result === "LOGOUT" || result === "TIMEOUT" || result === "INIT_FAILED") {
+            log("⏳ انتظار 5 ثواني قبل إعادة المحاولة...");
             await wait(RESTART_DELAY_MS);
-        } else { log(`❌ خطأ غير متوقع: ${result}`); break; }
+        } else {
+            log(`❌ خطأ غير متوقع: ${result}`);
+            break;
+        }
     }
 
     log("👋 انتهى البرنامج.");
