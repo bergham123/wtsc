@@ -20,15 +20,16 @@ jobs:
         with:
           node-version: 24
 
-      # ========== SESSION CACHE ==========
+      # ========== استعادة الجلسة من الكاش ==========
       - name: Restore session from cache
         uses: actions/cache/restore@v4
         with:
           path: session
           key: whatsapp-session-${{ runner.os }}
-          restore-keys: whatsapp-session-
+          restore-keys: |
+            whatsapp-session-
 
-      # ========== SETUP ==========
+      # ========== إعدادات أولية ==========
       - name: Ensure session directory
         run: mkdir -p session
 
@@ -48,14 +49,14 @@ jobs:
         env:
           PUPPETEER_SKIP_DOWNLOAD: "true"
 
-      # ========== RUN BOT ==========
+      # ========== تشغيل البوت ==========
       - name: Run WhatsApp bot
         env:
           WORKER_URL: ${{ secrets.WORKER_URL }}
           API_SECRET: ${{ secrets.API_SECRET }}
         run: node index.js
 
-      # ========== CLEANUP BEFORE CACHE ==========
+      # ========== تنظيف الملفات المؤقتة ==========
       - name: Clean temporary Chromium files
         if: always()
         run: |
@@ -69,7 +70,7 @@ jobs:
           rm -rf session/*/ShaderCache 2>/dev/null || true
           rm -rf session/*/DawnCache 2>/dev/null || true
 
-      # ========== CHECK SESSION VALIDITY ==========
+      # ========== التحقق من صلاحية الجلسة ==========
       - name: Check session validity
         id: check-session
         if: always()
@@ -80,7 +81,7 @@ jobs:
             echo "exists=false" >> $GITHUB_OUTPUT
           fi
 
-      # ========== SAVE CACHES ==========
+      # ========== حفظ الجلسة في الكاش (فقط إذا كانت صالحة) ==========
       - name: Save session cache
         if: always() && steps.check-session.outputs.exists == 'true'
         uses: actions/cache/save@v4
@@ -88,21 +89,20 @@ jobs:
           path: session
           key: whatsapp-session-${{ runner.os }}
 
-      # ========== GIT COMMITS (ONLY ESSENTIAL) ==========
+      # ========== رفع الجلسة ولوحة التحكم إلى المستودع ==========
       - name: Commit session & dashboard only
-        if: always()
+        if: always() && steps.check-session.outputs.exists == 'true'
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           
-          # Only add session and dashboard (not logs, artifacts, or temp files)
+          # نضيف فقط session/ و dashboard/ و aggregate.json
           git add session/ dashboard/ aggregate.json 2>/dev/null || true
           
-          # Commit with timestamp
           git commit -m "🤖 session update $(date '+%F %H:%M')" --allow-empty || echo "Nothing to commit"
           git push || echo "No push needed"
 
-      # ========== LOGS & DATA (ARTIFACTS ONLY - not committed) ==========
+      # ========== رفع السجلات ولوحة التحكم كـ artifacts ==========
       - name: Upload logs (artifact)
         if: always()
         uses: actions/upload-artifact@v4
