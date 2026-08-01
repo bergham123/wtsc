@@ -59,8 +59,21 @@ function log(msg) {
     const timestamp = new Date().toISOString();
     const line = `[${timestamp}] ${msg}`;
     console.log(msg);
-    if (!logStream) initLogger();
-    if (logStream) logStream.write(line + "\n");
+
+    // قائمة بالعبارات المطلوب تسجيلها في الملف فقط
+    const importantKeywords = [
+        'Image sent to',
+        'Message sent to',
+        '❌ Failed',
+        '✅ Script completed',
+        '🏁 Batch complete'
+    ];
+
+    const shouldLogToFile = importantKeywords.some(keyword => msg.includes(keyword));
+
+    if (shouldLogToFile && logStream) {
+        logStream.write(line + "\n");
+    }
 }
 
 // =================== Worker Communication ===================
