@@ -1,119 +1,93 @@
+# .github/workflows/send.yaml
 name: WhatsApp Automation
 
 on:
+  schedule:
+    - cron: "30 3 * * *"
   workflow_dispatch:
 
 permissions:
   contents: write
 
+concurrency:
+  group: whatsapp-bot
+  cancel-in-progress: false
+
 jobs:
   run:
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+    timeout-minutes: 30
 
-      - name: Setup Node.js 24
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 20
 
-      # ========== استعادة الجلسة من الكاش ==========
-      - name: Restore session from cache
-        id: restore-session
-        uses: actions/cache/restore@v4
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgbm-dev \
+            libnss3 \
+            libatk-bridge2.0-0 \
+            libgtk-3-0 \
+            libxss1 \
+            libasound2t64 \
+            libx11-xcb1 \
+            libxcomposite1 \
+            libxcursor1 \
+            libxdamage1 \
+            libxrandr2 \
+            libxfixes3 \
+            libcups2 \
+            libxkbcommon0 \
+            libpango-1.0-0 \
+            libcairo2
+
+      - name: Restore session cache
+        uses: actions/cache@v4
+        id: session-cache
         with:
           path: session
-          key: whatsapp-session-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+          key: whatsapp-session-${{ runner.os }}-${{ github.run_id }}
           restore-keys: |
             whatsapp-session-${{ runner.os }}-
-            whatsapp-session-
 
-      # ========== إعدادات أولية ==========
-      - name: Ensure session directory
-        run: mkdir -p session
+      - name: Install Node dependencies
+        run: npm install
 
-      - name: Report restored session
-        run: |
-          if [ -d "session/session-main/Default/IndexedDB" ] || [ -d "session/session-main/Default/Local Storage" ]; then
-            echo "✅ Restored WhatsApp session from cache"
-          else
-            echo "ℹ️ No reusable WhatsApp session found; QR scan may be required"
-          fi
-
-      - name: Remove Chromium locks
+      - name: Remove stale lock files
         run: |
           find session -name "SingletonLock" -delete 2>/dev/null || true
-          find session -name "SingletonSocket" -delete 2>/dev/null || true
           find session -name "SingletonCookie" -delete 2>/dev/null || true
+          find session -name "SingletonSocket" -delete 2>/dev/null || true
           find session -name "*.lock" -delete 2>/dev/null || true
-          find session -name "DevToolsActivePort" -delete 2>/dev/null || true
 
-      - name: Install system Chromium
-        run: sudo apt-get update && sudo apt-get install -y chromium-browser
-
-      - name: Install dependencies
-        run: npm install --legacy-peer-deps
-        env:
-          PUPPETEER_SKIP_DOWNLOAD: "true"
-
-      # ========== تشغيل البوت ==========
       - name: Run WhatsApp bot
         env:
-          WORKER_URL: ${{ secrets.WORKER_URL }}
-          API_SECRET: ${{ secrets.API_SECRET }}
-        run: node index.js   # <-- تغيير من node index.js إلى npm start
+          PUPPETEER_EXECUTABLE_PATH: /usr/bin/google-chrome-stable
+        run: npm start
 
-      # ========== تنظيف الملفات المؤقتة ==========
-      - name: Clean temporary Chromium files
-        if: always()
-        run: |
-          rm -rf session/*/Cache 2>/dev/null || true
-          rm -rf session/*/"Code Cache" 2>/dev/null || true
-          rm -rf session/*/GPUCache 2>/dev/null || true
-          rm -rf session/*/Crashpad 2>/dev/null || true
-          rm -rf session/*/BrowserMetrics 2>/dev/null || true
-          rm -rf session/*/GrShaderCache 2>/dev/null || true
-          rm -rf session/*/GraphiteDawnCache 2>/dev/null || true
-          rm -rf session/*/ShaderCache 2>/dev/null || true
-          rm -rf session/*/DawnCache 2>/dev/null || true
-
-      # ========== التحقق من صلاحية الجلسة ==========
-      - name: Check session validity
-        id: check-session
-        if: always()
-        run: |
-          if [ -d "session/session-main/Default/IndexedDB" ] || [ -d "session/session-main/Default/Local Storage" ]; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-            echo "✅ Valid WhatsApp profile found; saving cache"
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-            echo "⚠️ No valid WhatsApp profile found; cache will not be updated"
-          fi
-
-      # ========== حفظ الجلسة في الكاش (فقط إذا كانت صالحة) ==========
       - name: Save session cache
-        if: always() && steps.check-session.outputs.exists == 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache@v4
+        if: always()
         with:
           path: session
-          key: whatsapp-session-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+          key: whatsapp-session-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: |
+            whatsapp-session-${{ runner.os }}-
 
-      # ========== رفع dashboard و logs كـ artifact للتصفح فقط ==========
-      - name: Upload logs (artifact)
+      - name: Commit updated files (small)
         if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: bot-logs-${{ github.run_id }}
-          path: logs/
-          retention-days: 7
-          if-no-files-found: ignore
-
-      - name: Upload dashboard snapshot (artifact)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: dashboard-${{ github.run_id }}
-          path: dashboard/
-          retention-days: 7
-          if-no-files-found: ignore
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add dashboard/*.json aggregate.json logs/*.log || true
+          git commit -m "Update dashboard, aggregate & logs $(date +'%Y-%m-%d %H:%M')" || echo "No changes"
+          git push
