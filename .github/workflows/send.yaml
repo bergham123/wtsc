@@ -60,7 +60,6 @@ jobs:
       # ========== تشغيل البوت ==========
       - name: Run WhatsApp bot
         env:
-          PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium-browser   # <-- جديد
           WORKER_URL: ${{ secrets.WORKER_URL }}
           API_SECRET: ${{ secrets.API_SECRET }}
         run: node index.js   # <-- تغيير من node index.js إلى npm start
