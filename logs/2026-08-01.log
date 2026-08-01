@@ -1,0 +1,19 @@
+[2026-08-01T02:52:22.766Z] 🚀 Starting WhatsApp bot
+[2026-08-01T02:53:04.551Z] ✅ WhatsApp client ready
+[2026-08-01T02:53:04.553Z] 📞 Loaded 3 unique numbers
+[2026-08-01T02:53:04.554Z] 📝 Loaded 1 messages from message.json
+[2026-08-01T02:53:04.555Z] 🖼️ Loaded 3 image items from images.json
+[2026-08-01T02:53:04.555Z] ⏩ Starting from index 0 (none)
+[2026-08-01T02:53:04.562Z] 🔁 Retry 1/2 for : t
+[2026-08-01T02:53:09.565Z] 🔁 Retry 2/2 for : t
+[2026-08-01T02:53:14.569Z] ❌ Final failure for : t
+[2026-08-01T02:53:14.570Z] ⏳ Waiting 28.1s
+[2026-08-01T02:53:44.462Z] 🖼️ Sent image + caption to 212642284241
+[2026-08-01T02:53:44.463Z] ✔ Successfully sent to 212642284241
+[2026-08-01T02:53:44.464Z] ⏳ Waiting 39.3s
+[2026-08-01T02:54:23.928Z] 🖼️ Sent image + caption to 212607301499
+[2026-08-01T02:54:23.929Z] ✔ Successfully sent to 212607301499
+[2026-08-01T02:54:23.930Z] ⏳ Waiting 21.7s
+[2026-08-01T02:54:45.669Z] 🏁 Main loop finished
+[2026-08-01T02:54:45.675Z] 📊 Updated aggregate.json
+[2026-08-01T02:54:45.863Z] 📨 Admin report sent
