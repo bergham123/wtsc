@@ -18,7 +18,6 @@ jobs:
         with:
           node-version: 24
 
-      # ========== استعادة الجلسة من الكاش ==========
       - name: Restore session from cache
         id: restore-session
         uses: actions/cache/restore@v4
@@ -29,7 +28,6 @@ jobs:
             whatsapp-session-${{ runner.os }}-
             whatsapp-session-
 
-      # ========== إعدادات أولية ==========
       - name: Ensure session directory
         run: mkdir -p session
 
@@ -57,14 +55,12 @@ jobs:
         env:
           PUPPETEER_SKIP_DOWNLOAD: "true"
 
-      # ========== تشغيل البوت ==========
       - name: Run WhatsApp bot
         env:
           WORKER_URL: ${{ secrets.WORKER_URL }}
           API_SECRET: ${{ secrets.API_SECRET }}
-        run: node index.js   # <-- تغيير من node index.js إلى npm start
+        run: node index.js
 
-      # ========== تنظيف الملفات المؤقتة ==========
       - name: Clean temporary Chromium files
         if: always()
         run: |
@@ -78,7 +74,6 @@ jobs:
           rm -rf session/*/ShaderCache 2>/dev/null || true
           rm -rf session/*/DawnCache 2>/dev/null || true
 
-      # ========== التحقق من صلاحية الجلسة ==========
       - name: Check session validity
         id: check-session
         if: always()
@@ -91,7 +86,6 @@ jobs:
             echo "⚠️ No valid WhatsApp profile found; cache will not be updated"
           fi
 
-      # ========== حفظ الجلسة في الكاش (فقط إذا كانت صالحة) ==========
       - name: Save session cache
         if: always() && steps.check-session.outputs.exists == 'true'
         uses: actions/cache/save@v4
@@ -99,7 +93,7 @@ jobs:
           path: session
           key: whatsapp-session-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
 
-      # ========== رفع dashboard و logs كـ artifact للتصفح فقط ==========
+      # ===== رفع الـ Artifacts (اختياري، يمكنك الاحتفاظ به أو حذفه) =====
       - name: Upload logs (artifact)
         if: always()
         uses: actions/upload-artifact@v4
@@ -117,3 +111,19 @@ jobs:
           path: dashboard/
           retention-days: 7
           if-no-files-found: ignore
+
+      # ===== دفع الملفات إلى المستودع (commit & push) =====
+      - name: Commit and push logs & dashboard to repo
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add logs/ dashboard/ || true
+          # التحقق من وجود تغييرات قبل الـ commit
+          if git diff --staged --quiet; then
+            echo "📭 No changes to commit"
+          else
+            git commit -m "Update logs and dashboard [skip ci]"
+            git push
+            echo "✅ Changes pushed to repository"
+          fi
