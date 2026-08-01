@@ -10,14 +10,16 @@ import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // =================== Constants ===================
-const ACCOUNTS_FILE = "./accounts.json";
-const MESSAGE_FILE = "./message.txt";
-const MESSAGES_FILE = "./message.json";
-const IMAGES_LIST_FILE = "./images.json";
-const DASHBOARD_DIR = "./dashboard";
-const SESSION_DIR = "./session";
-const LOGS_DIR = "./logs";
-const CHECKPOINT_FILE = "./checkpoint.json";
+const ACCOUNTS_FILE = path.join(__dirname, "accounts.json");
+const MESSAGE_FILE = path.join(__dirname, "message.txt");
+const MESSAGES_FILE = path.join(__dirname, "message.json");
+const IMAGES_LIST_FILE = path.join(__dirname, "images.json");
+const DASHBOARD_DIR = path.join(__dirname, "dashboard");
+const SESSION_DIR = path.join(__dirname, "session");
+const LOGS_DIR = path.join(__dirname, "logs");
+const CHECKPOINT_FILE = path.join(__dirname, "checkpoint.json");
+const LOCAL_LOG_FILE = path.join(__dirname, "qr_status_log.json");
+const AGGREGATE_FILE = path.join(__dirname, "aggregate.json");   // <-- الملف الجديد
 const ADMIN_NUMBER = "212642284241";
 
 const MAX_RETRIES = 2;
@@ -25,7 +27,7 @@ const RETRY_DELAY = 5000;
 const MIN_DELAY = 20000;
 const MAX_DELAY = 40000;
 const MESSAGE_MODE = "random";
-const QR_TIMEOUT_MS = 120000;  // 2 دقائق
+const QR_TIMEOUT_MS = 120000;
 const RESTART_DELAY_MS = 5000;
 
 // =================== Environment ===================
@@ -48,6 +50,7 @@ function initLogger() {
     const today = getToday();
     const logPath = path.join(LOGS_DIR, `${today}.log`);
     fs.ensureDirSync(LOGS_DIR);
+    if (logStream) logStream.end();
     logStream = fs.createWriteStream(logPath, { flags: "a" });
     return logPath;
 }
@@ -56,10 +59,11 @@ function log(msg) {
     const timestamp = new Date().toISOString();
     const line = `[${timestamp}] ${msg}`;
     console.log(msg);
+    if (!logStream) initLogger();
     if (logStream) logStream.write(line + "\n");
 }
 
-// =================== Worker Communication (محسّن) ===================
+// =================== Worker Communication ===================
 async function sendToWorker(endpoint, data, retries = 2) {
     if (!WORKER_URL || !API_SECRET) {
         log(`⚠️ WORKER_URL or API_SECRET not set, cannot send to worker`);
@@ -94,6 +98,25 @@ async function sendToWorker(endpoint, data, retries = 2) {
     }
     log(`❌ Failed to send to worker after ${retries+1} attempts`);
     return false;
+}
+
+// =================== Local Storage for QR & Status ===================
+async function logQRStatusLocally(type, data) {
+    try {
+        let logs = [];
+        if (await fs.pathExists(LOCAL_LOG_FILE)) {
+            logs = await fs.readJson(LOCAL_LOG_FILE);
+        }
+        logs.push({
+            timestamp: new Date().toISOString(),
+            type: type,
+            data: data
+        });
+        await fs.writeJson(LOCAL_LOG_FILE, logs, { spaces: 2 });
+        log(`💾 Saved ${type} locally`);
+    } catch (err) {
+        log(`⚠️ Failed to save locally: ${err.message}`);
+    }
 }
 
 // =================== File Helpers ===================
@@ -152,11 +175,30 @@ async function cleanTempFiles() {
     }
 }
 
+// =================== تنظيف الملفات المؤقتة ===================
+async function cleanArtifacts() {
+    log("🧹 Cleaning artifacts (cache, temp files, old checkpoints)");
+    try {
+        if (await fs.pathExists(CHECKPOINT_FILE)) {
+            await fs.remove(CHECKPOINT_FILE);
+            log("🗑️ Removed old checkpoint.json");
+        }
+        if (await fs.pathExists(LOCAL_LOG_FILE)) {
+            await fs.remove(LOCAL_LOG_FILE);
+            log("🗑️ Removed old qr_status_log.json");
+        }
+        await cleanTempFiles();
+        await removeLocks();
+    } catch (err) {
+        log(`⚠️ Error during artifact cleaning: ${err.message}`);
+    }
+}
+
 // =================== Dashboard ===================
 async function loadDashboard() {
     const today = getToday();
     const dashboardPath = path.join(DASHBOARD_DIR, `dashboard-${today}.json`);
-    await fs.ensureDir(DASHBOARD_DIR);
+    fs.ensureDirSync(DASHBOARD_DIR);
     let dashboard = {
         date: today, attempted: 0, success: 0, failed: 0,
         sent: [], failedList: []
@@ -185,6 +227,36 @@ async function loadCheckpoint() {
 
 async function saveCheckpoint(checkpoint) {
     await saveJSON(CHECKPOINT_FILE, checkpoint);
+}
+
+// =================== تحديث ملف aggregate.json ===================
+async function updateAggregate(dashboard) {
+    try {
+        let aggregate = [];
+        if (await fs.pathExists(AGGREGATE_FILE)) {
+            aggregate = await fs.readJson(AGGREGATE_FILE);
+            if (!Array.isArray(aggregate)) aggregate = [];
+        }
+        // البحث عن إدخال بنفس التاريخ
+        const today = dashboard.date;
+        const index = aggregate.findIndex(entry => entry.date === today);
+        const newEntry = {
+            date: today,
+            attempted: dashboard.attempted,
+            success: dashboard.success,
+            failed: dashboard.failed
+        };
+        if (index !== -1) {
+            aggregate[index] = newEntry;
+            log(`📊 Updated aggregate for ${today}`);
+        } else {
+            aggregate.push(newEntry);
+            log(`📊 Added aggregate for ${today}`);
+        }
+        await fs.writeJson(AGGREGATE_FILE, aggregate, { spaces: 2 });
+    } catch (err) {
+        log(`⚠️ Failed to update aggregate: ${err.message}`);
+    }
 }
 
 // =================== Main Bot Logic ===================
@@ -266,8 +338,13 @@ async function runBot(client, stopSignal) {
             if (!stopSignal.isRunning) break;
             await wait(randomDelay()); index++;
         }
-        await saveJSON(dashboardPath, dashboard); await saveCheckpoint(checkpoint);
-        log("🏁 Batch complete"); await fs.remove(CHECKPOINT_FILE).catch(() => {});
+        // حفظ dashboard النهائي
+        await saveJSON(dashboardPath, dashboard);
+        await saveCheckpoint(checkpoint);
+        // تحديث ملف aggregate.json
+        await updateAggregate(dashboard);
+        log("🏁 Batch complete");
+        await fs.remove(CHECKPOINT_FILE).catch(() => {});
         if (stopSignal.isRunning) await sendAdminReport(client, dashboard, messages.length, imageItems.length);
         log("✅ Script completed");
     } catch (err) { log(`💥 Bot error: ${err.message}`); }
@@ -281,7 +358,7 @@ async function sendAdminReport(client, dashboard, msgCount, imgCount) {
     catch (err) { log(`⚠️ Admin report failed: ${err.message}`); }
 }
 
-// =================== محاولة واحدة لتشغيل البوت (مع إعادة محاولة التهيئة داخلياً) ===================
+// =================== محاولة تشغيل البوت ===================
 async function attemptBot() {
     return new Promise(async (resolve) => {
         const stopSignal = { isRunning: true };
@@ -291,7 +368,6 @@ async function attemptBot() {
             if (resolved) return;
             resolved = true;
             clearTimeout(qrTimeout);
-            // إرسال الحالة قبل الخروج
             await sendToWorker("/api/live/status", { status: "disconnected" });
             try { if (client) await client.destroy(); } catch {}
             await cleanTempFiles();
@@ -344,6 +420,7 @@ async function attemptBot() {
             clearTimeout(qrTimeout);
             log("📲 QR code generated - scan now");
             qrcode.generate(qr, { small: true });
+            await logQRStatusLocally("qr", { qr: qr });
             try {
                 const qrDataUrl = await QRCode.toDataURL(qr);
                 await sendToWorker("/api/live/qr", { qr: qrDataUrl });
@@ -357,6 +434,7 @@ async function attemptBot() {
             clearTimeout(qrTimeout);
             log("♻️ Session ready");
             await sendToWorker("/api/live/status", { status: "connected" });
+            await logQRStatusLocally("status", { status: "connected" });
             log("⏳ Stabilizing...");
             await wait(3000);
             await runBot(client, stopSignal);
@@ -368,8 +446,8 @@ async function attemptBot() {
             log(`⚠️ Disconnected: ${reason}`);
             clearTimeout(qrTimeout);
             stopSignal.isRunning = false;
-            // إرسال الحالة أولاً
             await sendToWorker("/api/live/status", { status: "disconnected" });
+            await logQRStatusLocally("status", { status: "disconnected", reason });
             try { await client.destroy(); } catch {}
             await cleanTempFiles();
             if (reason === "LOGOUT") {
@@ -385,6 +463,7 @@ async function attemptBot() {
             clearTimeout(qrTimeout);
             stopSignal.isRunning = false;
             await sendToWorker("/api/live/status", { status: "disconnected" });
+            await logQRStatusLocally("status", { status: "auth_failure", msg });
             try { await client.destroy(); } catch {}
             await clearSession();
             finish("AUTH_FAILURE");
@@ -397,7 +476,7 @@ async function attemptBot() {
             }
         });
 
-        // ============ إعادة محاولة التهيئة حتى 3 مرات ============
+        // ============ إعادة محاولة التهيئة ============
         let initSuccess = false;
         for (let attempt = 1; attempt <= 3; attempt++) {
             try {
@@ -431,11 +510,14 @@ async function main() {
         log(`⚠️ Unhandled rejection: ${reason?.message || reason}`);
     });
 
-    await fs.ensureDir(SESSION_DIR);
-    await fs.ensureDir(LOGS_DIR);
-    await fs.ensureDir(DASHBOARD_DIR);
+    fs.ensureDirSync(SESSION_DIR);
+    fs.ensureDirSync(LOGS_DIR);
+    fs.ensureDirSync(DASHBOARD_DIR);
+
+    await cleanArtifacts();
+
     initLogger();
-    log("🚀 Starting WhatsApp bot");
+    log("🚀 Starting WhatsApp bot (using repository files)");
     await sendToWorker("/api/live/status", { status: "starting" });
 
     let retryCount = 0, maxAttempts = 10;
