@@ -1,0 +1,30 @@
+[2026-08-01T15:49:28.013Z] 🧹 Cleaning artifacts (cache, temp files, old checkpoints)
+[2026-08-01T15:49:28.019Z] 🚀 Starting WhatsApp bot (using repository files)
+[2026-08-01T15:49:28.019Z] 📡 Sending to worker (attempt 1): /api/live/status
+[2026-08-01T15:49:28.257Z] ✅ Sent to worker: /api/live/status - {"status":"starting"}
+[2026-08-01T15:49:28.257Z] 🔄 المحاولة رقم 1
+[2026-08-01T15:49:28.258Z] 🆕 لا توجد جلسة سابقة، سيتم طلب QR جديد.
+[2026-08-01T15:49:28.259Z] 🔧 Init attempt 1
+[2026-08-01T15:49:32.758Z] ✅ Initialized
+[2026-08-01T15:49:33.605Z] ♻️ Session ready
+[2026-08-01T15:49:33.605Z] 📡 Sending to worker (attempt 1): /api/live/status
+[2026-08-01T15:49:33.905Z] ✅ Sent to worker: /api/live/status - {"status":"connected"}
+[2026-08-01T15:49:33.906Z] 💾 Saved status locally
+[2026-08-01T15:49:33.907Z] ⏳ Stabilizing...
+[2026-08-01T15:49:36.908Z] ✅ WhatsApp client ready
+[2026-08-01T15:49:36.909Z] 📞 3 unique numbers loaded
+[2026-08-01T15:49:36.910Z] 📝 1 messages loaded
+[2026-08-01T15:49:36.910Z] 🖼️ 3 images available
+[2026-08-01T15:49:36.910Z] ⏩ Starting from index 0
+[2026-08-01T15:49:36.913Z] 🔁 Retry 1/2
+[2026-08-01T15:49:41.915Z] 🔁 Retry 2/2
+[2026-08-01T15:49:46.920Z] ❌ Failed: 
+[2026-08-01T15:50:26.927Z] 🖼️ Image sent to 212642284241
+[2026-08-01T15:51:00.369Z] 🖼️ Image sent to 212607301499
+[2026-08-01T15:51:32.433Z] 📊 Updated aggregate for 2026-08-01
+[2026-08-01T15:51:32.433Z] 🏁 Batch complete
+[2026-08-01T15:51:32.576Z] 📨 Admin report sent
+[2026-08-01T15:51:32.576Z] ✅ Script completed
+[2026-08-01T15:51:32.576Z] 📡 Sending to worker (attempt 1): /api/live/status
+[2026-08-01T15:51:32.746Z] ✅ Sent to worker: /api/live/status - {"status":"disconnected"}
+[2026-08-01T15:51:32.832Z] ℹ️ نتيجة المحاولة: DONE
