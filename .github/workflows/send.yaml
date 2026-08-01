@@ -42,10 +42,7 @@ jobs:
           find session -name "DevToolsActivePort" -delete 2>/dev/null || true
 
       - name: Install system Chromium
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y chromium-browser
-          echo "PUPPETEER_EXECUTABLE_PATH=$(which chromium-browser)" >> $GITHUB_ENV
+        run: sudo apt-get update && sudo apt-get install -y chromium-browser
 
       - name: Install dependencies
         run: npm install --legacy-peer-deps
@@ -57,7 +54,6 @@ jobs:
         env:
           WORKER_URL: ${{ secrets.WORKER_URL }}
           API_SECRET: ${{ secrets.API_SECRET }}
-          PUPPETEER_EXECUTABLE_PATH: ${{ env.PUPPETEER_EXECUTABLE_PATH }}
         run: node index.js
 
       # ========== تنظيف الملفات المؤقتة ==========
@@ -74,12 +70,12 @@ jobs:
           rm -rf session/*/ShaderCache 2>/dev/null || true
           rm -rf session/*/DawnCache 2>/dev/null || true
 
-      # ========== التحقق من صلاحية الجلسة ==========
+      # ========== التحقق من صلاحية الجلسة (المسار الصحيح داخل Default) ==========
       - name: Check session validity
         id: check-session
         if: always()
         run: |
-          if [ -d "session/main/IndexedDB" ] || [ -d "session/main/Local Storage" ]; then
+          if [ -d "session/main/Default/IndexedDB" ] || [ -d "session/main/Default/Local Storage" ]; then
             echo "exists=true" >> $GITHUB_OUTPUT
           else
             echo "exists=false" >> $GITHUB_OUTPUT
