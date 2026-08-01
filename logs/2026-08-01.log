@@ -17,3 +17,16 @@
 [2026-08-01T02:54:45.669Z] 🏁 Main loop finished
 [2026-08-01T02:54:45.675Z] 📊 Updated aggregate.json
 [2026-08-01T02:54:45.863Z] 📨 Admin report sent
+[2026-08-01T02:56:29.065Z] 🚀 Starting WhatsApp bot
+[2026-08-01T02:56:39.631Z] ✅ WhatsApp client ready
+[2026-08-01T02:56:39.635Z] 📞 Loaded 3 unique numbers
+[2026-08-01T02:56:39.636Z] 📝 Loaded 1 messages from message.json
+[2026-08-01T02:56:39.637Z] 🖼️ Loaded 3 image items from images.json
+[2026-08-01T02:56:39.637Z] ⏩ Starting from index 0 (none)
+[2026-08-01T02:56:39.638Z] 📂 Loaded daily dashboard (2 success, 1 failed)
+[2026-08-01T02:56:39.638Z] ⏭️ Number  already processed today, skipping
+[2026-08-01T02:56:39.638Z] ⏭️ Number 212642284241 already processed today, skipping
+[2026-08-01T02:56:39.638Z] ⏭️ Number 212607301499 already processed today, skipping
+[2026-08-01T02:56:39.638Z] 🏁 Main loop finished
+[2026-08-01T02:56:39.641Z] 📊 Updated aggregate.json
+[2026-08-01T02:56:41.255Z] 📨 Admin report sent
