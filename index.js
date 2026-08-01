@@ -26,7 +26,7 @@ const MIN_DELAY = 20000;
 const MAX_DELAY = 40000;
 const MESSAGE_MODE = "random";
 const QR_TIMEOUT_MS = 120000;  // 2 دقائق
-const RESTART_DELAY_MS = 5000;  // زيادة إلى 5 ثواني
+const RESTART_DELAY_MS = 5000;
 
 // =================== Environment ===================
 const WORKER_URL = process.env.WORKER_URL || null;
@@ -59,24 +59,41 @@ function log(msg) {
     if (logStream) logStream.write(line + "\n");
 }
 
-// =================== Worker Communication ===================
-async function sendToWorker(endpoint, data) {
-    if (!WORKER_URL || !API_SECRET) return;
-    try {
-        const response = await fetch(WORKER_URL + endpoint, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-API-Key": API_SECRET,
-            },
-            body: JSON.stringify({ session: SESSION_NAME, ...data }),
-        });
-        if (!response.ok) {
-            log(`⚠️ Worker response ${response.status} for ${endpoint}`);
-        }
-    } catch (e) {
-        log(`⚠️ Worker error: ${e.message}`);
+// =================== Worker Communication (محسّن) ===================
+async function sendToWorker(endpoint, data, retries = 2) {
+    if (!WORKER_URL || !API_SECRET) {
+        log(`⚠️ WORKER_URL or API_SECRET not set, cannot send to worker`);
+        return false;
     }
+    const url = WORKER_URL + endpoint;
+    const payload = { session: SESSION_NAME, ...data };
+    let attempt = 0;
+    while (attempt <= retries) {
+        try {
+            log(`📡 Sending to worker (attempt ${attempt+1}): ${endpoint}`);
+            const response = await fetch(url, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-API-Key": API_SECRET,
+                },
+                body: JSON.stringify(payload),
+            });
+            if (!response.ok) {
+                const text = await response.text();
+                log(`⚠️ Worker response ${response.status} for ${endpoint}: ${text}`);
+                throw new Error(`HTTP ${response.status}`);
+            }
+            log(`✅ Sent to worker: ${endpoint} - ${JSON.stringify(data)}`);
+            return true;
+        } catch (e) {
+            attempt++;
+            log(`⚠️ Worker error (attempt ${attempt}): ${e.message}`);
+            if (attempt <= retries) await wait(2000);
+        }
+    }
+    log(`❌ Failed to send to worker after ${retries+1} attempts`);
+    return false;
 }
 
 // =================== File Helpers ===================
@@ -274,9 +291,7 @@ async function attemptBot() {
             if (resolved) return;
             resolved = true;
             clearTimeout(qrTimeout);
-            // Keep the dashboard's live session state truthful even when the
-            // browser is closed while the bot is finishing or WhatsApp logs
-            // the account out remotely.
+            // إرسال الحالة قبل الخروج
             await sendToWorker("/api/live/status", { status: "disconnected" });
             try { if (client) await client.destroy(); } catch {}
             await cleanTempFiles();
@@ -324,26 +339,37 @@ async function attemptBot() {
             },
         });
 
+        // ============ Event: QR ============
         client.on("qr", async (qr) => {
             clearTimeout(qrTimeout);
             log("📲 QR code generated - scan now");
             qrcode.generate(qr, { small: true });
-            try { const qrDataUrl = await QRCode.toDataURL(qr); await sendToWorker("/api/live/qr", { qr: qrDataUrl }); } catch (e) {}
+            try {
+                const qrDataUrl = await QRCode.toDataURL(qr);
+                await sendToWorker("/api/live/qr", { qr: qrDataUrl });
+            } catch (e) {
+                log(`⚠️ Failed to send QR to worker: ${e.message}`);
+            }
         });
 
+        // ============ Event: Ready ============
         client.on("ready", async () => {
             clearTimeout(qrTimeout);
             log("♻️ Session ready");
             await sendToWorker("/api/live/status", { status: "connected" });
-            log("⏳ Stabilizing..."); await wait(3000);
+            log("⏳ Stabilizing...");
+            await wait(3000);
             await runBot(client, stopSignal);
             finish("DONE");
         });
 
+        // ============ Event: Disconnected ============
         client.on("disconnected", async (reason) => {
             log(`⚠️ Disconnected: ${reason}`);
             clearTimeout(qrTimeout);
             stopSignal.isRunning = false;
+            // إرسال الحالة أولاً
+            await sendToWorker("/api/live/status", { status: "disconnected" });
             try { await client.destroy(); } catch {}
             await cleanTempFiles();
             if (reason === "LOGOUT") {
@@ -353,15 +379,18 @@ async function attemptBot() {
             } else finish("DISCONNECTED");
         });
 
+        // ============ Event: Auth Failure ============
         client.on("auth_failure", async (msg) => {
             log(`🔐 Auth failed: ${msg}`);
             clearTimeout(qrTimeout);
             stopSignal.isRunning = false;
+            await sendToWorker("/api/live/status", { status: "disconnected" });
             try { await client.destroy(); } catch {}
             await clearSession();
             finish("AUTH_FAILURE");
         });
 
+        // ============ Event: Incoming Message ============
         client.on("message", async (message) => {
             if (message.type === 'chat' && !message.fromMe) {
                 await sendToWorker("/api/live/message", { message: { from: message.from, body: message.body, timestamp: message.timestamp } });
@@ -388,6 +417,7 @@ async function attemptBot() {
 
         if (!initSuccess) {
             clearTimeout(qrTimeout);
+            await sendToWorker("/api/live/status", { status: "disconnected" });
             try { await client.destroy(); } catch {}
             await cleanTempFiles();
             finish("INIT_FAILED");
@@ -415,7 +445,6 @@ async function main() {
         const result = await attemptBot();
         log(`ℹ️ نتيجة المحاولة: ${result}`);
 
-        // الآن نقبل INIT_FAILED كحالة قابلة لإعادة المحاولة
         if (result === "DONE") break;
         else if (result === "LOGOUT" || result === "TIMEOUT" || result === "INIT_FAILED") {
             log("⏳ انتظار 5 ثواني قبل إعادة المحاولة...");
