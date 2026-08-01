@@ -274,6 +274,10 @@ async function attemptBot() {
             if (resolved) return;
             resolved = true;
             clearTimeout(qrTimeout);
+            // Keep the dashboard's live session state truthful even when the
+            // browser is closed while the bot is finishing or WhatsApp logs
+            // the account out remotely.
+            await sendToWorker("/api/live/status", { status: "disconnected" });
             try { if (client) await client.destroy(); } catch {}
             await cleanTempFiles();
             resolve(result);
