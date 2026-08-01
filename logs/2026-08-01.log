@@ -28,3 +28,8 @@
 [2026-08-01T15:51:32.576Z] 📡 Sending to worker (attempt 1): /api/live/status
 [2026-08-01T15:51:32.746Z] ✅ Sent to worker: /api/live/status - {"status":"disconnected"}
 [2026-08-01T15:51:32.832Z] ℹ️ نتيجة المحاولة: DONE
+[2026-08-01T16:01:44.381Z] ❌ Failed: 
+[2026-08-01T16:02:20.032Z] 🖼️ Image sent to 212642284241
+[2026-08-01T16:02:58.176Z] 🖼️ Image sent to 212607301499
+[2026-08-01T16:03:35.469Z] 🏁 Batch complete
+[2026-08-01T16:03:35.677Z] ✅ Script completed
