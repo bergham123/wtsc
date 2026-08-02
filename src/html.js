@@ -282,7 +282,24 @@ export const HTML_PAGE = `<!DOCTYPE html>
       </div>
       <div class="status" id="statsStatus"></div>
     </div>
-
+<!-- ====== قسم حالة واتساب و QR ====== -->
+<div class="card">
+  <div class="card-header"><i class="fab fa-whatsapp"></i><h2>حالة واتساب</h2></div>
+  <div style="display:flex; flex-wrap:wrap; gap:20px; align-items:center;">
+    <div>
+      <div><strong>الحالة:</strong> <span id="sessionStatusText" style="color:var(--text-muted);">غير معروف</span></div>
+      <div style="margin-top:10px;">
+        <button class="btn btn-primary" id="runQRBtn" style="width:auto;"><i class="fas fa-play"></i> تشغيل QR</button>
+        <button class="btn btn-danger" id="stopQRBtn" style="width:auto;"><i class="fas fa-stop"></i> إيقاف QR</button>
+        <button class="btn" id="refreshSessionBtn" style="width:auto;"><i class="fas fa-sync"></i> تحديث</button>
+      </div>
+    </div>
+    <div id="qrCodeContainer" style="flex-shrink:0;">
+      <img id="qrImage" src="" alt="QR Code" style="display:none; width:200px; height:200px; border:2px solid var(--accent); border-radius:8px;"/>
+    </div>
+  </div>
+  <div class="status" id="sessionStatus"></div>
+</div>
     <div class="content-grid">
       <!-- Messages Card -->
       <div class="card">
