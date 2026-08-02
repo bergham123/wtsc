@@ -1,0 +1,97 @@
+name: WhatsApp Automation
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'          # every 15 minutes
+  workflow_dispatch:                # allow manual trigger
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      # ----- Restore session from cache -----
+      - name: Restore session from cache
+        id: restore-session
+        uses: actions/cache/restore@v4
+        with:
+          path: session
+          key: whatsapp-session-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            whatsapp-session-${{ runner.os }}-
+            whatsapp-session-
+
+      - name: Ensure session directory
+        run: mkdir -p session
+
+      - name: Report restored session
+        run: |
+          if [ -d "session/session-main/Default/IndexedDB" ] || [ -d "session/session-main/Default/Local Storage" ]; then
+            echo "✅ Restored WhatsApp session"
+          else
+            echo "ℹ️ No reusable session found; QR scan may be required"
+          fi
+
+      - name: Remove Chromium locks
+        run: |
+          find session -name "SingletonLock" -delete 2>/dev/null || true
+          find session -name "SingletonSocket" -delete 2>/dev/null || true
+          find session -name "SingletonCookie" -delete 2>/dev/null || true
+          find session -name "*.lock" -delete 2>/dev/null || true
+          find session -name "DevToolsActivePort" -delete 2>/dev/null || true
+
+      - name: Install system Chromium
+        run: sudo apt-get update && sudo apt-get install -y chromium-browser
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: "true"
+
+      # ----- Run the bot -----
+      - name: Run WhatsApp reply bot
+        run: node replay.js
+
+      # ----- Clean temporary files -----
+      - name: Clean temporary Chromium files
+        if: always()
+        run: |
+          rm -rf session/*/Cache 2>/dev/null || true
+          rm -rf session/*/"Code Cache" 2>/dev/null || true
+          rm -rf session/*/GPUCache 2>/dev/null || true
+          rm -rf session/*/Crashpad 2>/dev/null || true
+          rm -rf session/*/BrowserMetrics 2>/dev/null || true
+          rm -rf session/*/GrShaderCache 2>/dev/null || true
+          rm -rf session/*/GraphiteDawnCache 2>/dev/null || true
+          rm -rf session/*/ShaderCache 2>/dev/null || true
+          rm -rf session/*/DawnCache 2>/dev/null || true
+
+      # ----- Save session cache if still valid -----
+      - name: Check session validity
+        id: check-session
+        if: always()
+        run: |
+          if [ -d "session/session-main/Default/IndexedDB" ] || [ -d "session/session-main/Default/Local Storage" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "✅ Valid profile found; saving cache"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "⚠️ No valid profile found; cache will not be updated"
+          fi
+
+      - name: Save session cache
+        if: always() && steps.check-session.outputs.exists == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: session
+          key: whatsapp-session-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
