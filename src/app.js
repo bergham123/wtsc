@@ -1883,7 +1883,7 @@ export const HTML_PAGE = `<!DOCTYPE html>
 
       // ---- DASHBOARD ----
       pageRenderers.dashboard = function() {
-        return `
+        return \`
           <div class="page-header">
             <h1><i class="fas fa-home" style="color:var(--accent-soft);margin-left:10px;"></i> لوحة التحكم</h1>
             <p>مرحباً بك في لوحة إدارة واتساب</p>
@@ -1910,7 +1910,7 @@ export const HTML_PAGE = `<!DOCTYPE html>
             <div class="card-header"><i class="fas fa-history"></i><h2>آخر النتائج</h2></div>
             <div id="dashRecent" style="padding:10px 0;"><div style="color:var(--text-muted);">جاري التحميل...</div></div>
           </div>
-        `;
+        \`;
       };
 
       pageInits.dashboard = function() {
@@ -1928,10 +1928,10 @@ export const HTML_PAGE = `<!DOCTYPE html>
               const recent = d.data.slice(-5).reverse();
               const container = document.getElementById('dashRecent');
               container.innerHTML = recent.map(row =>
-                `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border-subtle);">
-                  <span>${row.date}</span>
-                  <span>محاولات: ${row.attempted||0} | نجاح: ${row.success||0} | فشل: ${row.failed||0}</span>
-                </div>`
+                \`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border-subtle);">
+                  <span>\${row.date}</span>
+                  <span>محاولات: \${row.attempted||0} | نجاح: \${row.success||0} | فشل: \${row.failed||0}</span>
+                </div>\`
               ).join('');
             }
           }).catch(() => {});
@@ -1946,7 +1946,7 @@ export const HTML_PAGE = `<!DOCTYPE html>
 
       // ---- CONTACTS ----
       pageRenderers.contacts = function() {
-        return `
+        return \`
           <div class="page-header">
             <h1><i class="fas fa-address-book" style="color:var(--accent-soft);margin-left:10px;"></i> جهات الاتصال (mylist.json)</h1>
             <p>إدارة جهات الاتصال مع الاسم، الجنس، الرقم، العمر</p>
@@ -1967,7 +1967,7 @@ export const HTML_PAGE = `<!DOCTYPE html>
             </div>
             <div id="contactsStatus" class="status"></div>
           </div>
-        `;
+        \`;
       };
 
       let contactsData = [];
@@ -2017,16 +2017,16 @@ export const HTML_PAGE = `<!DOCTYPE html>
         }
         tbody.innerHTML = filteredContacts.map((row, idx) => {
           const realIdx = contactsData.indexOf(row);
-          return `
-            <tr data-index="${realIdx}">
-              <td>${idx+1}</td>
-              <td contenteditable="true" class="editable" data-field="name">${row.name||''}</td>
-              <td contenteditable="true" class="editable" data-field="gender">${row.gender||''}</td>
-              <td contenteditable="true" class="editable" data-field="number" style="direction:ltr;">${row.number||''}</td>
-              <td contenteditable="true" class="editable" data-field="age">${row.age||''}</td>
+          return \`
+            <tr data-index="\${realIdx}">
+              <td>\${idx+1}</td>
+              <td contenteditable="true" class="editable" data-field="name">\${row.name||''}</td>
+              <td contenteditable="true" class="editable" data-field="gender">\${row.gender||''}</td>
+              <td contenteditable="true" class="editable" data-field="number" style="direction:ltr;">\${row.number||''}</td>
+              <td contenteditable="true" class="editable" data-field="age">\${row.age||''}</td>
               <td><button class="delContactBtn btn btn-danger" style="width:auto;padding:2px 10px;font-size:12px;">حذف</button></td>
             </tr>
-          `;
+          \`;
         }).join('');
 
         document.querySelectorAll('.editable').forEach(cell => {
@@ -2067,7 +2067,7 @@ export const HTML_PAGE = `<!DOCTYPE html>
 
       // ---- MESSAGES ----
       pageRenderers.messages = function() {
-        return `
+        return \`
           <div class="page-header">
             <h1><i class="fas fa-envelope" style="color:var(--accent-soft);margin-left:10px;"></i> الرسائل (messages.json)</h1>
             <p>إدارة قائمة الرسائل (كل رسالة في سطر)</p>
@@ -2081,7 +2081,7 @@ export const HTML_PAGE = `<!DOCTYPE html>
             <textarea id="messagesArea" placeholder="اكتب رسالة في كل سطر..."></textarea>
             <div id="messagesStatus" class="status"></div>
           </div>
-        `;
+        \`;
       };
 
       pageInits.messages = function() {
@@ -2130,7 +2130,7 @@ export const HTML_PAGE = `<!DOCTYPE html>
 
       // ---- ACCOUNTS ----
       pageRenderers.accounts = function() {
-        return `
+        return \`
           <div class="page-header">
             <h1><i class="fas fa-phone" style="color:var(--accent-soft);margin-left:10px;"></i> الأرقام (accounts.json)</h1>
             <p>إدارة قائمة الأرقام (مصفوفة JSON) - كل رقم في سطر</p>
@@ -2144,7 +2144,7 @@ export const HTML_PAGE = `<!DOCTYPE html>
             <textarea id="accountsArea" placeholder="أدخل رقم في كل سطر..."></textarea>
             <div id="accountsStatus" class="status"></div>
           </div>
-        `;
+        \`;
       };
 
       pageInits.accounts = function() {
@@ -2196,7 +2196,7 @@ export const HTML_PAGE = `<!DOCTYPE html>
 
       // ---- SENDER ----
       pageRenderers.sender = function() {
-        return `
+        return \`
           <div class="page-header">
             <h1><i class="fas fa-paper-plane" style="color:var(--accent-soft);margin-left:10px;"></i> الإرسال</h1>
             <p>تشغيل الـ Workflow لإرسال الرسائل مع عرض التقدم</p>
@@ -2220,7 +2220,7 @@ export const HTML_PAGE = `<!DOCTYPE html>
             </div>
             <div id="senderStatus" class="status"></div>
           </div>
-        `;
+        \`;
       };
 
       let senderInterval = null;
@@ -2305,7 +2305,7 @@ export const HTML_PAGE = `<!DOCTYPE html>
 
       // ---- SCHEDULE ----
       pageRenderers.schedule = function() {
-        return `
+        return \`
           <div class="page-header">
             <h1><i class="fas fa-clock" style="color:var(--accent-soft);margin-left:10px;"></i> الجدولة</h1>
             <p>تحديد وقت تشغيل الـ Workflow (توقيت المغرب -2 ساعة UTC)</p>
@@ -2325,7 +2325,7 @@ export const HTML_PAGE = `<!DOCTYPE html>
             </div>
             <div id="schedStatus" class="status"></div>
           </div>
-        `;
+        \`;
       };
 
       pageInits.schedule = function() {
@@ -2391,7 +2391,7 @@ export const HTML_PAGE = `<!DOCTYPE html>
       let statsChart = null;
 
       pageRenderers.stats = function() {
-        return `
+        return \`
           <div class="page-header">
             <h1><i class="fas fa-chart-bar" style="color:var(--accent-soft);margin-left:10px;"></i> الإحصائيات</h1>
             <p>ملخص أداء عمليات الإرسال</p>
@@ -2413,7 +2413,7 @@ export const HTML_PAGE = `<!DOCTYPE html>
             </div>
             <div id="statsStatus" class="status"></div>
           </div>
-        `;
+        \`;
       };
 
       pageInits.stats = function() {
@@ -2440,10 +2440,10 @@ export const HTML_PAGE = `<!DOCTYPE html>
             ts += r.success || 0;
             tf += r.failed || 0;
             tbody.innerHTML +=
-              `<tr><td>${r.date}</td><td>${r.attempted||0}</td><td style="color:var(--green);">${r.success||0}</td><td style="color:var(--red);">${r.failed||0}</td></tr>`;
+              \`<tr><td>\${r.date}</td><td>\${r.attempted||0}</td><td style="color:var(--green);">\${r.success||0}</td><td style="color:var(--red);">\${r.failed||0}</td></tr>\`;
           });
           tbody.innerHTML +=
-            `<tr style="font-weight:bold;border-top:2px solid var(--accent);"><td>المجموع</td><td>${ta}</td><td style="color:var(--green);">${ts}</td><td style="color:var(--red);">${tf}</td></tr>`;
+            \`<tr style="font-weight:bold;border-top:2px solid var(--accent);"><td>المجموع</td><td>\${ta}</td><td style="color:var(--green);">\${ts}</td><td style="color:var(--red);">\${tf}</td></tr>\`;
           const ctx = document.getElementById('statsChart').getContext('2d');
           if (statsChart) statsChart.destroy();
           statsChart = new Chart(ctx, {
@@ -2478,7 +2478,7 @@ export const HTML_PAGE = `<!DOCTYPE html>
 
       // ---- LOGS ----
       pageRenderers.logs = function() {
-        return `
+        return \`
           <div class="page-header">
             <h1><i class="fas fa-terminal" style="color:var(--accent-soft);margin-left:10px;"></i> السجلات</h1>
             <p>عرض ملفات السجل من مجلد logs</p>
@@ -2492,7 +2492,7 @@ export const HTML_PAGE = `<!DOCTYPE html>
             <div class="log-content" id="logContentDisplay">اختر ملف سجل لعرض محتواه</div>
             <div id="logsStatus" class="status"></div>
           </div>
-        `;
+        \`;
       };
 
       pageInits.logs = function() {
@@ -2572,7 +2572,7 @@ export const HTML_PAGE = `<!DOCTYPE html>
       let selectedImages = [];
 
       pageRenderers.images = function() {
-        return `
+        return \`
           <div class="page-header">
             <h1><i class="fas fa-images" style="color:var(--accent-soft);margin-left:10px;"></i> إدارة الصور</h1>
             <p>رفع وحذف الصور (الحد الأقصى 3 صور)</p>
@@ -2592,7 +2592,7 @@ export const HTML_PAGE = `<!DOCTYPE html>
             </div>
             <div id="imagesStatus" class="status"></div>
           </div>
-        `;
+        \`;
       };
 
       pageInits.images = function() {
@@ -2613,7 +2613,7 @@ export const HTML_PAGE = `<!DOCTYPE html>
               div.style.cssText =
                 'width:80px;height:80px;border-radius:8px;overflow:hidden;position:relative;border:1px solid var(--border-subtle);';
               div.innerHTML =
-                `<img src="${ev.target.result}" style="width:100%;height:100%;object-fit:cover;" /><button data-index="${idx}" style="position:absolute;top:2px;right:2px;background:var(--red);color:#fff;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:10px;">X</button>`;
+                \`<img src="\${ev.target.result}" style="width:100%;height:100%;object-fit:cover;" /><button data-index="\${idx}" style="position:absolute;top:2px;right:2px;background:var(--red);color:#fff;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:10px;">X</button>\`;
               preview.appendChild(div);
               div.querySelector('button').onclick = function() {
                 selectedImages.splice(idx, 1);
@@ -2649,7 +2649,7 @@ export const HTML_PAGE = `<!DOCTYPE html>
             const div = document.createElement('div');
             div.className = 'image-item';
             div.innerHTML =
-              `<img src="${f.download_url}" /><button class="delete-btn" data-filename="${f.name}"><i class="fas fa-trash"></i></button>`;
+              \`<img src="\${f.download_url}" /><button class="delete-btn" data-filename="\${f.name}"><i class="fas fa-trash"></i></button>\`;
             list.appendChild(div);
           });
           document.querySelectorAll('.delete-btn').forEach(btn => {
@@ -2713,7 +2713,7 @@ export const HTML_PAGE = `<!DOCTYPE html>
       let qrInterval = null;
 
       pageRenderers.session = function() {
-        return `
+        return \`
           <div class="page-header">
             <h1><i class="fas fa-qrcode" style="color:var(--accent-soft);margin-left:10px;"></i> التحقق من الجلسة</h1>
             <p>عرض حالة جلسة واتساب ورمز QR عند الحاجة</p>
@@ -2734,7 +2734,7 @@ export const HTML_PAGE = `<!DOCTYPE html>
             </div>
             <div id="sessionStatus" class="status"></div>
           </div>
-        `;
+        \`;
       };
 
       pageInits.session = function() {
@@ -2796,7 +2796,7 @@ export const HTML_PAGE = `<!DOCTYPE html>
       const OPENROUTER_API_KEY = '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';
 
       function renderAIChat() {
-        mainContent.innerHTML = `
+        mainContent.innerHTML = \`
           <div class="chat-header">
             <div class="header-left">
               <span class="chat-title">🤖 الدردشة الذكية</span>
@@ -2839,7 +2839,7 @@ export const HTML_PAGE = `<!DOCTYPE html>
               <option value="meta-llama/llama-3.2-3b-instruct:free">Llama 3.2</option>
             </select>
           </div>
-        `;
+        \`;
         initAIChat();
       }
 
