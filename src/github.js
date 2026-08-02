@@ -69,3 +69,51 @@ export async function githubDeleteFile(env, path, sha, message) {
   if (!res.ok) throw new Error("GitHub DELETE error " + res.status + ": " + await res.text());
   return await res.json();
 }
+
+// github.js (إضافة الدوال التالية في نهاية الملف)
+
+// ... الدوال الموجودة سابقاً ...
+
+/**
+ * تشغيل workflow معين
+ * @param {Object} env - البيئة
+ * @param {string} workflowFile - اسم ملف الـ workflow (مثل "qr.yaml")
+ */
+export async function githubRunWorkflowByName(env, workflowFile) {
+  const branch = env.GITHUB_BRANCH || "main";
+  if (!workflowFile) throw new Error("workflowFile is required");
+  const url = "https://api.github.com/repos/" + env.GITHUB_OWNER + "/" + env.GITHUB_REPO + "/actions/workflows/" + encodeURIComponent(workflowFile) + "/dispatches";
+  const res = await fetch(url, { method: "POST", headers: ghHeaders(env), body: JSON.stringify({ ref: branch }) });
+  if (res.status !== 204) throw new Error("GitHub workflow dispatch error " + res.status + ": " + await res.text());
+  return true;
+}
+
+/**
+ * جلب قائمة تشغيلات workflow معين
+ * @param {Object} env
+ * @param {string} workflowFile
+ * @param {string|null} statusFilter - مثلاً 'in_progress', 'completed'
+ */
+export async function githubListWorkflowRunsByName(env, workflowFile, statusFilter = null) {
+  if (!workflowFile) throw new Error("workflowFile is required");
+  const url = "https://api.github.com/repos/" + env.GITHUB_OWNER + "/" + env.GITHUB_REPO + "/actions/workflows/" + encodeURIComponent(workflowFile) + "/runs";
+  const params = new URLSearchParams();
+  if (statusFilter) params.append('status', statusFilter);
+  const fullUrl = params.toString() ? url + "?" + params : url;
+  const res = await fetch(fullUrl, { headers: ghHeaders(env) });
+  if (!res.ok) throw new Error("GitHub list runs error " + res.status + ": " + await res.text());
+  const data = await res.json();
+  return data.workflow_runs || [];
+}
+
+/**
+ * إلغاء تشغيل workflow run معين
+ * @param {Object} env
+ * @param {number} runId
+ */
+export async function githubCancelWorkflowRun(env, runId) {
+  const url = "https://api.github.com/repos/" + env.GITHUB_OWNER + "/" + env.GITHUB_REPO + "/actions/runs/" + runId + "/cancel";
+  const res = await fetch(url, { method: "POST", headers: ghHeaders(env) });
+  if (res.status !== 202) throw new Error("GitHub cancel error " + res.status + ": " + await res.text());
+  return true;
+}
