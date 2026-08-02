@@ -1,4 +1,3 @@
-
 // src/html.js
 export const HTML_PAGE = `<!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -151,6 +150,8 @@ export const HTML_PAGE = `<!DOCTYPE html>
   .btn-primary { background: var(--accent); color: #111B21; border: none; font-weight: 700; }
   .btn-primary:hover { background: #1FB855; box-shadow: 0 4px 12px var(--accent-glow); }
   .btn-warning { background: var(--warning); border: none; color: #111B21; font-weight: 700; }
+  .btn-danger { background: var(--danger); border: none; color: #111B21; font-weight: 700; }
+  .btn-danger:hover { background: #c0392b; }
   
   .status { margin-top: 10px; font-size: 12px; min-height: 18px; color: var(--text-muted); text-align: center; }
   .status.ok { color: var(--success); }
@@ -282,24 +283,26 @@ export const HTML_PAGE = `<!DOCTYPE html>
       </div>
       <div class="status" id="statsStatus"></div>
     </div>
-<!-- ====== قسم حالة واتساب و QR ====== -->
-<div class="card">
-  <div class="card-header"><i class="fab fa-whatsapp"></i><h2>حالة واتساب</h2></div>
-  <div style="display:flex; flex-wrap:wrap; gap:20px; align-items:center;">
-    <div>
-      <div><strong>الحالة:</strong> <span id="sessionStatusText" style="color:var(--text-muted);">غير معروف</span></div>
-      <div style="margin-top:10px;">
-        <button class="btn btn-primary" id="runQRBtn" style="width:auto;"><i class="fas fa-play"></i> تشغيل QR</button>
-        <button class="btn btn-danger" id="stopQRBtn" style="width:auto;"><i class="fas fa-stop"></i> إيقاف QR</button>
-        <button class="btn" id="refreshSessionBtn" style="width:auto;"><i class="fas fa-sync"></i> تحديث</button>
+
+    <!-- ====== قسم حالة واتساب و QR (جديد) ====== -->
+    <div class="card">
+      <div class="card-header"><i class="fab fa-whatsapp"></i><h2>حالة واتساب</h2></div>
+      <div style="display:flex; flex-wrap:wrap; gap:20px; align-items:center;">
+        <div>
+          <div><strong>الحالة:</strong> <span id="sessionStatusText" style="color:var(--text-muted);">غير معروف</span></div>
+          <div style="margin-top:10px;">
+            <button class="btn btn-primary" id="runQRBtn" style="width:auto;"><i class="fas fa-play"></i> تشغيل QR</button>
+            <button class="btn btn-danger" id="stopQRBtn" style="width:auto;"><i class="fas fa-stop"></i> إيقاف QR</button>
+            <button class="btn" id="refreshSessionBtn" style="width:auto;"><i class="fas fa-sync"></i> تحديث</button>
+          </div>
+        </div>
+        <div id="qrCodeContainer" style="flex-shrink:0;">
+          <img id="qrImage" src="" alt="QR Code" style="display:none; width:200px; height:200px; border:2px solid var(--accent); border-radius:8px;"/>
+        </div>
       </div>
+      <div class="status" id="sessionStatus"></div>
     </div>
-    <div id="qrCodeContainer" style="flex-shrink:0;">
-      <img id="qrImage" src="" alt="QR Code" style="display:none; width:200px; height:200px; border:2px solid var(--accent); border-radius:8px;"/>
-    </div>
-  </div>
-  <div class="status" id="sessionStatus"></div>
-</div>
+
     <div class="content-grid">
       <!-- Messages Card -->
       <div class="card">
@@ -454,7 +457,6 @@ async function loadImages() {
       const deleteBtn = document.createElement('button');
       deleteBtn.className = 'delete-btn';
       deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
-      // ===== زر الحذف المعدل =====
       deleteBtn.onclick = async () => {
         if (!confirm(\`تأكيد حذف الصورة "\${file.name}"؟\`)) return;
         try {
@@ -665,6 +667,80 @@ document.getElementById("loadStatsBtn").onclick = async function() {
     });
   } catch (err) { setStatus(st, "خطأ: " + err.message, "err"); }
 };
+
+// ===== إدارة حالة واتساب و QR (جديد) =====
+const sessionStatusEl = document.getElementById('sessionStatus');
+const sessionStatusText = document.getElementById('sessionStatusText');
+const qrImage = document.getElementById('qrImage');
+
+async function refreshSession() {
+  setStatus(sessionStatusEl, 'جاري التحديث...', '');
+  try {
+    // جلب الحالة
+    const resStatus = await fetch('/api/session/status');
+    const dataStatus = await resStatus.json();
+    if (dataStatus.ok) {
+      const status = dataStatus.status || 'غير معروف';
+      sessionStatusText.textContent = status;
+      if (status === 'connected') {
+        sessionStatusText.style.color = 'var(--success)';
+      } else if (status === 'waiting_scan') {
+        sessionStatusText.style.color = 'var(--warning)';
+      } else {
+        sessionStatusText.style.color = 'var(--text-muted)';
+      }
+    } else {
+      throw new Error(dataStatus.error);
+    }
+
+    // جلب QR
+    const resQR = await fetch('/api/session/qr');
+    const dataQR = await resQR.json();
+    if (dataQR.ok && dataQR.qr) {
+      qrImage.src = dataQR.qr;
+      qrImage.style.display = 'block';
+    } else {
+      qrImage.style.display = 'none';
+    }
+    setStatus(sessionStatusEl, '✓ تم التحديث', 'ok');
+  } catch (err) {
+    setStatus(sessionStatusEl, 'خطأ: ' + err.message, 'err');
+  }
+}
+
+document.getElementById('refreshSessionBtn').addEventListener('click', refreshSession);
+
+document.getElementById('runQRBtn').addEventListener('click', async function() {
+  setStatus(sessionStatusEl, 'جاري تشغيل QR...', '');
+  try {
+    const res = await fetch('/api/qr/run', { method: 'POST' });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+    setStatus(sessionStatusEl, 'تم تشغيل QR workflow ✓', 'ok');
+    setTimeout(refreshSession, 3000);
+  } catch (err) {
+    setStatus(sessionStatusEl, 'خطأ: ' + err.message, 'err');
+  }
+});
+
+document.getElementById('stopQRBtn').addEventListener('click', async function() {
+  setStatus(sessionStatusEl, 'جاري إيقاف QR...', '');
+  try {
+    const res = await fetch('/api/qr/stop', { method: 'POST' });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+    setStatus(sessionStatusEl, 'تم إيقاف QR workflow ✓', 'ok');
+    setTimeout(refreshSession, 2000);
+  } catch (err) {
+    setStatus(sessionStatusEl, 'خطأ: ' + err.message, 'err');
+  }
+});
+
+// تحميل الحالة عند تحميل الصفحة
+refreshSession();
+// تحديث تلقائي كل 30 ثانية
+setInterval(refreshSession, 30000);
+
 </script>
 </body>
 </html>
