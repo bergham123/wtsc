@@ -7,7 +7,8 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// ------------------------- Configuration -------------------------
+// ==================== Configuration ====================
+const TRIGGERS = ['hi', 'hello', 'good morning'];
 const REPLIES = [
     "hi, im fine thanks",
     "Hello!",
@@ -17,10 +18,22 @@ const REPLIES = [
 const SESSION_DIR = path.join(__dirname, 'session');
 const SESSION_NAME = 'main';
 const TIMESTAMP_FILE = path.join(SESSION_DIR, 'last_run.txt');
+const QUEUE_FILE = path.join(SESSION_DIR, 'reply_queue.json');
 
-// ------------------------- Helpers -------------------------
+const MIN_DELAY_MS = 15 * 60 * 1000;
+const MAX_DELAY_MS = 30 * 60 * 1000;
+
+// Retry settings
+const MAX_RETRIES = 3;
+const RETRY_DELAY_MS = 3000;
+
+// ==================== Helpers ====================
 function getRandomReply() {
     return REPLIES[Math.floor(Math.random() * REPLIES.length)];
+}
+
+function getRandomDelay() {
+    return Math.floor(Math.random() * (MAX_DELAY_MS - MIN_DELAY_MS + 1)) + MIN_DELAY_MS;
 }
 
 async function readLastRun() {
@@ -28,7 +41,7 @@ async function readLastRun() {
         const data = await fs.readFile(TIMESTAMP_FILE, 'utf-8');
         return parseInt(data, 10);
     } catch {
-        return 0; // first run
+        return 0;
     }
 }
 
@@ -37,7 +50,45 @@ async function writeLastRun(timestamp) {
     await fs.writeFile(TIMESTAMP_FILE, String(timestamp));
 }
 
-// ------------------------- Main Bot -------------------------
+async function loadQueue() {
+    try {
+        const data = await fs.readFile(QUEUE_FILE, 'utf-8');
+        return JSON.parse(data);
+    } catch {
+        return [];
+    }
+}
+
+async function saveQueue(queue) {
+    await fs.ensureDir(SESSION_DIR);
+    await fs.writeFile(QUEUE_FILE, JSON.stringify(queue, null, 2));
+}
+
+// Sleep helper
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Retry wrapper for getChats
+async function getChatsWithRetry(client, retries = MAX_RETRIES) {
+    let lastError;
+    for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+            console.log(`📡 Fetching chats (attempt ${attempt}/${retries})...`);
+            const chats = await client.getChats();
+            console.log(`✅ Fetched ${chats.length} chats successfully.`);
+            return chats;
+        } catch (err) {
+            lastError = err;
+            console.warn(`⚠️ Attempt ${attempt} failed: ${err.message}`);
+            if (attempt < retries) {
+                console.log(`⏳ Waiting ${RETRY_DELAY_MS/1000}s before retry...`);
+                await sleep(RETRY_DELAY_MS);
+            }
+        }
+    }
+    throw new Error(`Failed to get chats after ${retries} attempts: ${lastError.message}`);
+}
+
+// ==================== Main Bot ====================
 const client = new Client({
     authStrategy: new LocalAuth({ clientId: SESSION_NAME, dataPath: SESSION_DIR }),
     puppeteer: {
@@ -65,52 +116,93 @@ const client = new Client({
     },
 });
 
-// QR code display (if no session exists)
 client.on('qr', qr => {
     console.log('📲 Scan this QR code with WhatsApp:');
     qrcode.generate(qr, { small: true });
 });
 
 client.on('ready', async () => {
-    console.log('✅ Bot is ready. Processing new messages...');
+    console.log('✅ Bot is ready. Waiting 5 seconds for page to stabilise...');
+    await sleep(5000); // <-- crucial delay to let the web interface settle
 
     try {
-        const lastRun = await readLastRun();
         const now = Date.now();
+        const lastRun = await readLastRun();
+        const queue = await loadQueue();
 
-        // Get all chats
-        const chats = await client.getChats();
-        let repliedCount = 0;
+        // --- 1. Send due replies ---
+        const dueReplies = queue.filter(item => item.scheduledTime <= now);
+        if (dueReplies.length > 0) {
+            console.log(`⏰ Sending ${dueReplies.length} due replies...`);
+            for (const item of dueReplies) {
+                try {
+                    const chat = await client.getChatById(item.chatId);
+                    await chat.sendMessage(item.replyText);
+                    console.log(`📤 Sent to ${item.chatId}: "${item.replyText}"`);
+                } catch (err) {
+                    console.error(`❌ Failed to send reply to ${item.chatId}:`, err.message);
+                }
+            }
+            const sentIds = new Set(dueReplies.map(item => item.messageId));
+            const remainingQueue = queue.filter(item => !sentIds.has(item.messageId));
+            await saveQueue(remainingQueue);
+        }
 
+        // --- 2. Fetch new messages and schedule replies ---
+        // Use retry mechanism for getChats
+        let chats;
+        try {
+            chats = await getChatsWithRetry(client);
+        } catch (err) {
+            console.error('❌ Failed to get chats after retries:', err.message);
+            process.exit(1);
+        }
+
+        let scheduledCount = 0;
         for (const chat of chats) {
             try {
-                // Fetch messages since last run (limit to avoid memory issues)
                 const messages = await chat.fetchMessages({ limit: 100 });
-
-                // Filter messages that are newer than lastRun and not sent by me
                 const newMessages = messages.filter(msg =>
                     msg.timestamp * 1000 > lastRun && !msg.fromMe
                 );
 
-                if (newMessages.length > 0) {
-                    const reply = getRandomReply();
-                    await chat.sendMessage(reply);
-                    console.log(`📤 Replied to ${chat.name || chat.id._serialized} with: "${reply}"`);
-                    repliedCount++;
+                for (const msg of newMessages) {
+                    const text = msg.body.toLowerCase().trim();
+                    const matched = TRIGGERS.some(trigger => text.includes(trigger));
+                    if (matched) {
+                        const alreadyScheduled = queue.some(item => item.messageId === msg.id._serialized);
+                        if (alreadyScheduled) continue;
+
+                        const delay = getRandomDelay();
+                        const scheduledTime = Date.now() + delay;
+                        const reply = getRandomReply();
+
+                        queue.push({
+                            chatId: chat.id._serialized,
+                            messageId: msg.id._serialized,
+                            scheduledTime,
+                            replyText: reply
+                        });
+
+                        console.log(`📅 Scheduled reply for "${msg.body}" from ${chat.name || chat.id._serialized} in ${Math.round(delay/60000)} min`);
+                        scheduledCount++;
+                    }
                 }
             } catch (err) {
                 console.error(`⚠️ Error processing chat ${chat.id._serialized}:`, err.message);
             }
         }
 
-        // Update timestamp
+        if (scheduledCount > 0) {
+            await saveQueue(queue);
+        }
+
         await writeLastRun(now);
-        console.log(`✅ Done. Replied to ${repliedCount} chat(s).`);
+        console.log(`✅ Done. Scheduled ${scheduledCount} new replies. Sent ${dueReplies.length} due replies.`);
 
     } catch (err) {
-        console.error('❌ Error during processing:', err);
+        console.error('❌ Fatal error:', err);
     } finally {
-        // Exit gracefully after a short delay to allow messages to send
         setTimeout(() => {
             client.destroy().catch(() => {});
             process.exit(0);
@@ -118,26 +210,25 @@ client.on('ready', async () => {
     }
 });
 
-client.on('auth_failure', (msg) => {
-    console.error('❌ Authentication failed:', msg);
+client.on('auth_failure', msg => {
+    console.error('❌ Auth failure:', msg);
     process.exit(1);
 });
 
-client.on('disconnected', (reason) => {
+client.on('disconnected', reason => {
     console.warn('⚠️ Disconnected:', reason);
     process.exit(1);
 });
 
-// Remove stale lock files before starting
+// Remove stale lock files
 import { execSync } from 'child_process';
 try {
     execSync(`find ${SESSION_DIR} -name "SingletonLock" -delete 2>/dev/null || true`, { shell: true });
     execSync(`find ${SESSION_DIR} -name "*.lock" -delete 2>/dev/null || true`, { shell: true });
 } catch {}
 
-// Start the client
 console.log('🚀 Initializing WhatsApp client...');
 client.initialize().catch(err => {
-    console.error('❌ Failed to initialize:', err);
+    console.error('❌ Init failed:', err);
     process.exit(1);
 });
