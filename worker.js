@@ -1,19 +1,26 @@
 // worker.js - المدخل الرئيسي
 import { HTML_PAGE } from './src/html.js';
 
-import { 
-  handleLoad, handleSave, handleRunWorkflow,
-  handleUploadImage, handleGetLogs, handleGetLogContent,
-  handleGetStats, handleLoadSchedule, handleSaveSchedule,
-  handleListImages, handleDeleteImage,
-  // استيرادات جديدة للـ session و QR
-  handleRunQRWorkflow, handleStopQRWorkflow,
-  handleGetStatus, handleSetStatus,
-  handleGetQR, handleSetQR
+import {
+  handleLoad,
+  handleSave,
+  handleRunWorkflow,
+  handleUploadImage,
+  handleGetLogs,
+  handleGetLogContent,
+  handleGetStats,
+  handleLoadSchedule,
+  handleSaveSchedule,
+  handleListImages,
+  handleDeleteImage,
+  // استيرادات جديدة للـ session و QR workflow
+  handleRunQRWorkflow,
+  handleStopQRWorkflow,
+  handleGetStatus,
+  handleSetStatus,
+  handleGetQR,
+  handleSetQR
 } from './src/handlers.js';
-
-// import live functions directly if not exported from handlers
-// ولكننا سنصدّرها من handlers.js لجعل الأمور مركزية
 
 export default {
   async fetch(request, env) {
@@ -37,7 +44,7 @@ export default {
     if (url.pathname === "/api/images" && request.method === "GET") return handleListImages(request, env);
     if (url.pathname === "/api/delete-image" && request.method === "POST") return handleDeleteImage(request, env);
 
-    // ====== إضافة مسارات جديدة للـ Session و QR ======
+    // ===== مسارات جديدة للـ Session و QR =====
     // حالة الجلسة
     if (url.pathname === "/api/session/status" && request.method === "GET") return handleGetStatus(request, env);
     if (url.pathname === "/api/session/status" && request.method === "POST") return handleSetStatus(request, env);
