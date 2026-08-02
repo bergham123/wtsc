@@ -1,29 +1,30 @@
 // worker.js - المدخل الرئيسي
 import { HTML_PAGE } from './src/html.js';
 
-
 import { 
-  handleLoad,
-  handleSave,
-  handleRunWorkflow,
-  handleUploadImage,
-  handleGetLogs,
-  handleGetLogContent,
-  handleGetStats,
-  handleLoadSchedule,
-  handleSaveSchedule,
-  handleListImages,
-  handleDeleteImage   // استيراد الجديد
+  handleLoad, handleSave, handleRunWorkflow,
+  handleUploadImage, handleGetLogs, handleGetLogContent,
+  handleGetStats, handleLoadSchedule, handleSaveSchedule,
+  handleListImages, handleDeleteImage,
+  // استيرادات جديدة للـ session و QR
+  handleRunQRWorkflow, handleStopQRWorkflow,
+  handleGetStatus, handleSetStatus,
+  handleGetQR, handleSetQR
 } from './src/handlers.js';
 
+// import live functions directly if not exported from handlers
+// ولكننا سنصدّرها من handlers.js لجعل الأمور مركزية
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
 
+    // الصفحة الرئيسية
     if (url.pathname === "/" && request.method === "GET") {
       return new Response(HTML_PAGE, { headers: { "Content-Type": "text/html; charset=utf-8" } });
     }
+
+    // API endpoints الحالية
     if (url.pathname === "/api/load" && request.method === "GET") return handleLoad(request, env);
     if (url.pathname === "/api/save" && request.method === "POST") return handleSave(request, env);
     if (url.pathname === "/api/run-workflow" && request.method === "POST") return handleRunWorkflow(request, env);
@@ -33,10 +34,19 @@ export default {
     if (url.pathname === "/api/schedule" && request.method === "GET") return handleLoadSchedule(request, env);
     if (url.pathname === "/api/schedule" && request.method === "POST") return handleSaveSchedule(request, env);
     if (url.pathname === "/api/stats" && request.method === "GET") return handleGetStats(request, env);
-    // داخل fetch
     if (url.pathname === "/api/images" && request.method === "GET") return handleListImages(request, env);
     if (url.pathname === "/api/delete-image" && request.method === "POST") return handleDeleteImage(request, env);
 
+    // ====== إضافة مسارات جديدة للـ Session و QR ======
+    // حالة الجلسة
+    if (url.pathname === "/api/session/status" && request.method === "GET") return handleGetStatus(request, env);
+    if (url.pathname === "/api/session/status" && request.method === "POST") return handleSetStatus(request, env);
+    // QR code
+    if (url.pathname === "/api/session/qr" && request.method === "GET") return handleGetQR(request, env);
+    if (url.pathname === "/api/session/qr" && request.method === "POST") return handleSetQR(request, env);
+    // التحكم في QR workflow
+    if (url.pathname === "/api/qr/run" && request.method === "POST") return handleRunQRWorkflow(request, env);
+    if (url.pathname === "/api/qr/stop" && request.method === "POST") return handleStopQRWorkflow(request, env);
 
     return new Response("Not found", { status: 404 });
   }
