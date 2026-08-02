@@ -70,13 +70,11 @@ export async function githubDeleteFile(env, path, sha, message) {
   return await res.json();
 }
 
-// github.js (إضافة الدوال التالية في نهاية الملف)
-
-// ... الدوال الموجودة سابقاً ...
+// ===== دوال جديدة مرنة لإدارة workflows =====
 
 /**
  * تشغيل workflow معين
- * @param {Object} env - البيئة
+ * @param {Object} env
  * @param {string} workflowFile - اسم ملف الـ workflow (مثل "qr.yaml")
  */
 export async function githubRunWorkflowByName(env, workflowFile) {
