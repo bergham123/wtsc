@@ -54,7 +54,7 @@ jobs:
         env:
           WORKER_URL: ${{ secrets.WORKER_URL }}
           API_SECRET: ${{ secrets.API_SECRET }}
-        run: node index.js
+        run: node qr.js
 
       # ===== تنظيف الملفات المؤقتة =====
       - name: Clean temporary Chromium files
