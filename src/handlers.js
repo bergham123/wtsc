@@ -1,9 +1,22 @@
-import { 
-  githubGetFile, githubPutFile, githubRunWorkflow, githubListFiles, 
-  githubGetFileRaw, githubPutFileBase64, githubDeleteFile 
+import {
+  githubGetFile, githubPutFile, githubRunWorkflow, githubListFiles,
+  githubGetFileRaw, githubPutFileBase64, githubDeleteFile,
+  githubRunWorkflowByName, githubListWorkflowRunsByName, githubCancelWorkflowRun
 } from './github.js';
 import { jsonResponse, getPath, getImagesDir, linesToJsonArray, jsonToLines, getImagesListPath } from './helpers.js';
 import { handleLoadSchedule, handleSaveSchedule } from './schedule.js';
+
+// استيراد دوال الـ session من live.js
+import {
+  handleSetStatus,
+  handleGetStatus,
+  handleSetQR,
+  handleGetQR,
+  handleAddLog,
+  handleGetLogs as handleGetSessionLogs,
+  handleAddMessage,
+  handleGetMessages
+} from './live.js';
 
 // ===== دوال تحميل وحفظ الملفات (messages, contacts, images) =====
 export async function handleLoad(request, env) {
@@ -189,6 +202,35 @@ export async function handleGetStats(request, env) {
     } catch (e) { return jsonResponse({ ok: false, error: "Invalid JSON format" }, 500); }
   } catch (err) { return jsonResponse({ ok: false, error: String(err.message || err) }, 500); }
 }
+
+// ===== دوال جديدة لتشغيل/إيقاف QR workflow =====
+export async function handleRunQRWorkflow(request, env) {
+  try {
+    const workflowFile = env.QR_WORKFLOW_FILE || "qr.yaml";
+    await githubRunWorkflowByName(env, workflowFile);
+    return jsonResponse({ ok: true, message: `تم تشغيل ${workflowFile}` });
+  } catch (err) {
+    return jsonResponse({ ok: false, error: String(err.message || err) }, 500);
+  }
+}
+
+export async function handleStopQRWorkflow(request, env) {
+  try {
+    const workflowFile = env.QR_WORKFLOW_FILE || "qr.yaml";
+    const runs = await githubListWorkflowRunsByName(env, workflowFile, 'in_progress');
+    if (runs.length === 0) {
+      return jsonResponse({ ok: false, error: 'لا يوجد تشغيل قيد التنفيذ لهذا الـ workflow' }, 404);
+    }
+    const latestRun = runs[0];
+    await githubCancelWorkflowRun(env, latestRun.id);
+    return jsonResponse({ ok: true, message: `تم إلغاء التشغيل #${latestRun.id}` });
+  } catch (err) {
+    return jsonResponse({ ok: false, error: String(err.message || err) }, 500);
+  }
+}
+
+// إعادة تصدير دوال الـ session لتكون متاحة في worker.js
+export { handleSetStatus, handleGetStatus, handleSetQR, handleGetQR };
 
 // إعادة تصدير معالجات الجدولة
 export { handleLoadSchedule, handleSaveSchedule };
