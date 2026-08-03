@@ -15,11 +15,6 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 24
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
-
       # ===== استعادة الجلسة من الكاش =====
       - name: Restore session from cache
         id: restore-session
@@ -31,16 +26,8 @@ jobs:
             whatsapp-session-${{ runner.os }}-
             whatsapp-session-
 
-      - name: Ensure session directory
-        run: mkdir -p session
-
-      - name: Report restored session
-        run: |
-          if [ -d "session/session-main/Default/IndexedDB" ] || [ -d "session/session-main/Default/Local Storage" ]; then
-            echo "✅ Restored WhatsApp session from cache"
-          else
-            echo "ℹ️ No reusable WhatsApp session found; QR scan may be required"
-          fi
+      - name: Ensure directories exist
+        run: mkdir -p session data logs dashboard
 
       - name: Remove Chromium locks
         run: |
@@ -50,20 +37,24 @@ jobs:
           find session -name "*.lock" -delete 2>/dev/null || true
           find session -name "DevToolsActivePort" -delete 2>/dev/null || true
 
-      - name: Install system Chromium
-        run: sudo apt-get update && sudo apt-get install -y chromium-browser
+      # ===== بناء الـ Docker Image =====
+      - name: Build Docker Image
+        run: docker build -t wa-bot .
 
-      - name: Install dependencies
-        run: npm install --legacy-peer-deps
-        env:
-          PUPPETEER_SKIP_DOWNLOAD: "true"
-
-      # ===== تشغيل البوت =====
-      - name: Run WhatsApp bot
+      # ===== تشغيل البوت داخل Docker =====
+      - name: Run WhatsApp bot in Docker
         env:
           WORKER_URL: ${{ secrets.WORKER_URL }}
           API_SECRET: ${{ secrets.API_SECRET }}
-        run: node index.js
+        run: |
+          docker run --rm \
+            -v $(pwd)/session:/app/session \
+            -v $(pwd)/data:/app/data \
+            -v $(pwd)/logs:/app/logs \
+            -v $(pwd)/dashboard:/app/dashboard \
+            -e WORKER_URL="$WORKER_URL" \
+            -e API_SECRET="$API_SECRET" \
+            wa-bot
 
       # ===== تنظيف الملفات المؤقتة =====
       - name: Clean temporary Chromium files
@@ -99,7 +90,7 @@ jobs:
           path: session
           key: whatsapp-session-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
 
-      # ===== (اختياري) رفع الـ Artifacts للاطلاع =====
+      # ===== رفع الـ Artifacts للاطلاع =====
       - name: Upload logs (artifact)
         if: always()
         uses: actions/upload-artifact@v4
@@ -124,7 +115,8 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add logs/ dashboard/ aggregate.json || true
+          # ملاحظة: aggregate.json موجود داخل مجلد data حسب كودك
+          git add logs/ dashboard/ data/aggregate.json || true
           if git diff --staged --quiet; then
             echo "📭 No changes to commit"
           else
