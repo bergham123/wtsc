@@ -40,7 +40,6 @@ jobs:
           find session -name "SingletonLock" -delete 2>/dev/null || true
           find session -name "SingletonSocket" -delete 2>/dev/null || true
           find session -name "SingletonCookie" -delete 2>/dev/null || true
-          find session -name "*.lock" -delete 2>/dev/null || true
           find session -name "DevToolsActivePort" -delete 2>/dev/null || true
 
       # ===== بناء الـ Docker Image =====
@@ -67,11 +66,11 @@ jobs:
         if: always()
         run: sudo chown -R $USER:$USER session data logs dashboard || true
 
-      # ===== تنظيف الملفات المؤقتة بشدة لتقليل الحجم =====
-      - name: Clean temporary Chromium files
+      # ===== تنظيف الكاش المؤقت فقط (بدون المساس بالجلسة) =====
+      - name: Clean temporary Chromium files (Safe)
         if: always()
         run: |
-          echo "🧹 Cleaning heavy Chromium files..."
+          echo "🧹 Cleaning safe cache files (preserving session)..."
           rm -rf session/*/Cache 2>/dev/null || true
           rm -rf session/*/"Code Cache" 2>/dev/null || true
           rm -rf session/*/GPUCache 2>/dev/null || true
@@ -87,18 +86,11 @@ jobs:
           rm -rf session/*/Sessions 2>/dev/null || true
           rm -rf session/*/blob_storage 2>/dev/null || true
           
-          # حذف كاش الـ Service Worker (هذا الذي يأخذ مساحة كبيرة جداً)
+          # حذف الكاش المؤقت لـ Service Worker (بدون حذف قاعدة البيانات)
           rm -rf session/*/Default/"Service Worker"/CacheStorage 2>/dev/null || true
           rm -rf session/*/Default/"Service Worker"/ScriptCache 2>/dev/null || true
-          rm -rf session/*/Default/"Service Worker"/Database 2>/dev/null || true
           
-          # حذف جميع ملفات السجلات والأقفال المتبقية
-          find session -name "*.log" -type f -delete 2>/dev/null || true
-          find session -name "LOG" -type f -delete 2>/dev/null || true
-          find session -name "LOG.old" -type f -delete 2>/dev/null || true
-          find session -name "LOCK" -type f -delete 2>/dev/null || true
-          
-          echo "✅ Heavy files cleaned."
+          echo "✅ Safe cleaning completed."
 
       # ===== التحقق من صلاحية الجلسة لحفظ الكاش =====
       - name: Check session validity
