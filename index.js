@@ -10,17 +10,19 @@ import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // =================== Constants ===================
-const ACCOUNTS_FILE = path.join(__dirname, "accounts.json");
-const MESSAGE_FILE = path.join(__dirname, "message.txt");
-const MESSAGES_FILE = path.join(__dirname, "message.json");
-const IMAGES_LIST_FILE = path.join(__dirname, "images.json");
+const DATA_DIR = path.join(__dirname, "data");
+const ACCOUNTS_FILE = path.join(DATA_DIR, "accounts.json");
+const MESSAGES_FILE = path.join(DATA_DIR, "message.json");
+const IMAGES_LIST_FILE = path.join(DATA_DIR, "images.json");
 const DASHBOARD_DIR = path.join(__dirname, "dashboard");
 const SESSION_DIR = path.join(__dirname, "session");
 const LOGS_DIR = path.join(__dirname, "logs");
-const CHECKPOINT_FILE = path.join(__dirname, "checkpoint.json");
-const LOCAL_LOG_FILE = path.join(__dirname, "qr_status_log.json");
-const AGGREGATE_FILE = path.join(__dirname, "aggregate.json");   // <-- الملف الجديد
-const ADMIN_NUMBER = "212642284241";
+const CHECKPOINT_FILE = path.join(DATA_DIR, "checkpoint.json");
+const AGGREGATE_FILE = path.join(DATA_DIR, "aggregate.json");
+const ADMIN_NUMBER_FILE = path.join(DATA_DIR, "admin-number.json");
+
+// Admin number loaded dynamically
+let ADMIN_NUMBER = "212642284241"; // fallback
 
 const MAX_RETRIES = 2;
 const RETRY_DELAY = 5000;
@@ -60,7 +62,6 @@ function log(msg) {
     const line = `[${timestamp}] ${msg}`;
     console.log(msg);
 
-    // قائمة بالعبارات المطلوب تسجيلها في الملف فقط
     const importantKeywords = [
         'Image sent to',
         'Message sent to',
@@ -111,25 +112,6 @@ async function sendToWorker(endpoint, data, retries = 2) {
     }
     log(`❌ Failed to send to worker after ${retries+1} attempts`);
     return false;
-}
-
-// =================== Local Storage for QR & Status ===================
-async function logQRStatusLocally(type, data) {
-    try {
-        let logs = [];
-        if (await fs.pathExists(LOCAL_LOG_FILE)) {
-            logs = await fs.readJson(LOCAL_LOG_FILE);
-        }
-        logs.push({
-            timestamp: new Date().toISOString(),
-            type: type,
-            data: data
-        });
-        await fs.writeJson(LOCAL_LOG_FILE, logs, { spaces: 2 });
-        log(`💾 Saved ${type} locally`);
-    } catch (err) {
-        log(`⚠️ Failed to save locally: ${err.message}`);
-    }
 }
 
 // =================== File Helpers ===================
@@ -196,10 +178,7 @@ async function cleanArtifacts() {
             await fs.remove(CHECKPOINT_FILE);
             log("🗑️ Removed old checkpoint.json");
         }
-        if (await fs.pathExists(LOCAL_LOG_FILE)) {
-            await fs.remove(LOCAL_LOG_FILE);
-            log("🗑️ Removed old qr_status_log.json");
-        }
+        // Removed removal of qr_status_log.json
         await cleanTempFiles();
         await removeLocks();
     } catch (err) {
@@ -250,7 +229,6 @@ async function updateAggregate(dashboard) {
             aggregate = await fs.readJson(AGGREGATE_FILE);
             if (!Array.isArray(aggregate)) aggregate = [];
         }
-        // البحث عن إدخال بنفس التاريخ
         const today = dashboard.date;
         const index = aggregate.findIndex(entry => entry.date === today);
         const newEntry = {
@@ -269,6 +247,29 @@ async function updateAggregate(dashboard) {
         await fs.writeJson(AGGREGATE_FILE, aggregate, { spaces: 2 });
     } catch (err) {
         log(`⚠️ Failed to update aggregate: ${err.message}`);
+    }
+}
+
+// =================== Load Admin Number from file ===================
+async function loadAdminNumber() {
+    try {
+        if (await fs.pathExists(ADMIN_NUMBER_FILE)) {
+            const data = await fs.readJson(ADMIN_NUMBER_FILE);
+            if (typeof data === 'string') {
+                ADMIN_NUMBER = data.trim();
+            } else if (data && typeof data.adminNumber === 'string') {
+                ADMIN_NUMBER = data.adminNumber.trim();
+            } else if (data && typeof data === 'number') {
+                ADMIN_NUMBER = String(data);
+            } else {
+                log(`⚠️ admin-number.json has unrecognized format, using fallback: ${ADMIN_NUMBER}`);
+            }
+            log(`📌 Loaded admin number: ${ADMIN_NUMBER}`);
+        } else {
+            log(`⚠️ admin-number.json not found, using fallback: ${ADMIN_NUMBER}`);
+        }
+    } catch (err) {
+        log(`⚠️ Failed to load admin-number.json: ${err.message}, using fallback: ${ADMIN_NUMBER}`);
     }
 }
 
@@ -351,10 +352,8 @@ async function runBot(client, stopSignal) {
             if (!stopSignal.isRunning) break;
             await wait(randomDelay()); index++;
         }
-        // حفظ dashboard النهائي
         await saveJSON(dashboardPath, dashboard);
         await saveCheckpoint(checkpoint);
-        // تحديث ملف aggregate.json
         await updateAggregate(dashboard);
         log("🏁 Batch complete");
         await fs.remove(CHECKPOINT_FILE).catch(() => {});
@@ -433,7 +432,6 @@ async function attemptBot() {
             clearTimeout(qrTimeout);
             log("📲 QR code generated - scan now");
             qrcode.generate(qr, { small: true });
-            await logQRStatusLocally("qr", { qr: qr });
             try {
                 const qrDataUrl = await QRCode.toDataURL(qr);
                 await sendToWorker("/api/live/qr", { qr: qrDataUrl });
@@ -447,7 +445,6 @@ async function attemptBot() {
             clearTimeout(qrTimeout);
             log("♻️ Session ready");
             await sendToWorker("/api/live/status", { status: "connected" });
-            await logQRStatusLocally("status", { status: "connected" });
             log("⏳ Stabilizing...");
             await wait(3000);
             await runBot(client, stopSignal);
@@ -460,7 +457,6 @@ async function attemptBot() {
             clearTimeout(qrTimeout);
             stopSignal.isRunning = false;
             await sendToWorker("/api/live/status", { status: "disconnected" });
-            await logQRStatusLocally("status", { status: "disconnected", reason });
             try { await client.destroy(); } catch {}
             await cleanTempFiles();
             if (reason === "LOGOUT") {
@@ -476,7 +472,6 @@ async function attemptBot() {
             clearTimeout(qrTimeout);
             stopSignal.isRunning = false;
             await sendToWorker("/api/live/status", { status: "disconnected" });
-            await logQRStatusLocally("status", { status: "auth_failure", msg });
             try { await client.destroy(); } catch {}
             await clearSession();
             finish("AUTH_FAILURE");
@@ -523,10 +518,12 @@ async function main() {
         log(`⚠️ Unhandled rejection: ${reason?.message || reason}`);
     });
 
+    fs.ensureDirSync(DATA_DIR);
     fs.ensureDirSync(SESSION_DIR);
     fs.ensureDirSync(LOGS_DIR);
     fs.ensureDirSync(DASHBOARD_DIR);
 
+    await loadAdminNumber();
     await cleanArtifacts();
 
     initLogger();
