@@ -8,6 +8,11 @@ on:
 permissions:
   contents: write
 
+# منع تشغيل نسختين من نفس السكربت في نفس الوقت
+concurrency:
+  group: whatsapp-bot-run
+  cancel-in-progress: false
+
 jobs:
   run:
     runs-on: ubuntu-latest
@@ -95,6 +100,27 @@ jobs:
           path: session
           key: whatsapp-session-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
 
+      # ===== تنظيف الكاشات القديمة تلقائياً لتوفير المساحة =====
+      - name: Cleanup old session caches
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          CURRENT_KEY="whatsapp-session-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}"
+          echo "Current cache key: $CURRENT_KEY"
+          
+          # جلب جميع IDs الكاشات التي تبدأ بـ whatsapp-session- باستثناء الكاش الحالي
+          IDS=$(gh cache list --repo ${{ github.repository }} --json id,key --jq ".[] | select((.key | startswith(\"whatsapp-session-\")) and .key != \"$CURRENT_KEY\") | .id")
+          
+          if [ -z "$IDS" ]; then
+            echo "✅ No old caches to delete."
+          else
+            for id in $IDS; do
+              echo "🗑️ Deleting old cache ID: $id"
+              gh cache delete "$id" --repo ${{ github.repository }} || true
+            done
+            echo "✅ Old caches cleaned up."
+          fi
+
       # ===== رفع الـ Artifacts للاطلاع =====
       - name: Upload logs (artifact)
         if: always()
@@ -120,7 +146,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # ملاحظة: aggregate.json موجود داخل مجلد data حسب كودك
           git add logs/ dashboard/ data/aggregate.json || true
           if git diff --staged --quiet; then
             echo "📭 No changes to commit"
