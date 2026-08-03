@@ -7,7 +7,7 @@ on:
 
 permissions:
   contents: write
-  actions: write   # <-- أضف هذا السطر لمنح صلاحية حذف الكاشات
+  actions: write # صلاحية حذف الكاشات القديمة
 
 # منع تشغيل نسختين من نفس السكربت في نفس الوقت
 concurrency:
@@ -67,10 +67,11 @@ jobs:
         if: always()
         run: sudo chown -R $USER:$USER session data logs dashboard || true
 
-      # ===== تنظيف الملفات المؤقتة =====
+      # ===== تنظيف الملفات المؤقتة بشدة لتقليل الحجم =====
       - name: Clean temporary Chromium files
         if: always()
         run: |
+          echo "🧹 Cleaning heavy Chromium files..."
           rm -rf session/*/Cache 2>/dev/null || true
           rm -rf session/*/"Code Cache" 2>/dev/null || true
           rm -rf session/*/GPUCache 2>/dev/null || true
@@ -80,6 +81,24 @@ jobs:
           rm -rf session/*/GraphiteDawnCache 2>/dev/null || true
           rm -rf session/*/ShaderCache 2>/dev/null || true
           rm -rf session/*/DawnCache 2>/dev/null || true
+          rm -rf session/*/DawnGraphiteCache 2>/dev/null || true
+          rm -rf session/*/DawnWebGPUCache 2>/dev/null || true
+          rm -rf session/*/GPUPersistentCache 2>/dev/null || true
+          rm -rf session/*/Sessions 2>/dev/null || true
+          rm -rf session/*/blob_storage 2>/dev/null || true
+          
+          # حذف كاش الـ Service Worker (هذا الذي يأخذ مساحة كبيرة جداً)
+          rm -rf session/*/Default/"Service Worker"/CacheStorage 2>/dev/null || true
+          rm -rf session/*/Default/"Service Worker"/ScriptCache 2>/dev/null || true
+          rm -rf session/*/Default/"Service Worker"/Database 2>/dev/null || true
+          
+          # حذف جميع ملفات السجلات والأقفال المتبقية
+          find session -name "*.log" -type f -delete 2>/dev/null || true
+          find session -name "LOG" -type f -delete 2>/dev/null || true
+          find session -name "LOG.old" -type f -delete 2>/dev/null || true
+          find session -name "LOCK" -type f -delete 2>/dev/null || true
+          
+          echo "✅ Heavy files cleaned."
 
       # ===== التحقق من صلاحية الجلسة لحفظ الكاش =====
       - name: Check session validity
