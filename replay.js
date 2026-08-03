@@ -4,7 +4,6 @@ import qrcode from 'qrcode-terminal';
 import fs from 'fs-extra';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { execSync } from 'child_process';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -21,20 +20,13 @@ const SESSION_NAME = 'main';
 const TIMESTAMP_FILE = path.join(SESSION_DIR, 'last_run.txt');
 const QUEUE_FILE = path.join(SESSION_DIR, 'reply_queue.json');
 
-const MIN_DELAY_MS = 15 * 60 * 1000;
-const MAX_DELAY_MS = 30 * 60 * 1000;
+const MIN_DELAY_MS = 15 * 60 * 1000;   // 15 min
+const MAX_DELAY_MS = 30 * 60 * 1000;   // 30 min
 
-// Retry settings
-const MAX_RETRIES = 3;
-const RETRY_DELAY_MS = 3000;
-
-// Remove stale lock files BEFORE initialization
-try {
-    execSync(`find ${SESSION_DIR} -name "SingletonLock" -delete 2>/dev/null || true`, { shell: true });
-    execSync(`find ${SESSION_DIR} -name "*.lock" -delete 2>/dev/null || true`, { shell: true });
-} catch (e) {
-    // Ignore cleanup errors
-}
+// Retry settings for getChats
+const MAX_RETRIES = 5;
+const BASE_RETRY_DELAY_MS = 3000;
+const GET_CHATS_TIMEOUT_MS = 60000;    // 60 sec
 
 // ==================== Helpers ====================
 function getRandomReply() {
@@ -75,24 +67,68 @@ async function saveQueue(queue) {
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-async function getChatsWithRetry(client, retries = MAX_RETRIES) {
+// ==================== Robust getChats with retry & timeout ====================
+async function getChatsWithRetry(client) {
     let lastError;
-    for (let attempt = 1; attempt <= retries; attempt++) {
+    let delay = BASE_RETRY_DELAY_MS;
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
         try {
-            console.log(`📡 Fetching chats (attempt ${attempt}/${retries})...`);
-            const chats = await client.getChats();
+            console.log(`📡 Fetching chats (attempt ${attempt}/${MAX_RETRIES})...`);
+
+            // ---- Check if the page is still responsive ----
+            const page = client.pupPage;
+            if (!page) {
+                throw new Error('Puppeteer page is not available');
+            }
+            // Quick health check: evaluate a simple expression
+            await page.evaluate(() => document?.readyState || 'loading').catch(() => {
+                throw new Error('Page is not responsive');
+            });
+
+            // ---- Wrap getChats in a timeout ----
+            const chats = await Promise.race([
+                client.getChats(),
+                new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('getChats timed out')), GET_CHATS_TIMEOUT_MS)
+                )
+            ]);
+
             console.log(`✅ Fetched ${chats.length} chats successfully.`);
             return chats;
         } catch (err) {
             lastError = err;
-            console.warn(`⚠️ Attempt ${attempt} failed: ${err.message}`);
-            if (attempt < retries) {
-                console.log(`⏳ Waiting ${RETRY_DELAY_MS / 1000}s before retry...`);
-                await sleep(RETRY_DELAY_MS);
+            console.warn(`⚠️ Attempt ${attempt} failed:`, err.message || err);
+
+            if (attempt < MAX_RETRIES) {
+                const waitMs = delay + Math.floor(Math.random() * 2000);
+                console.log(`⏳ Waiting ${(waitMs / 1000).toFixed(1)}s before retry...`);
+                await sleep(waitMs);
+                delay = Math.min(delay * 1.5, 20000); // exponential backoff up to 20s
             }
         }
     }
-    throw new Error(`Failed to get chats after ${retries} attempts: ${lastError.message}`);
+
+    // If all attempts failed, optionally clear session and exit
+    console.error('❌ All retries exhausted. The session might be corrupted.');
+    // Uncomment the next line to automatically wipe the session and let the script restart
+    // await fs.remove(SESSION_DIR).catch(() => {});
+    throw new Error(`Failed to get chats after ${MAX_RETRIES} attempts: ${lastError?.message || lastError}`);
+}
+
+// ==================== Remove lock files (portable) ====================
+async function removeLocks() {
+    try {
+        if (!await fs.pathExists(SESSION_DIR)) return;
+        const files = await fs.readdir(SESSION_DIR);
+        for (const file of files) {
+            if (file === 'SingletonLock' || file.endsWith('.lock')) {
+                await fs.remove(path.join(SESSION_DIR, file)).catch(() => {});
+            }
+        }
+    } catch (err) {
+        console.warn('⚠️ Could not remove lock files:', err.message);
+    }
 }
 
 // ==================== Main Bot ====================
@@ -100,7 +136,7 @@ const client = new Client({
     authStrategy: new LocalAuth({ clientId: SESSION_NAME, dataPath: SESSION_DIR }),
     puppeteer: {
         headless: 'new',
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser',
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
@@ -118,8 +154,8 @@ const client = new Client({
             '--disable-crashpad',
             '--aggressive-cache-discard'
         ],
-        timeout: 60000,
-        protocolTimeout: 60000,
+        timeout: 120000,          // 2 min for Puppeteer operations
+        protocolTimeout: 120000,
     },
 });
 
@@ -129,13 +165,13 @@ client.on('qr', qr => {
 });
 
 client.on('ready', async () => {
-    console.log('✅ Bot is ready. Waiting 5 seconds for page to stabilise...');
-    await sleep(5000);
+    console.log('✅ Bot is ready. Waiting 10 seconds for page to stabilise...');
+    await sleep(10000);   // increased from 5s
 
     try {
         const now = Date.now();
         const lastRun = await readLastRun();
-        let queue = await loadQueue();
+        const queue = await loadQueue();
 
         // --- 1. Send due replies ---
         const dueReplies = queue.filter(item => item.scheduledTime <= now);
@@ -151,8 +187,8 @@ client.on('ready', async () => {
                 }
             }
             const sentIds = new Set(dueReplies.map(item => item.messageId));
-            queue = queue.filter(item => !sentIds.has(item.messageId));
-            await saveQueue(queue);
+            const remainingQueue = queue.filter(item => !sentIds.has(item.messageId));
+            await saveQueue(remainingQueue);
         }
 
         // --- 2. Fetch new messages and schedule replies ---
@@ -160,7 +196,9 @@ client.on('ready', async () => {
         try {
             chats = await getChatsWithRetry(client);
         } catch (err) {
-            console.error('❌ Failed to get chats after retries:', err.message);
+            console.error('❌ Failed to get chats:', err.message);
+            // Optionally, clear session and exit so the process can restart fresh
+            // await fs.remove(SESSION_DIR).catch(() => {});
             process.exit(1);
         }
 
@@ -173,7 +211,7 @@ client.on('ready', async () => {
                 );
 
                 for (const msg of newMessages) {
-                    const text = (msg.body || '').toLowerCase().trim();
+                    const text = msg.body.toLowerCase().trim();
                     const matched = TRIGGERS.some(trigger => text.includes(trigger));
                     if (matched) {
                         const alreadyScheduled = queue.some(item => item.messageId === msg.id._serialized);
@@ -190,7 +228,7 @@ client.on('ready', async () => {
                             replyText: reply
                         });
 
-                        console.log(`📅 Scheduled reply for "${msg.body}" from ${chat.name || chat.id._serialized} in ${Math.round(delay / 60000)} min`);
+                        console.log(`📅 Scheduled reply for "${msg.body}" from ${chat.name || chat.id._serialized} in ${Math.round(delay/60000)} min`);
                         scheduledCount++;
                     }
                 }
@@ -207,8 +245,9 @@ client.on('ready', async () => {
         console.log(`✅ Done. Scheduled ${scheduledCount} new replies. Sent ${dueReplies.length} due replies.`);
 
     } catch (err) {
-        console.error('❌ Fatal error during run:', err);
+        console.error('❌ Fatal error:', err);
     } finally {
+        // Graceful shutdown
         setTimeout(() => {
             client.destroy().catch(() => {});
             process.exit(0);
@@ -226,8 +265,16 @@ client.on('disconnected', reason => {
     process.exit(1);
 });
 
-console.log('🚀 Initializing WhatsApp client...');
-client.initialize().catch(err => {
-    console.error('❌ Init failed:', err);
-    process.exit(1);
-});
+// ==================== Start ====================
+(async () => {
+    // Remove stale lock files before starting
+    await removeLocks();
+
+    console.log('🚀 Initializing WhatsApp client...');
+    try {
+        await client.initialize();
+    } catch (err) {
+        console.error('❌ Init failed:', err);
+        process.exit(1);
+    }
+})();
