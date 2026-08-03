@@ -8,11 +8,13 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // ==================== Configuration ====================
-const TRIGGERS = ['hi', 'hello', 'good morning'];
+// قائمة الردود العشوائية
 const REPLIES = [
-    "hi, im fine thanks",
-    "Hello!",
-    "Hey! How are you?"
+    "شكراً لتواصلك!",
+    "أهلاً بك، كيف يمكنني مساعدتك؟",
+    "تم استلام رسالتك، سأرد قريباً.",
+    "مرحباً!",
+    "أنا هنا لمساعدتك."
 ];
 
 const SESSION_DIR = path.join(__dirname, 'session');
@@ -20,13 +22,14 @@ const SESSION_NAME = 'main';
 const TIMESTAMP_FILE = path.join(SESSION_DIR, 'last_run.txt');
 const QUEUE_FILE = path.join(SESSION_DIR, 'reply_queue.json');
 
-const MIN_DELAY_MS = 15 * 60 * 1000;   // 15 min
-const MAX_DELAY_MS = 30 * 60 * 1000;   // 30 min
+// الفارق الزمني بين الردود: من 10 إلى 30 ثانية
+const MIN_DELAY_MS = 10 * 1000;   // 10 ثوان
+const MAX_DELAY_MS = 30 * 1000;   // 30 ثانية
 
-// Retry settings for getChats
+// إعدادات إعادة المحاولة لجلب المحادثات (نفس الكود الأول)
 const MAX_RETRIES = 5;
 const BASE_RETRY_DELAY_MS = 3000;
-const GET_CHATS_TIMEOUT_MS = 60000;    // 60 sec
+const GET_CHATS_TIMEOUT_MS = 60000;
 
 // ==================== Helpers ====================
 function getRandomReply() {
@@ -67,7 +70,7 @@ async function saveQueue(queue) {
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-// ==================== Robust getChats with retry & timeout ====================
+// ==================== دالة جلب المحادثات مع إعادة المحاولة (نفس الكود الأول) ====================
 async function getChatsWithRetry(client) {
     let lastError;
     let delay = BASE_RETRY_DELAY_MS;
@@ -76,17 +79,13 @@ async function getChatsWithRetry(client) {
         try {
             console.log(`📡 Fetching chats (attempt ${attempt}/${MAX_RETRIES})...`);
 
-            // ---- Check if the page is still responsive ----
             const page = client.pupPage;
-            if (!page) {
-                throw new Error('Puppeteer page is not available');
-            }
-            // Quick health check: evaluate a simple expression
+            if (!page) throw new Error('Puppeteer page is not available');
+
             await page.evaluate(() => document?.readyState || 'loading').catch(() => {
                 throw new Error('Page is not responsive');
             });
 
-            // ---- Wrap getChats in a timeout ----
             const chats = await Promise.race([
                 client.getChats(),
                 new Promise((_, reject) =>
@@ -104,19 +103,16 @@ async function getChatsWithRetry(client) {
                 const waitMs = delay + Math.floor(Math.random() * 2000);
                 console.log(`⏳ Waiting ${(waitMs / 1000).toFixed(1)}s before retry...`);
                 await sleep(waitMs);
-                delay = Math.min(delay * 1.5, 20000); // exponential backoff up to 20s
+                delay = Math.min(delay * 1.5, 20000);
             }
         }
     }
 
-    // If all attempts failed, optionally clear session and exit
-    console.error('❌ All retries exhausted. The session might be corrupted.');
-    // Uncomment the next line to automatically wipe the session and let the script restart
-    // await fs.remove(SESSION_DIR).catch(() => {});
+    console.error('❌ All retries exhausted.');
     throw new Error(`Failed to get chats after ${MAX_RETRIES} attempts: ${lastError?.message || lastError}`);
 }
 
-// ==================== Remove lock files (portable) ====================
+// ==================== إزالة ملفات القفل ====================
 async function removeLocks() {
     try {
         if (!await fs.pathExists(SESSION_DIR)) return;
@@ -131,7 +127,7 @@ async function removeLocks() {
     }
 }
 
-// ==================== Main Bot ====================
+// ==================== العميل الرئيسي ====================
 const client = new Client({
     authStrategy: new LocalAuth({ clientId: SESSION_NAME, dataPath: SESSION_DIR }),
     puppeteer: {
@@ -154,7 +150,7 @@ const client = new Client({
             '--disable-crashpad',
             '--aggressive-cache-discard'
         ],
-        timeout: 120000,          // 2 min for Puppeteer operations
+        timeout: 120000,
         protocolTimeout: 120000,
     },
 });
@@ -166,14 +162,14 @@ client.on('qr', qr => {
 
 client.on('ready', async () => {
     console.log('✅ Bot is ready. Waiting 10 seconds for page to stabilise...');
-    await sleep(10000);   // increased from 5s
+    await sleep(10000);
 
     try {
         const now = Date.now();
         const lastRun = await readLastRun();
         const queue = await loadQueue();
 
-        // --- 1. Send due replies ---
+        // --- 1. إرسال الردود المجدولة التي حان وقتها ---
         const dueReplies = queue.filter(item => item.scheduledTime <= now);
         if (dueReplies.length > 0) {
             console.log(`⏰ Sending ${dueReplies.length} due replies...`);
@@ -191,47 +187,51 @@ client.on('ready', async () => {
             await saveQueue(remainingQueue);
         }
 
-        // --- 2. Fetch new messages and schedule replies ---
+        // --- 2. جلب المحادثات ---
         let chats;
         try {
             chats = await getChatsWithRetry(client);
         } catch (err) {
             console.error('❌ Failed to get chats:', err.message);
-            // Optionally, clear session and exit so the process can restart fresh
-            // await fs.remove(SESSION_DIR).catch(() => {});
             process.exit(1);
         }
 
         let scheduledCount = 0;
+
+        // --- 3. معالجة كل محادثة للحصول على آخر رسالة من المستخدم ---
         for (const chat of chats) {
             try {
-                const messages = await chat.fetchMessages({ limit: 100 });
-                const newMessages = messages.filter(msg =>
-                    msg.timestamp * 1000 > lastRun && !msg.fromMe
+                // جلب آخر 50 رسالة (نكتفي بآخر رسالة جديدة)
+                const messages = await chat.fetchMessages({ limit: 50 });
+                // تصفية الرسائل التي أرسلها المستخدم (ليست مني) والتي بعد آخر تشغيل
+                const newUserMessages = messages.filter(msg =>
+                    !msg.fromMe && (msg.timestamp * 1000 > lastRun)
                 );
 
-                for (const msg of newMessages) {
-                    const text = msg.body.toLowerCase().trim();
-                    const matched = TRIGGERS.some(trigger => text.includes(trigger));
-                    if (matched) {
-                        const alreadyScheduled = queue.some(item => item.messageId === msg.id._serialized);
-                        if (alreadyScheduled) continue;
+                if (newUserMessages.length === 0) continue;
 
-                        const delay = getRandomDelay();
-                        const scheduledTime = Date.now() + delay;
-                        const reply = getRandomReply();
+                // ترتيب تنازلي حسب الطابع الزمني للحصول على الأحدث
+                newUserMessages.sort((a, b) => b.timestamp - a.timestamp);
+                const latestMsg = newUserMessages[0];
 
-                        queue.push({
-                            chatId: chat.id._serialized,
-                            messageId: msg.id._serialized,
-                            scheduledTime,
-                            replyText: reply
-                        });
+                // التأكد من عدم جدولة رد لهذه الرسالة مسبقاً
+                const alreadyScheduled = queue.some(item => item.messageId === latestMsg.id._serialized);
+                if (alreadyScheduled) continue;
 
-                        console.log(`📅 Scheduled reply for "${msg.body}" from ${chat.name || chat.id._serialized} in ${Math.round(delay/60000)} min`);
-                        scheduledCount++;
-                    }
-                }
+                // جدولة الرد
+                const delay = getRandomDelay();
+                const scheduledTime = Date.now() + delay;
+                const reply = getRandomReply();
+
+                queue.push({
+                    chatId: chat.id._serialized,
+                    messageId: latestMsg.id._serialized,
+                    scheduledTime,
+                    replyText: reply
+                });
+
+                console.log(`📅 Scheduled reply for "${latestMsg.body}" from ${chat.name || chat.id._serialized} in ${(delay / 1000).toFixed(1)} seconds`);
+                scheduledCount++;
             } catch (err) {
                 console.error(`⚠️ Error processing chat ${chat.id._serialized}:`, err.message);
             }
@@ -247,7 +247,6 @@ client.on('ready', async () => {
     } catch (err) {
         console.error('❌ Fatal error:', err);
     } finally {
-        // Graceful shutdown
         setTimeout(() => {
             client.destroy().catch(() => {});
             process.exit(0);
@@ -265,11 +264,9 @@ client.on('disconnected', reason => {
     process.exit(1);
 });
 
-// ==================== Start ====================
+// ==================== البدء ====================
 (async () => {
-    // Remove stale lock files before starting
     await removeLocks();
-
     console.log('🚀 Initializing WhatsApp client...');
     try {
         await client.initialize();
