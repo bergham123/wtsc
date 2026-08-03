@@ -1,9 +1,9 @@
-name: WhatsApp Automation
+name: Replay WhatsApp (Last Message)
 
 on:
   schedule:
-    - cron: '0 8 * * *'
-  workflow_dispatch:
+    - cron: '*/15 * * * *'          # كل 15 دقيقة
+  workflow_dispatch:                # تشغيل يدوي
 
 permissions:
   contents: write
@@ -59,11 +59,8 @@ jobs:
           PUPPETEER_SKIP_DOWNLOAD: "true"
 
       # ===== تشغيل البوت =====
-      - name: Run WhatsApp bot
-        env:
-          WORKER_URL: ${{ secrets.WORKER_URL }}
-          API_SECRET: ${{ secrets.API_SECRET }}
-        run: node index.js
+      - name: Run WhatsApp reply bot (last message)
+        run: node replay.js
 
       # ===== تنظيف الملفات المؤقتة =====
       - name: Clean temporary Chromium files
@@ -79,7 +76,7 @@ jobs:
           rm -rf session/*/ShaderCache 2>/dev/null || true
           rm -rf session/*/DawnCache 2>/dev/null || true
 
-      # ===== التحقق من صلاحية الجلسة لحفظ الكاش =====
+      # ===== التحقق من صحة الجلسة لحفظ الكاش =====
       - name: Check session validity
         id: check-session
         if: always()
@@ -99,7 +96,7 @@ jobs:
           path: session
           key: whatsapp-session-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
 
-      # ===== (اختياري) رفع الـ Artifacts للاطلاع =====
+      # ===== (اختياري) رفع السجلات والأرتيفاكت =====
       - name: Upload logs (artifact)
         if: always()
         uses: actions/upload-artifact@v4
@@ -118,7 +115,7 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-      # ===== دفع الملفات إلى المستودع =====
+      # ===== دفع الملفات إلى المستودع (في حال وجود تغييرات) =====
       - name: Commit and push logs, dashboard, and aggregate
         if: always()
         run: |
