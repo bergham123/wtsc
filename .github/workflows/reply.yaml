@@ -1,0 +1,123 @@
+name: WhatsApp AI Auto-Reply
+
+on:
+  schedule:
+    - cron: '*/10 * * * *' # يشتغل كل 10 دقائق
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+# منع التداخل مع سكريبت الإرسال الجماعي (send.yaml)
+concurrency:
+  group: whatsapp-bot-run
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      # ===== استعادة الجلسة من الكاش =====
+      - name: Restore session from cache
+        id: restore-session
+        uses: actions/cache/restore@v4
+        with:
+          path: session
+          key: whatsapp-session-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            whatsapp-session-${{ runner.os }}-
+            whatsapp-session-
+
+      - name: Ensure directories exist
+        run: mkdir -p session data logs
+
+      - name: Remove Chromium locks
+        run: |
+          find session -name "SingletonLock" -delete 2>/dev/null || true
+          find session -name "SingletonSocket" -delete 2>/dev/null || true
+          find session -name "SingletonCookie" -delete 2>/dev/null || true
+          find session -name "DevToolsActivePort" -delete 2>/dev/null || true
+
+      # ===== بناء الـ Docker Image =====
+      - name: Build Docker Image
+        run: docker build -t wa-bot .
+
+      # ===== تشغيل سكريبت الرد التلقائي =====
+      - name: Run WhatsApp AI Reply in Docker
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }} # ضع المفتاح الجديد في GitHub Secrets
+        run: |
+          docker run --rm \
+            -v $(pwd)/session:/app/session \
+            -v $(pwd)/data:/app/data \
+            -v $(pwd)/logs:/app/logs \
+            -e OPENROUTER_API_KEY="$OPENROUTER_API_KEY" \
+            -e TASK="reply" \
+            wa-bot node reply.js
+
+      # ===== إصلاح الصلاحيات والتنظيف =====
+      - name: Fix permissions for caching
+        if: always()
+        run: sudo chown -R $USER:$USER session data logs || true
+
+      - name: Clean temporary Chromium files (Safe)
+        if: always()
+        run: |
+          rm -rf session/*/Cache 2>/dev/null || true
+          rm -rf session/*/"Code Cache" 2>/dev/null || true
+          rm -rf session/*/GPUCache 2>/dev/null || true
+          rm -rf session/*/Crashpad 2>/dev/null || true
+          rm -rf session*/Default/"Service Worker"/CacheStorage 2>/dev/null || true
+          rm -rf session*/Default/"Service Worker"/ScriptCache 2>/dev/null || true
+
+      # ===== التحقق من الجلسة وحفظ الكاش =====
+      - name: Check session validity
+        id: check-session
+        if: always()
+        run: |
+          if [ -d "session/session-main/Default/IndexedDB" ] || [ -d "session/session-main/Default/Local Storage" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Save session cache
+        if: always() && steps.check-session.outputs.exists == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: session
+          key: whatsapp-session-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+
+      # ===== تنظيف الكاشات القديمة =====
+      - name: Cleanup old session caches
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          CURRENT_KEY="whatsapp-session-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}"
+          IDS=$(gh cache list --repo ${{ github.repository }} --json id,key --jq ".[] | select((.key | startswith(\"whatsapp-session-\")) and .key != \"$CURRENT_KEY\") | .id")
+          if [ -z "$IDS" ]; then
+            echo "✅ No old caches to delete."
+          else
+            for id in $IDS; do
+              echo "🗑️ Deleting old cache ID: $id"
+              gh cache delete "$id" --repo ${{ github.repository }} || true
+            done
+          fi
+
+      # ===== حفظ السجلات =====
+      - name: Commit and push logs
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add logs/ || true
+          if git diff --staged --quiet; then
+            echo "📭 No changes to commit"
+          else
+            git commit -m "Update AI Reply logs [skip ci]"
+            git push
+          fi
