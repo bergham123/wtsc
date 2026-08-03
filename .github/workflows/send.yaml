@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  actions: write   # <-- أضف هذا السطر لمنح صلاحية حذف الكاشات
 
 # منع تشغيل نسختين من نفس السكربت في نفس الوقت
 concurrency:
