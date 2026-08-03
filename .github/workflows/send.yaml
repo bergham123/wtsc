@@ -56,6 +56,11 @@ jobs:
             -e API_SECRET="$API_SECRET" \
             wa-bot
 
+      # ===== إصلاح صلاحيات الملفات بعد خروج Docker =====
+      - name: Fix permissions for caching
+        if: always()
+        run: sudo chown -R $USER:$USER session data logs dashboard || true
+
       # ===== تنظيف الملفات المؤقتة =====
       - name: Clean temporary Chromium files
         if: always()
