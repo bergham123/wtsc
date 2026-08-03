@@ -407,3 +407,8 @@
 [2026-08-03T22:50:06.464Z] 🏁 Batch complete
 [2026-08-03T22:50:06.774Z] ✅ Script completed
 [2026-08-03T22:50:10.803Z] ❌ Failed to send to worker after 3 attempts
+[2026-08-03T22:52:11.012Z] ❌ Failed to send to worker after 3 attempts
+[2026-08-03T22:52:21.488Z] ❌ Failed to send to worker after 3 attempts
+[2026-08-03T22:52:24.494Z] 🏁 Batch complete
+[2026-08-03T22:52:24.652Z] ✅ Script completed
+[2026-08-03T22:52:28.715Z] ❌ Failed to send to worker after 3 attempts
