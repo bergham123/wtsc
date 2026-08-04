@@ -121,3 +121,48 @@
 [2026-08-04T02:31:46.760Z] 🕵️ Resolved LID 85001798438961 to real number: 85001798438961
 [2026-08-04T02:31:46.761Z] 🔍 Received message. Sender: 85001798438961
 [2026-08-04T02:31:46.761Z] 🚫 Ignored message from 85001798438961 (Not in whitelist)
+[2026-08-04T02:34:26.908Z] 📝 Loaded prompt.
+[2026-08-04T02:34:26.910Z] ✅ Loaded 1 allowed numbers.
+[2026-08-04T02:34:26.911Z] 🔧 Initializing...
+[2026-08-04T02:34:31.113Z] ✅ Bot Ready (Live Mode - 9 minutes)
+[2026-08-04T02:34:31.652Z] 📨 Telegram alert sent.
+[2026-08-04T02:34:43.146Z] 🕵️ Resolved LID 85001798438961 to real number: 85001798438961
+[2026-08-04T02:34:43.147Z] 🔍 Received message. Sender: 85001798438961
+[2026-08-04T02:34:43.147Z] 📩 Message chunk received from 85001798438961: "Zb"
+[2026-08-04T02:34:46.708Z] 🕵️ Resolved LID 85001798438961 to real number: 85001798438961
+[2026-08-04T02:34:46.708Z] 🔍 Received message. Sender: 85001798438961
+[2026-08-04T02:34:46.708Z] 📩 Message chunk received from 85001798438961: "Dyali"
+[2026-08-04T02:34:56.711Z] ✅ User 85001798438961 stopped typing. Combined text: "Zb Dyali..."
+[2026-08-04T02:34:56.711Z] 💬 Replying to 85001798438961@lid: "Zb Dyali..."
+[2026-08-04T02:34:56.712Z] 🧠 AI thinking: "Zb Dyali..."
+[2026-08-04T02:36:09.933Z] ✔ Replied successfully.
+[2026-08-04T02:36:21.380Z] 🕵️ Resolved LID 85001798438961 to real number: 85001798438961
+[2026-08-04T02:36:21.380Z] 🔍 Received message. Sender: 85001798438961
+[2026-08-04T02:36:21.380Z] 📩 Message chunk received from 85001798438961: "Nik mok"
+[2026-08-04T02:36:31.382Z] ✅ User 85001798438961 stopped typing. Combined text: "Nik mok..."
+[2026-08-04T02:36:31.382Z] 💬 Replying to 85001798438961@lid: "Nik mok..."
+[2026-08-04T02:36:31.382Z] 🧠 AI thinking: "Nik mok..."
+[2026-08-04T02:36:38.809Z] ✔ Replied successfully.
+[2026-08-04T02:36:47.289Z] 🕵️ Resolved LID 85001798438961 to real number: 85001798438961
+[2026-08-04T02:36:47.289Z] 🔍 Received message. Sender: 85001798438961
+[2026-08-04T02:36:47.289Z] 📩 Message chunk received from 85001798438961: "L3bli bih"
+[2026-08-04T02:36:57.298Z] ✅ User 85001798438961 stopped typing. Combined text: "L3bli bih..."
+[2026-08-04T02:36:57.298Z] 💬 Replying to 85001798438961@lid: "L3bli bih..."
+[2026-08-04T02:36:57.298Z] 🧠 AI thinking: "L3bli bih..."
+[2026-08-04T02:37:08.349Z] ✔ Replied successfully.
+[2026-08-04T02:37:17.701Z] 🕵️ Resolved LID 85001798438961 to real number: 85001798438961
+[2026-08-04T02:37:17.701Z] 🔍 Received message. Sender: 85001798438961
+[2026-08-04T02:37:17.701Z] 📩 Message chunk received from 85001798438961: "I3bli b zbi"
+[2026-08-04T02:37:27.711Z] ✅ User 85001798438961 stopped typing. Combined text: "I3bli b zbi..."
+[2026-08-04T02:37:27.711Z] 💬 Replying to 85001798438961@lid: "I3bli b zbi..."
+[2026-08-04T02:37:27.711Z] 🧠 AI thinking: "I3bli b zbi..."
+[2026-08-04T02:37:36.633Z] ✔ Replied successfully.
+[2026-08-04T02:38:28.768Z] 🕵️ Resolved LID 108443981627514 to real number: 108443981627514
+[2026-08-04T02:38:28.768Z] 🔍 Received message. Sender: 108443981627514
+[2026-08-04T02:38:28.768Z] 🚫 Ignored message from 108443981627514 (Not in whitelist)
+[2026-08-04T02:39:19.368Z] 🕵️ Resolved LID 85001798438961 to real number: 85001798438961
+[2026-08-04T02:39:19.368Z] 🔍 Received message. Sender: 85001798438961
+[2026-08-04T02:39:19.368Z] 📩 Message chunk received from 85001798438961: "I bey you can't count from 1 to 100"
+[2026-08-04T02:39:29.370Z] ✅ User 85001798438961 stopped typing. Combined text: "I bey you can't count from 1 to 100..."
+[2026-08-04T02:39:29.370Z] 💬 Replying to 85001798438961@lid: "I bey you can't count from 1 to 100..."
+[2026-08-04T02:39:29.370Z] 🧠 AI thinking: "I bey you can't count from 1 t..."
