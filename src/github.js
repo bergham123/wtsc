@@ -115,3 +115,27 @@ export async function githubCancelWorkflowRun(env, runId) {
   if (res.status !== 202) throw new Error("GitHub cancel error " + res.status + ": " + await res.text());
   return true;
 }
+/**
+ * التأكد من وجود الملف، إذا لم يكن موجوداً ينشئه بالمحتوى الافتراضي
+ */
+export async function githubEnsureFile(env, path, defaultContent = "[]") {
+  const existing = await githubGetFile(env, path);
+  if (!existing.exists) {
+    await githubPutFile(env, path, defaultContent, null, "Initialize " + path);
+    return { content: defaultContent, sha: null, exists: true, initialized: true };
+  }
+  return { ...existing, initialized: false };
+}
+
+/**
+ * جلب كل التشغيلات النشطة (queued + in_progress) ل workflow معين
+ */
+export async function githubListActiveRuns(env, workflowFile) {
+  const results = await Promise.all([
+    githubListWorkflowRunsByName(env, workflowFile, "queued").catch(() => []),
+    githubListWorkflowRunsByName(env, workflowFile, "in_progress").catch(() => [])
+  ]);
+  const all = [...results[0], ...results[1]];
+  all.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  return all;
+}
