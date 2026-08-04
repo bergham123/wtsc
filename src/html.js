@@ -1,4 +1,3 @@
-// src/html.js
 export const HTML_PAGE = `<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -20,8 +19,11 @@ export const HTML_PAGE = `<!DOCTYPE html>
     --success: #25D366;
     --danger: #F15C6D;
     --warning: #FFB100;
-    --info: #53BDEB;
     --input-bg: #2A3942;
+    --blue: #53A8E2;
+    --blue-glow: rgba(83, 168, 226, 0.2);
+    --purple: #A371E0;
+    --purple-glow: rgba(163, 113, 224, 0.2);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -44,14 +46,13 @@ export const HTML_PAGE = `<!DOCTYPE html>
     padding: 24px;
     border-left: 1px solid var(--border-color);
     flex-shrink: 0;
-    transition: transform 0.3s ease;
     overflow-y: auto;
   }
   .sidebar-header {
     display: flex;
     align-items: center;
     gap: 12px;
-    margin-bottom: 30px;
+    margin-bottom: 24px;
     padding-bottom: 20px;
     border-bottom: 1px solid var(--border-color);
   }
@@ -68,7 +69,7 @@ export const HTML_PAGE = `<!DOCTYPE html>
   .nav-cards {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 14px;
     flex-grow: 1;
   }
   .sidebar-card {
@@ -124,4 +125,745 @@ export const HTML_PAGE = `<!DOCTYPE html>
     border-radius: 8px;
     padding: 12px;
     font-family: 'Consolas', monospace;
-    font-size:
+    font-size: 13px;
+    resize: vertical;
+    direction: ltr; text-align: left;
+  }
+  textarea:focus { outline: none; border-color: var(--accent); }
+
+  .btn-row { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+  .btn {
+    background: var(--input-bg);
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
+    padding: 10px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: 'Tajawal', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s;
+    display: inline-flex; align-items: center; gap: 8px;
+    width: 100%;
+    justify-content: center;
+  }
+  .btn:hover { background: var(--border-color); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); color: #111B21; border: none; font-weight: 700; }
+  .btn-primary:hover { background: #1FB855; box-shadow: 0 4px 12px var(--accent-glow); }
+  .btn-warning { background: var(--warning); border: none; color: #111B21; font-weight: 700; }
+  .btn-danger { background: var(--danger); border: none; color: #111B21; font-weight: 700; }
+  .btn-danger:hover { background: #c0392b; }
+  .btn-blue { background: var(--blue); border: none; color: #111B21; font-weight: 700; }
+  .btn-blue:hover { background: #3d8ec4; box-shadow: 0 4px 12px var(--blue-glow); }
+  .btn-purple { background: var(--purple); border: none; color: #fff; font-weight: 700; }
+  .btn-purple:hover { background: #8b5cc7; box-shadow: 0 4px 12px var(--purple-glow); }
+
+  .status { margin-top: 10px; font-size: 12px; min-height: 18px; color: var(--text-muted); text-align: center; }
+  .status.ok { color: var(--success); }
+  .status.err { color: var(--danger); }
+
+  .section-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    font-weight: 700;
+  }
+
+  .schedule-status { padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; display: inline-block; margin-bottom: 10px; }
+  .schedule-status.active { background: rgba(37, 211, 102, 0.15); color: var(--success); border: 1px solid rgba(37, 211, 102, 0.3); }
+  .schedule-status.inactive { background: rgba(241, 92, 109, 0.15); color: var(--danger); border: 1px solid rgba(241, 92, 109, 0.3); }
+
+  .schedule-inputs { display: flex; gap: 12px; margin-bottom: 12px; justify-content: center; }
+  .schedule-inputs label { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--text-muted); align-items: center; }
+  .schedule-inputs input {
+    width: 70px; background: var(--input-bg); color: var(--text-main);
+    border: 1px solid var(--border-color); border-radius: 6px; padding: 8px; text-align: center;
+    font-family: 'Tajawal'; font-size: 16px;
+  }
+
+  .stats-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+  .stats-table th { text-align: right; padding: 12px; background: var(--input-bg); color: var(--text-muted); border-bottom: 1px solid var(--border-color); font-weight: 500; }
+  .stats-table td { padding: 12px; border-bottom: 1px solid var(--border-color); color: var(--text-main); }
+  .stats-table tr:last-child td { border-bottom: none; }
+
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.85); backdrop-filter: blur(8px);
+    z-index: 999; align-items: center; justify-content: center; padding: 20px;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal {
+    background: var(--card-bg); border: 1px solid var(--border-color);
+    border-radius: 12px; max-width: 900px; width: 100%; max-height: 80vh;
+    padding: 24px; display: flex; flex-direction: column; gap: 16px;
+  }
+  .log-files-list { display: flex; gap: 10px; flex-wrap: wrap; }
+  .log-file-btn { background: var(--input-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 8px 16px; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+  .log-file-btn:hover { background: var(--border-color); }
+  .log-file-btn.active { background: var(--accent); border-color: var(--accent); color: #111B21; font-weight: 700; }
+  .log-content { background: var(--bg-main); border-radius: 8px; padding: 16px; overflow-y: auto; font-family: 'Consolas', monospace; font-size: 13px; flex-grow: 1; border: 1px solid var(--border-color); }
+
+  .image-item {
+    position: relative;
+    width: 90px; height: 90px;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    flex-shrink: 0;
+  }
+  .image-item img { width: 100%; height: 100%; object-fit: cover; }
+  .image-item .delete-btn {
+    position: absolute; top: 4px; right: 4px;
+    background: var(--danger); border: none; color: white;
+    border-radius: 50%; width: 24px; height: 24px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  }
+  #imageGallery { margin-top: 16px; }
+  #imageList { display: flex; flex-wrap: wrap; gap: 12px; }
+
+  .running-indicator {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11px; font-weight: 700; padding: 3px 10px;
+    border-radius: 20px; margin-top: 8px;
+  }
+  .running-indicator.active { background: rgba(37,211,102,0.15); color: var(--success); }
+  .running-indicator.idle { background: rgba(134,150,160,0.15); color: var(--text-muted); }
+  .running-indicator .dot {
+    width: 7px; height: 7px; border-radius: 50%; background: currentColor;
+  }
+  .running-indicator.active .dot {
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.3; transform: scale(0.7); }
+  }
+</style>
+</head>
+<body>
+
+  <!-- ========= SIDEBAR ========= -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo-icon"><i class="fab fa-whatsapp"></i></div>
+      <div class="logo-text">مدير <span>واتساب</span></div>
+    </div>
+
+    <div class="nav-cards">
+
+      <!-- Send Messages -->
+      <div class="sidebar-card">
+        <div class="card-header"><i class="fas fa-paper-plane" style="color:var(--blue)"></i><h2>إرسال الرسائل</h2></div>
+        <div id="sendRunningIndicator" class="running-indicator idle"><span class="dot"></span> متوقف</div>
+        <div class="btn-row" style="margin-top:10px;">
+          <button class="btn btn-blue" id="sendRunBtn"><i class="fas fa-play"></i> إرسال الرسائل</button>
+          <button class="btn btn-danger" id="sendStopBtn" disabled><i class="fas fa-stop"></i> إيقاف الإرسال</button>
+        </div>
+        <div class="status" id="sendStatus"></div>
+      </div>
+
+      <!-- AI Reply -->
+      <div class="sidebar-card">
+        <div class="card-header"><i class="fas fa-robot" style="color:var(--purple)"></i><h2>الرد الذكي</h2></div>
+        <div id="replyRunningIndicator" class="running-indicator idle"><span class="dot"></span> متوقف</div>
+        <div class="btn-row" style="margin-top:10px;">
+          <button class="btn btn-purple" id="replyRunBtn"><i class="fas fa-brain"></i> تفعيل الرد الذكي</button>
+          <button class="btn btn-danger" id="replyStopBtn" disabled><i class="fas fa-stop"></i> إيقاف الرد الذكي</button>
+        </div>
+        <div class="status" id="replyStatus"></div>
+      </div>
+
+      <!-- Logs -->
+      <div class="sidebar-card">
+        <div class="card-header"><i class="fas fa-terminal"></i><h2>السجلات</h2></div>
+        <div class="btn-row" style="margin-top: 12px;">
+          <button class="btn" id="viewLogsBtn"><i class="fas fa-folder-open"></i> عرض السجلات</button>
+        </div>
+        <div class="status" id="logsStatus"></div>
+      </div>
+
+      <!-- Schedule -->
+      <div class="sidebar-card">
+        <div class="card-header"><i class="fas fa-clock"></i><h2>الجدولة</h2></div>
+        <div class="card-hint">وقت المغرب (-2 ساعة UTC)</div>
+        <div>
+          <span class="schedule-status inactive" id="scheduleIndicator">غير مفعل</span>
+          <span id="currentCronDisplay" style="font-size:12px;color:var(--text-muted);display:block;margin-top:5px;"></span>
+        </div>
+        <div class="schedule-inputs">
+          <label>الساعة<input type="number" id="hourInput" min="0" max="23" value="10" /></label>
+          <label>الدقيقة<input type="number" id="minuteInput" min="0" max="59" value="0" /></label>
+        </div>
+        <div class="btn-row">
+          <button class="btn" id="loadScheduleBtn"><i class="fas fa-history"></i> تحميل</button>
+          <button class="btn btn-warning" id="updateScheduleBtn"><i class="fas fa-sync-alt"></i> تحديث</button>
+        </div>
+        <div class="status" id="scheduleStatus"></div>
+      </div>
+
+    </div>
+  </aside>
+
+  <!-- ========= MAIN CONTENT ========= -->
+  <main class="main-content">
+
+    <!-- Statistics Card -->
+    <div class="card">
+      <div class="card-header"><i class="fas fa-chart-line"></i><h2>إحصائيات الإرسال</h2></div>
+      <div class="btn-row" style="margin-top: 0; margin-bottom: 16px;">
+        <button class="btn btn-primary" id="loadStatsBtn" style="width: auto;"><i class="fas fa-database"></i> تحميل الإحصائيات</button>
+      </div>
+      <div id="statsContainer" style="display:none;">
+        <div style="max-height: 250px; overflow-y: auto; margin-bottom: 20px; border-radius: 8px; border: 1px solid var(--border-color);">
+          <table class="stats-table">
+            <thead><tr><th>التاريخ</th><th>محاولات</th><th>نجاح</th><th>فشل</th></tr></thead>
+            <tbody id="statsBody"></tbody>
+          </table>
+        </div>
+        <div style="background: var(--bg-main); border-radius: 8px; padding: 20px; height: 300px;">
+          <canvas id="statsChart"></canvas>
+        </div>
+      </div>
+      <div class="status" id="statsStatus"></div>
+    </div>
+
+    <!-- WhatsApp Status & QR -->
+    <div class="card">
+      <div class="card-header"><i class="fab fa-whatsapp"></i><h2>حالة واتساب</h2></div>
+      <div style="display:flex; flex-wrap:wrap; gap:20px; align-items:center;">
+        <div>
+          <div><strong>الحالة:</strong> <span id="sessionStatusText" style="color:var(--text-muted);">غير معروف</span></div>
+          <div style="margin-top:10px;">
+            <button class="btn btn-primary" id="runQRBtn" style="width:auto;"><i class="fas fa-play"></i> تشغيل QR</button>
+            <button class="btn btn-danger" id="stopQRBtn" style="width:auto;"><i class="fas fa-stop"></i> إيقاف QR</button>
+            <button class="btn" id="refreshSessionBtn" style="width:auto;"><i class="fas fa-sync"></i> تحديث</button>
+          </div>
+        </div>
+        <div id="qrCodeContainer" style="flex-shrink:0;">
+          <img id="qrImage" src="" alt="QR Code" style="display:none; width:200px; height:200px; border:2px solid var(--accent); border-radius:8px;"/>
+        </div>
+      </div>
+      <div class="status" id="sessionStatus"></div>
+    </div>
+
+    <div class="content-grid">
+      <!-- Messages Card -->
+      <div class="card">
+        <div class="card-header"><i class="fas fa-comment-dots"></i><h2>الرسائل</h2></div>
+        <div class="card-hint">كل رسالة في سطر</div>
+        <textarea id="messagesArea" placeholder="اكتب رسالة في كل سطر..."></textarea>
+        <div class="btn-row">
+          <button class="btn" id="loadMessagesBtn"><i class="fas fa-download"></i> تحميل</button>
+          <button class="btn btn-primary" id="saveMessagesBtn"><i class="fas fa-save"></i> حفظ</button>
+        </div>
+        <div class="status" id="messagesStatus"></div>
+      </div>
+
+      <!-- Contacts Card -->
+      <div class="card">
+        <div class="card-header"><i class="fas fa-address-book"></i><h2>جهات الاتصال</h2></div>
+        <div class="card-hint">كل رقم في سطر</div>
+        <textarea id="contactsArea" placeholder="اكتب رقم في كل سطر..."></textarea>
+        <div class="btn-row">
+          <button class="btn" id="loadContactsBtn"><i class="fas fa-download"></i> تحميل</button>
+          <button class="btn btn-primary" id="saveContactsBtn"><i class="fas fa-save"></i> حفظ</button>
+        </div>
+        <div class="status" id="contactsStatus"></div>
+      </div>
+    </div>
+
+    <!-- Images Upload Card -->
+    <div class="card">
+      <div class="card-header"><i class="fas fa-images"></i><h2>رفع الصور</h2></div>
+      <div class="card-hint">الحد الأقصى 3 صور</div>
+      <div style="background: var(--bg-main); padding: 15px; border-radius: 8px; border: 1px dashed var(--border-color);">
+        <input type="file" id="imagesInput" accept="image/*" multiple style="width:100%; margin-bottom: 10px;" />
+        <div id="imagePreviewArea" style="display:flex; flex-wrap:wrap; gap:10px;"></div>
+      </div>
+      <div class="btn-row" style="justify-content: flex-start;">
+        <button class="btn btn-primary" id="uploadImagesBtn" style="width: auto;"><i class="fas fa-upload"></i> رفع الصور</button>
+        <button class="btn" id="refreshImagesBtn" style="width: auto;"><i class="fas fa-sync"></i> تحديث القائمة</button>
+      </div>
+      <div id="imageGallery" style="display: none; margin-top: 16px;">
+        <div style="margin-bottom:10px;">
+          <span style="font-size:14px; color:var(--text-muted);">الصور الموجودة (<span id="imageCount">0</span>/3)</span>
+        </div>
+        <div id="imageList"></div>
+      </div>
+      <div class="status" id="imagesStatus"></div>
+    </div>
+
+    <!-- Images List Card -->
+    <div class="card">
+      <div class="card-header"><i class="fas fa-file-image"></i><h2>قائمة الصور (images.json)</h2></div>
+      <div class="card-hint">أسماء الصور المخزنة (كل مسار في سطر)</div>
+      <textarea id="imagesListArea" placeholder="images/123_photo.jpg ..."></textarea>
+      <div class="btn-row">
+        <button class="btn" id="loadImagesListBtn"><i class="fas fa-download"></i> تحميل</button>
+        <button class="btn btn-primary" id="saveImagesListBtn"><i class="fas fa-save"></i> حفظ</button>
+      </div>
+      <div class="status" id="imagesListStatus"></div>
+    </div>
+
+  </main>
+
+  <!-- ========= LOGS MODAL ========= -->
+  <div class="modal-overlay" id="logsModal">
+    <div class="modal">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h2 style="color: var(--accent);"><i class="fas fa-clipboard-list"></i> السجلات</h2>
+        <button class="btn" id="closeLogsModal" style="width: auto;"><i class="fas fa-times"></i> إغلاق</button>
+      </div>
+      <div class="log-files-list" id="logFilesList"></div>
+      <div class="log-content" id="logContent">اختر ملف سجل لعرض محتواه...</div>
+    </div>
+  </div>
+
+<script>
+function setStatus(el, msg, type) {
+  el.textContent = msg;
+  el.className = "status" + (type ? " " + type : "");
+}
+
+function setIndicator(indicatorEl, isActive, activeText, idleText) {
+  if (isActive) {
+    indicatorEl.className = "running-indicator active";
+    indicatorEl.innerHTML = '<span class="dot"></span> ' + (activeText || 'يعمل');
+  } else {
+    indicatorEl.className = "running-indicator idle";
+    indicatorEl.innerHTML = '<span class="dot"></span> ' + (idleText || 'متوقف');
+  }
+}
+
+/* ========== أزرار تحميل وحفظ الملفات ========== */
+async function loadFile(type, areaEl, statusEl) {
+  setStatus(statusEl, "جاري التحميل...", "");
+  try {
+    const res = await fetch("/api/load?type=" + type);
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+    areaEl.value = data.text;
+    setStatus(statusEl, "تم التحميل \u2713", "ok");
+  } catch (err) { setStatus(statusEl, "\u062e\u0637\u0623: " + err.message, "err"); }
+}
+async function saveFile(type, areaEl, statusEl) {
+  setStatus(statusEl, "جاري الحفظ...", "");
+  try {
+    const res = await fetch("/api/save", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type, text: areaEl.value }) });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+    setStatus(statusEl, "تم الحفظ \u2713", "ok");
+  } catch (err) { setStatus(statusEl, "\u062e\u0637\u0623: " + err.message, "err"); }
+}
+
+document.getElementById("loadMessagesBtn").onclick = () => loadFile("messages", document.getElementById("messagesArea"), document.getElementById("messagesStatus"));
+document.getElementById("saveMessagesBtn").onclick = () => saveFile("messages", document.getElementById("messagesArea"), document.getElementById("messagesStatus"));
+document.getElementById("loadContactsBtn").onclick = () => loadFile("contacts", document.getElementById("contactsArea"), document.getElementById("contactsStatus"));
+document.getElementById("saveContactsBtn").onclick = () => saveFile("contacts", document.getElementById("contactsArea"), document.getElementById("contactsStatus"));
+document.getElementById("loadImagesListBtn").onclick = () => loadFile("images", document.getElementById("imagesListArea"), document.getElementById("imagesListStatus"));
+document.getElementById("saveImagesListBtn").onclick = () => saveFile("images", document.getElementById("imagesListArea"), document.getElementById("imagesListStatus"));
+
+/* ========== إرسال الرسائل (send.yaml) ========== */
+const sendRunBtn = document.getElementById("sendRunBtn");
+const sendStopBtn = document.getElementById("sendStopBtn");
+const sendStatus = document.getElementById("sendStatus");
+const sendIndicator = document.getElementById("sendRunningIndicator");
+
+sendRunBtn.onclick = async function() {
+  setStatus(sendStatus, "جاري بدء الإرسال...", "");
+  sendRunBtn.disabled = true;
+  try {
+    const res = await fetch("/api/send/run", { method: "POST" });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+    setStatus(sendStatus, "تم بدء الإرسال \u2713", "ok");
+    setIndicator(sendIndicator, true, "جاري الإرسال...", "متوقف");
+    sendStopBtn.disabled = false;
+    setTimeout(checkSendStatus, 5000);
+  } catch (err) {
+    setStatus(sendStatus, "\u062e\u0637\u0623: " + err.message, "err");
+    sendRunBtn.disabled = false;
+  }
+};
+
+sendStopBtn.onclick = async function() {
+  setStatus(sendStatus, "جاري إيقاف الإرسال...", "");
+  sendStopBtn.disabled = true;
+  try {
+    const res = await fetch("/api/send/stop", { method: "POST" });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+    setStatus(sendStatus, "تم إيقاف الإرسال \u2713", "ok");
+    setIndicator(sendIndicator, false, "جاري الإرسال...", "متوقف");
+    sendRunBtn.disabled = false;
+  } catch (err) {
+    setStatus(sendStatus, "\u062e\u0637\u0623: " + err.message, "err");
+    sendStopBtn.disabled = false;
+  }
+};
+
+async function checkSendStatus() {
+  try {
+    const res = await fetch("/api/send/status");
+    const data = await res.json();
+    if (data.ok && data.running) {
+      setIndicator(sendIndicator, true, "جاري الإرسال...", "متوقف");
+      sendStopBtn.disabled = false;
+      sendRunBtn.disabled = true;
+      setTimeout(checkSendStatus, 15000);
+    } else {
+      setIndicator(sendIndicator, false, "جاري الإرسال...", "متوقف");
+      sendStopBtn.disabled = true;
+      sendRunBtn.disabled = false;
+    }
+  } catch (e) {
+    sendRunBtn.disabled = false;
+  }
+}
+
+/* ========== الرد الذكي (reply.yaml) ========== */
+const replyRunBtn = document.getElementById("replyRunBtn");
+const replyStopBtn = document.getElementById("replyStopBtn");
+const replyStatus = document.getElementById("replyStatus");
+const replyIndicator = document.getElementById("replyRunningIndicator");
+
+replyRunBtn.onclick = async function() {
+  setStatus(replyStatus, "جاري تفعيل الرد الذكي...", "");
+  replyRunBtn.disabled = true;
+  try {
+    const res = await fetch("/api/reply/run", { method: "POST" });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+    setStatus(replyStatus, "تم تفعيل الرد الذكي \u2713", "ok");
+    setIndicator(replyIndicator, true, "الرد الذكي يعمل", "متوقف");
+    replyStopBtn.disabled = false;
+    setTimeout(checkReplyStatus, 5000);
+  } catch (err) {
+    setStatus(replyStatus, "\u062e\u0637\u0623: " + err.message, "err");
+    replyRunBtn.disabled = false;
+  }
+};
+
+replyStopBtn.onclick = async function() {
+  setStatus(replyStatus, "جاري إيقاف الرد الذكي...", "");
+  replyStopBtn.disabled = true;
+  try {
+    const res = await fetch("/api/reply/stop", { method: "POST" });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+    setStatus(replyStatus, "تم إيقاف الرد الذكي \u2713", "ok");
+    setIndicator(replyIndicator, false, "الرد الذكي يعمل", "متوقف");
+    replyRunBtn.disabled = false;
+  } catch (err) {
+    setStatus(replyStatus, "\u062e\u0637\u0623: " + err.message, "err");
+    replyStopBtn.disabled = false;
+  }
+};
+
+async function checkReplyStatus() {
+  try {
+    const res = await fetch("/api/reply/status");
+    const data = await res.json();
+    if (data.ok && data.running) {
+      setIndicator(replyIndicator, true, "الرد الذكي يعمل", "متوقف");
+      replyStopBtn.disabled = false;
+      replyRunBtn.disabled = true;
+      setTimeout(checkReplyStatus, 15000);
+    } else {
+      setIndicator(replyIndicator, false, "الرد الذكي يعمل", "متوقف");
+      replyStopBtn.disabled = true;
+      replyRunBtn.disabled = false;
+    }
+  } catch (e) {
+    replyRunBtn.disabled = false;
+  }
+}
+
+/* ========== فحص تلقائي عند فتح الصفحة ========== */
+checkSendStatus();
+checkReplyStatus();
+
+/* ========== إدارة الصور ========== */
+const imagesInput = document.getElementById("imagesInput");
+const previewArea = document.getElementById("imagePreviewArea");
+let selectedFiles = [];
+imagesInput.addEventListener("change", function(e) {
+  selectedFiles = Array.from(this.files);
+  renderPreviews();
+});
+function renderPreviews() {
+  previewArea.innerHTML = "";
+  selectedFiles.forEach((file, index) => {
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      const div = document.createElement("div");
+      div.style.cssText = "width:80px; height:80px; border-radius:8px; overflow:hidden; position:relative; border:1px solid var(--border-color);";
+      div.innerHTML = '<img src="' + ev.target.result + '" style="width:100%; height:100%; object-fit:cover;" />' +
+                      '<button data-index="' + index + '" style="position:absolute; top:2px; right:2px; background:var(--danger); color:white; border:none; border-radius:50%; width:20px; height:20px; cursor:pointer; font-size:10px;">X</button>';
+      previewArea.appendChild(div);
+      div.querySelector("button").onclick = function() {
+        selectedFiles.splice(index, 1);
+        renderPreviews();
+      };
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function loadImages() {
+  const gallery = document.getElementById('imageGallery');
+  const list = document.getElementById('imageList');
+  const countSpan = document.getElementById('imageCount');
+  try {
+    const res = await fetch('/api/images');
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+    const files = data.files || [];
+    countSpan.textContent = files.length;
+    if (files.length === 0) { gallery.style.display = 'none'; return; }
+    gallery.style.display = 'block';
+    list.innerHTML = '';
+    files.forEach(file => {
+      const div = document.createElement('div');
+      div.className = 'image-item';
+      const img = document.createElement('img');
+      img.src = file.download_url;
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'delete-btn';
+      deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+      deleteBtn.onclick = async () => {
+        if (!confirm('تأكيد حذف الصورة "' + file.name + '"؟')) return;
+        try {
+          const resDel = await fetch('/api/delete-image', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ filename: file.name }) });
+          const dataDel = await resDel.json();
+          if (!dataDel.ok) throw new Error(dataDel.error);
+          div.remove();
+          const newCount = parseInt(countSpan.textContent) - 1;
+          countSpan.textContent = newCount;
+          if (newCount === 0) gallery.style.display = 'none';
+          setStatus(document.getElementById('imagesStatus'), 'تم حذف الصورة \u2713', 'ok');
+        } catch (err) { setStatus(document.getElementById('imagesStatus'), 'خطأ في الحذف: ' + err.message, 'err'); }
+      };
+      div.appendChild(img);
+      div.appendChild(deleteBtn);
+      list.appendChild(div);
+    });
+  } catch (err) { gallery.style.display = 'none'; }
+}
+document.getElementById('refreshImagesBtn').onclick = loadImages;
+
+document.getElementById('uploadImagesBtn').onclick = async function() {
+  if (selectedFiles.length === 0) { setStatus(document.getElementById('imagesStatus'), 'اختر صورة أولاً', 'err'); return; }
+  try {
+    const resCheck = await fetch('/api/images');
+    const dataCheck = await resCheck.json();
+    if (!dataCheck.ok) throw new Error(dataCheck.error);
+    const currentCount = dataCheck.files ? dataCheck.files.length : 0;
+    if (currentCount >= 3) { setStatus(document.getElementById('imagesStatus'), 'لا يمكن رفع أكثر من 3 صور. قم بحذف بعض الصور أولاً.', 'err'); return; }
+    const remaining = 3 - currentCount;
+    if (selectedFiles.length > remaining) { setStatus(document.getElementById('imagesStatus'), 'يمكنك رفع ' + remaining + ' صورة فقط (الحد الأقصى 3)', 'err'); return; }
+  } catch (err) { setStatus(document.getElementById('imagesStatus'), 'خطأ في التحقق: ' + err.message, 'err'); return; }
+  let success = 0;
+  for (const file of selectedFiles) {
+    try {
+      const base64 = await new Promise((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(r.result.split(",")[1]); r.onerror = reject; r.readAsDataURL(file); });
+      const res = await fetch("/api/upload-image", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ filename: file.name, dataBase64: base64 }) });
+      const data = await res.json();
+      if (data.ok) success++;
+    } catch (err) {}
+  }
+  setStatus(document.getElementById('imagesStatus'), success + "/" + selectedFiles.length + " تم رفعها", success === selectedFiles.length ? "ok" : "err");
+  if (success === selectedFiles.length) { selectedFiles = []; imagesInput.value = ""; renderPreviews(); }
+  loadImages();
+};
+loadImages();
+
+/* ========== السجلات ========== */
+const logsModal = document.getElementById("logsModal");
+document.getElementById("viewLogsBtn").onclick = async function() {
+  logsModal.classList.add("active");
+  const list = document.getElementById("logFilesList");
+  list.innerHTML = "<span style='color:var(--text-muted)'>جاري التحميل...</span>";
+  try {
+    const res = await fetch("/api/logs");
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+    list.innerHTML = "";
+    if (data.files.length === 0) { list.innerHTML = "<span style='color:var(--text-muted)'>لا توجد سجلات</span>"; return; }
+    data.files.forEach(file => {
+      const btn = document.createElement("button");
+      btn.className = "log-file-btn";
+      btn.textContent = file.name;
+      btn.onclick = async () => {
+        document.querySelectorAll(".log-file-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        const contentEl = document.getElementById("logContent");
+        contentEl.textContent = "جاري التحميل...";
+        try {
+          const r = await fetch("/api/log-content?file=" + encodeURIComponent(file.name));
+          const d = await r.json();
+          if (!d.ok) throw new Error(d.error);
+          contentEl.textContent = d.content || " فارغ ";
+        } catch (err) { contentEl.textContent = "خطأ: " + err.message; }
+      };
+      list.appendChild(btn);
+    });
+  } catch (err) { list.innerHTML = "<span style='color:var(--danger)'>خطأ: " + err.message + "</span>"; }
+};
+document.getElementById("closeLogsModal").onclick = () => logsModal.classList.remove("active");
+logsModal.addEventListener("click", e => { if (e.target === logsModal) logsModal.classList.remove("active"); });
+
+/* ========== الجدولة ========== */
+const scheduleStatus = document.getElementById("scheduleStatus");
+const hourInput = document.getElementById("hourInput");
+const minuteInput = document.getElementById("minuteInput");
+
+async function loadSchedule() {
+  setStatus(scheduleStatus, "جاري التحميل...", "");
+  try {
+    const res = await fetch("/api/schedule");
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+    const ind = document.getElementById("scheduleIndicator");
+    const disp = document.getElementById("currentCronDisplay");
+    if (data.hasSchedule && data.cron) {
+      ind.textContent = "مفعل"; ind.className = "schedule-status active";
+      disp.textContent = "التوقيت (المغرب): " + data.cron;
+      const parts = data.cron.trim().split(/\s+/);
+      if (parts.length >= 2) { minuteInput.value = parts[0]; hourInput.value = parts[1]; }
+      setStatus(scheduleStatus, "تم التحميل \u2713", "ok");
+    } else {
+      ind.textContent = "غير مفعل"; ind.className = "schedule-status inactive";
+      disp.textContent = "(لا توجد جدولة)";
+      setStatus(scheduleStatus, "الجدولة غير مفعلة", "");
+    }
+  } catch (err) { setStatus(scheduleStatus, "خطأ: " + err.message, "err"); }
+}
+async function saveSchedule(cron) {
+  setStatus(scheduleStatus, "جاري الحفظ...", "");
+  try {
+    const res = await fetch("/api/schedule", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "add", cron: cron }) });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+    setStatus(scheduleStatus, "تم التحديث \u2713", "ok");
+    loadSchedule();
+  } catch (err) { setStatus(scheduleStatus, "خطأ: " + err.message, "err"); }
+}
+document.getElementById("loadScheduleBtn").onclick = loadSchedule;
+document.getElementById("updateScheduleBtn").onclick = function() {
+  const h = parseInt(hourInput.value, 10);
+  const m = parseInt(minuteInput.value, 10);
+  if (isNaN(h) || h < 0 || h > 23 || isNaN(m) || m < 0 || m > 59) {
+    setStatus(scheduleStatus, "أدخل قيم صحيحة", "err"); return;
+  }
+  saveSchedule(m + " " + h + " * * *");
+};
+loadSchedule();
+
+/* ========== الإحصائيات ========== */
+let statsChartInstance = null;
+document.getElementById("loadStatsBtn").onclick = async function() {
+  const st = document.getElementById("statsStatus");
+  setStatus(st, "جاري تحميل البيانات...", "");
+  try {
+    const res = await fetch("/api/stats");
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+    if (data.data.length === 0) { setStatus(st, "لا توجد إحصائيات", "err"); return; }
+    document.getElementById("statsContainer").style.display = "block";
+    setStatus(st, "\u2713 تم التحميل", "ok");
+    const tbody = document.getElementById("statsBody");
+    tbody.innerHTML = "";
+    let totalAtt = 0, totalSuc = 0, totalFail = 0;
+    data.data.forEach(row => {
+      totalAtt += row.attempted || 0; totalSuc += row.success || 0; totalFail += row.failed || 0;
+      const tr = document.createElement("tr");
+      tr.innerHTML = "<td>" + row.date + "</td><td>" + (row.attempted||0) + "</td><td style='color:var(--success)'>" + (row.success||0) + "</td><td style='color:var(--danger)'>" + (row.failed||0) + "</td>";
+      tbody.appendChild(tr);
+    });
+    const trTotal = document.createElement("tr");
+    trTotal.style.fontWeight = "bold"; trTotal.style.borderTop = "2px solid var(--accent)";
+    trTotal.innerHTML = "<td>المجموع</td><td>" + totalAtt + "</td><td style='color:var(--success)'>" + totalSuc + "</td><td style='color:var(--danger)'>" + totalFail + "</td>";
+    tbody.appendChild(trTotal);
+    const ctx = document.getElementById('statsChart').getContext('2d');
+    if (statsChartInstance) statsChartInstance.destroy();
+    statsChartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: data.data.map(r => r.date),
+        datasets: [
+          { label: 'محاولات', data: data.data.map(r => r.attempted||0), backgroundColor: 'rgba(53, 114, 238, 0.6)', borderColor: 'rgba(53, 114, 238, 1)', borderWidth: 1, borderRadius: 4 },
+          { label: 'نجاح', data: data.data.map(r => r.success||0), backgroundColor: 'rgba(37, 211, 102, 0.6)', borderColor: 'rgba(37, 211, 102, 1)', borderWidth: 1, borderRadius: 4 },
+          { label: 'فشل', data: data.data.map(r => r.failed||0), backgroundColor: 'rgba(241, 92, 109, 0.6)', borderColor: 'rgba(241, 92, 109, 1)', borderWidth: 1, borderRadius: 4 }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: '#E9EDEF', font: { family: 'Tajawal', size: 14 } } } },
+        scales: {
+          y: { beginAtZero: true, ticks: { color: '#8696A0', font: { family: 'Tajawal' } }, grid: { color: 'rgba(255,255,255,0.05)' } },
+          x: { ticks: { color: '#8696A0', font: { family: 'Tajawal' } }, grid: { display: false } }
+        }
+      }
+    });
+  } catch (err) { setStatus(st, "خطأ: " + err.message, "err"); }
+};
+
+/* ========== حالة واتساب و QR ========== */
+const sessionStatusEl = document.getElementById('sessionStatus');
+const sessionStatusText = document.getElementById('sessionStatusText');
+const qrImage = document.getElementById('qrImage');
+
+async function refreshSession() {
+  setStatus(sessionStatusEl, 'جاري التحديث...', '');
+  try {
+    const resStatus = await fetch('/api/session/status');
+    const dataStatus = await resStatus.json();
+    if (dataStatus.ok) {
+      const status = dataStatus.status || 'غير معروف';
+      sessionStatusText.textContent = status;
+      if (status === 'connected') sessionStatusText.style.color = 'var(--success)';
+      else if (status === 'waiting_scan') sessionStatusText.style.color = 'var(--warning)';
+      else sessionStatusText.style.color = 'var(--text-muted)';
+    } else { throw new Error(dataStatus.error); }
+    const resQR = await fetch('/api/session/qr');
+    const dataQR = await resQR.json();
+    if (dataQR.ok && dataQR.qr) { qrImage.src = dataQR.qr; qrImage.style.display = 'block'; }
+    else { qrImage.style.display = 'none'; }
+    setStatus(sessionStatusEl, '\u2713 تم التحديث', 'ok');
+  } catch (err) { setStatus(sessionStatusEl, 'خطأ: ' + err.message, 'err'); }
+}
+
+document.getElementById('refreshSessionBtn').addEventListener('click', refreshSession);
+document.getElementById('runQRBtn').addEventListener('click', async function() {
+  setStatus(sessionStatusEl, 'جاري تشغيل QR...', '');
+  try {
+    const res = await fetch('/api/qr/run', { method: 'POST' });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+    setStatus(sessionStatusEl, 'تم تشغيل QR workflow \u2713', 'ok');
+    setTimeout(refreshSession, 3000);
+  } catch (err) { setStatus(sessionStatusEl, 'خطأ: ' + err.message, 'err'); }
+});
+document.getElementById('stopQRBtn').addEventListener('click', async function() {
+  setStatus(sessionStatusEl, 'جاري إيقاف QR...', '');
+  try {
+    const res = await fetch('/api/qr/stop', { method: 'POST' });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+    setStatus(sessionStatusEl, 'تم إيقاف QR workflow \u2713', 'ok');
+    setTimeout(refreshSession, 2000);
+  } catch (err) { setStatus(sessionStatusEl, 'خطأ: ' + err.message, 'err'); }
+});
+
+refreshSession();
+setInterval(refreshSession, 30000);
+
+</script>
+</body>
+</html>
+`;
