@@ -50,3 +50,17 @@
 [2026-08-04T00:28:37.077Z] 🧠 AI thinking: "Salam..."
 [2026-08-04T00:28:41.774Z] ✔ Replied successfully.
 [2026-08-04T00:31:32.807Z] ⏰ 9 mins over. Shutting down...
+[2026-08-04T00:35:13.943Z] 📝 Loaded prompt.
+[2026-08-04T00:35:13.945Z] 🔧 Initializing...
+[2026-08-04T00:35:19.487Z] ✅ Bot Ready (Live Mode - 9 minutes)
+[2026-08-04T00:36:40.920Z] 📩 Message chunk received from 85001798438961@lid: "Hi"
+[2026-08-04T00:36:42.197Z] 📩 Message chunk received from 85001798438961@lid: "Hiw"
+[2026-08-04T00:36:44.165Z] 📩 Message chunk received from 85001798438961@lid: "Are"
+[2026-08-04T00:36:45.625Z] 📩 Message chunk received from 85001798438961@lid: "You"
+[2026-08-04T00:36:47.540Z] 📩 Message chunk received from 85001798438961@lid: "Doing"
+[2026-08-04T00:36:49.242Z] 📩 Message chunk received from 85001798438961@lid: "?"
+[2026-08-04T00:36:59.251Z] ✅ User 85001798438961@lid stopped typing. Combined text: "Hi Hiw Are You Doing ?..."
+[2026-08-04T00:36:59.252Z] 💬 Replying to 85001798438961@lid: "Hi Hiw Are You Doing ?..."
+[2026-08-04T00:36:59.252Z] 🧠 AI thinking: "Hi Hiw Are You Doing ?..."
+[2026-08-04T00:37:05.915Z] ✔ Replied successfully.
+[2026-08-04T00:44:19.499Z] ⏰ 9 mins over. Shutting down...
