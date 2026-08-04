@@ -11,7 +11,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // =================== Constants ===================
 const SESSION_DIR = path.join(__dirname, "session");
 const PROMPT_FILE = path.join(__dirname, "data", "prompt.json");
-const ANSWER_LIST_FILE = path.join(__dirname, "data", "answer.json");
 const TELEGRAM_ID_FILE = path.join(__dirname, "data", "telegram-id.json");
 const LOGS_DIR = path.join(__dirname, "logs");
 
@@ -169,17 +168,6 @@ async function runBot() {
         log(`📝 Loaded prompt.`);
     }
 
-    let allowedNumbers = [];
-    if (await fs.pathExists(ANSWER_LIST_FILE)) {
-        try {
-            const data = await fs.readJson(ANSWER_LIST_FILE);
-            if (Array.isArray(data)) {
-                allowedNumbers = data.map(n => String(n).replace(/\D/g, ''));
-                log(`✅ Loaded ${allowedNumbers.length} allowed numbers.`);
-            }
-        } catch (err) {}
-    }
-
     const client = new Client({
         authStrategy: new LocalAuth({ clientId: SESSION_NAME, dataPath: SESSION_DIR, restartOnAuthFail: true }),
         puppeteer: {
@@ -212,68 +200,40 @@ async function runBot() {
         }, BOT_UPTIME_MS);
     });
 
-    // =================== المستمع للرسائل (محدث بطريقة مرنة) ===================
-      // =================== المستمع للرسائل (محدث لدعم LID والخصوصية) ===================
+    // =================== المستمع للرسائل (يرد على الجميع) ===================
     client.on("message", async (msg) => {
+        // تجاهل الرسائل المرسلة من البوت نفسه، أو رسائل الحالة، أو غير النصية
         if (msg.fromMe || msg.type !== 'chat' || msg.isStatus) return;
 
-        let senderId = msg.author || msg.from; 
-        let senderNumber = senderId.split('@')[0];
+        const chatId = msg.from; // نستخدم معرف الدردشة كمفتاح للطابور
+        log(`📩 Message chunk received from ${chatId}: "${msg.body}"`);
 
-        // 🕵️‍♂️ إذا كان الرقم من نوع LID (مخفي)، نطلب الرقم الحقيقي من دليل جهات الاتصال
-        if (senderId.includes('@lid')) {
-            try {
-                const contact = await msg.getContact();
-                if (contact && contact.number) {
-                    senderNumber = contact.number;
-                    log(`🕵️ Resolved LID ${senderId.split('@')[0]} to real number: ${senderNumber}`);
-                }
-            } catch (e) {
-                log(`⚠️ Could not resolve LID to real number: ${e.message}`);
-            }
+        if (!messageBuffers[chatId]) {
+            messageBuffers[chatId] = { messages: [], lastMsg: msg, timer: null };
         }
 
-        log(`🔍 Received message. Sender: ${senderNumber}`);
+        // إضافة الرسالة إلى مجموعة المستخدم
+        messageBuffers[chatId].messages.push(msg.body);
+        messageBuffers[chatId].lastMsg = msg;
 
-        // فحص القائمة البيضاء بطريقة مرنة (includes)
-        let isAllowed = false;
-        if (allowedNumbers.length === 0) {
-            isAllowed = true; 
-        } else {
-            isAllowed = allowedNumbers.some(allowed => senderNumber.includes(allowed) || allowed.includes(senderNumber));
+        // إلغاء المؤقت السابق وإعداد مؤقت جديد (10 ثواني)
+        if (messageBuffers[chatId].timer) {
+            clearTimeout(messageBuffers[chatId].timer);
         }
 
-        if (!isAllowed) {
-            log(`🚫 Ignored message from ${senderNumber} (Not in whitelist)`);
-            return; 
-        }
-
-        log(`📩 Message chunk received from ${senderNumber}: "${msg.body}"`);
-
-        // نستخدم senderNumber كمفتاح فريد للطابور
-        if (!messageBuffers[senderNumber]) {
-            messageBuffers[senderNumber] = { messages: [], lastMsg: msg, timer: null };
-        }
-
-        messageBuffers[senderNumber].messages.push(msg.body);
-        messageBuffers[senderNumber].lastMsg = msg;
-
-        if (messageBuffers[senderNumber].timer) {
-            clearTimeout(messageBuffers[senderNumber].timer);
-        }
-
-        messageBuffers[senderNumber].timer = setTimeout(() => {
-            const combinedText = messageBuffers[senderNumber].messages.join(' ');
-            const msgToReply = messageBuffers[senderNumber].lastMsg;
+        messageBuffers[chatId].timer = setTimeout(() => {
+            const combinedText = messageBuffers[chatId].messages.join(' ');
+            const msgToReply = messageBuffers[chatId].lastMsg;
             
-            log(`✅ User ${senderNumber} stopped typing. Combined text: "${combinedText.substring(0, 50)}..."`);
+            log(`✅ User ${chatId} stopped typing. Combined text: "${combinedText.substring(0, 50)}..."`);
             
-            delete messageBuffers[senderNumber];
+            delete messageBuffers[chatId];
             
             messageQueue.push({ msg: msgToReply, combinedText: combinedText });
             processQueue(systemPrompt); 
         }, MESSAGE_DELAY_MS);
     });
+
     client.on("auth_failure", async (msg) => {
         log(`🔐 Auth failed: ${msg}`);
         await sendTelegramAlert(`❌ <b>فشل تسجيل الدخول!</b>\n\nالسبب: ${msg}\nتم حذف الجلسة. يرجى إعادة تشغيل الـ Workflow لمسح QR جديد.`);
