@@ -110,3 +110,14 @@
 [2026-08-04T02:24:52.329Z] 🚫 Ignored message from 85001798438961 (Not in whitelist)
 [2026-08-04T02:24:56.035Z] 🔍 Received message. Chat: 85001798438961@lid | Sender: 85001798438961
 [2026-08-04T02:24:56.035Z] 🚫 Ignored message from 85001798438961 (Not in whitelist)
+[2026-08-04T02:31:18.147Z] 📝 Loaded prompt.
+[2026-08-04T02:31:18.148Z] ✅ Loaded 1 allowed numbers.
+[2026-08-04T02:31:18.149Z] 🔧 Initializing...
+[2026-08-04T02:31:21.859Z] ✅ Bot Ready (Live Mode - 9 minutes)
+[2026-08-04T02:31:22.281Z] 📨 Telegram alert sent.
+[2026-08-04T02:31:45.575Z] 🕵️ Resolved LID 85001798438961 to real number: 85001798438961
+[2026-08-04T02:31:45.575Z] 🔍 Received message. Sender: 85001798438961
+[2026-08-04T02:31:45.575Z] 🚫 Ignored message from 85001798438961 (Not in whitelist)
+[2026-08-04T02:31:46.760Z] 🕵️ Resolved LID 85001798438961 to real number: 85001798438961
+[2026-08-04T02:31:46.761Z] 🔍 Received message. Sender: 85001798438961
+[2026-08-04T02:31:46.761Z] 🚫 Ignored message from 85001798438961 (Not in whitelist)
