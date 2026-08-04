@@ -213,20 +213,32 @@ async function runBot() {
     });
 
     // =================== المستمع للرسائل (محدث بطريقة مرنة) ===================
-    // =================== المستمع للرسائل (محدث لدعم المجموعات والـ LID) ===================
+      // =================== المستمع للرسائل (محدث لدعم LID والخصوصية) ===================
     client.on("message", async (msg) => {
         if (msg.fromMe || msg.type !== 'chat' || msg.isStatus) return;
 
-        // في الرسائل الجماعية، msg.from هو ID المجموعة، و msg.author هو رقم المرسل الحقيقي
-        const senderId = msg.author || msg.from; 
-        const senderNumber = senderId.split('@')[0];
+        let senderId = msg.author || msg.from; 
+        let senderNumber = senderId.split('@')[0];
 
-        log(`🔍 Received message. Chat: ${msg.from} | Sender: ${senderNumber}`);
+        // 🕵️‍♂️ إذا كان الرقم من نوع LID (مخفي)، نطلب الرقم الحقيقي من دليل جهات الاتصال
+        if (senderId.includes('@lid')) {
+            try {
+                const contact = await msg.getContact();
+                if (contact && contact.number) {
+                    senderNumber = contact.number;
+                    log(`🕵️ Resolved LID ${senderId.split('@')[0]} to real number: ${senderNumber}`);
+                }
+            } catch (e) {
+                log(`⚠️ Could not resolve LID to real number: ${e.message}`);
+            }
+        }
+
+        log(`🔍 Received message. Sender: ${senderNumber}`);
 
         // فحص القائمة البيضاء بطريقة مرنة (includes)
         let isAllowed = false;
         if (allowedNumbers.length === 0) {
-            isAllowed = true; // إذا اللائحة فارغة، سمح للجميع
+            isAllowed = true; 
         } else {
             isAllowed = allowedNumbers.some(allowed => senderNumber.includes(allowed) || allowed.includes(senderNumber));
         }
@@ -238,30 +250,30 @@ async function runBot() {
 
         log(`📩 Message chunk received from ${senderNumber}: "${msg.body}"`);
 
-        if (!messageBuffers[senderId]) {
-            messageBuffers[senderId] = { messages: [], lastMsg: msg, timer: null };
+        // نستخدم senderNumber كمفتاح فريد للطابور
+        if (!messageBuffers[senderNumber]) {
+            messageBuffers[senderNumber] = { messages: [], lastMsg: msg, timer: null };
         }
 
-        messageBuffers[senderId].messages.push(msg.body);
-        messageBuffers[senderId].lastMsg = msg;
+        messageBuffers[senderNumber].messages.push(msg.body);
+        messageBuffers[senderNumber].lastMsg = msg;
 
-        if (messageBuffers[senderId].timer) {
-            clearTimeout(messageBuffers[senderId].timer);
+        if (messageBuffers[senderNumber].timer) {
+            clearTimeout(messageBuffers[senderNumber].timer);
         }
 
-        messageBuffers[senderId].timer = setTimeout(() => {
-            const combinedText = messageBuffers[senderId].messages.join(' ');
-            const msgToReply = messageBuffers[senderId].lastMsg;
+        messageBuffers[senderNumber].timer = setTimeout(() => {
+            const combinedText = messageBuffers[senderNumber].messages.join(' ');
+            const msgToReply = messageBuffers[senderNumber].lastMsg;
             
             log(`✅ User ${senderNumber} stopped typing. Combined text: "${combinedText.substring(0, 50)}..."`);
             
-            delete messageBuffers[senderId];
+            delete messageBuffers[senderNumber];
             
             messageQueue.push({ msg: msgToReply, combinedText: combinedText });
             processQueue(systemPrompt); 
         }, MESSAGE_DELAY_MS);
     });
-
     client.on("auth_failure", async (msg) => {
         log(`🔐 Auth failed: ${msg}`);
         await sendTelegramAlert(`❌ <b>فشل تسجيل الدخول!</b>\n\nالسبب: ${msg}\nتم حذف الجلسة. يرجى إعادة تشغيل الـ Workflow لمسح QR جديد.`);
