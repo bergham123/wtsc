@@ -24,6 +24,7 @@ export const HTML_PAGE = `<!DOCTYPE html>
     --blue-glow: rgba(83, 168, 226, 0.2);
     --purple: #A371E0;
     --purple-glow: rgba(163, 113, 224, 0.2);
+    --orange: #FF8C42;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -32,120 +33,66 @@ export const HTML_PAGE = `<!DOCTYPE html>
     color: var(--text-main);
     min-height: 100vh;
     display: flex;
-    gap: 0;
   }
-
   .sidebar {
-    width: 300px;
-    background: var(--card-bg);
-    height: 100vh;
-    position: sticky;
-    top: 0;
-    display: flex;
-    flex-direction: column;
-    padding: 24px;
-    border-left: 1px solid var(--border-color);
-    flex-shrink: 0;
-    overflow-y: auto;
+    width: 300px; background: var(--card-bg); height: 100vh;
+    position: sticky; top: 0; display: flex; flex-direction: column;
+    padding: 24px; border-left: 1px solid var(--border-color);
+    flex-shrink: 0; overflow-y: auto;
   }
   .sidebar-header {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 24px;
-    padding-bottom: 20px;
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 24px; padding-bottom: 20px;
     border-bottom: 1px solid var(--border-color);
   }
   .logo-icon {
-    width: 40px; height: 40px;
-    background: var(--accent);
-    border-radius: 10px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 20px; color: #111B21;
+    width: 40px; height: 40px; background: var(--accent);
+    border-radius: 10px; display: flex; align-items: center;
+    justify-content: center; font-size: 20px; color: #111B21;
   }
   .logo-text { font-size: 18px; font-weight: 800; }
   .logo-text span { color: var(--accent); }
-
-  .nav-cards {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-    flex-grow: 1;
-  }
+  .nav-cards { display: flex; flex-direction: column; gap: 14px; flex-grow: 1; }
   .sidebar-card {
-    background: var(--bg-main);
-    border: 1px solid var(--border-color);
-    border-radius: 10px;
-    padding: 16px;
-    transition: border-color 0.3s;
+    background: var(--bg-main); border: 1px solid var(--border-color);
+    border-radius: 10px; padding: 16px; transition: border-color 0.3s;
   }
   .sidebar-card:hover { border-color: var(--accent); }
-
   .main-content {
-    flex: 1;
-    padding: 30px;
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
-    max-width: calc(100% - 300px);
-    width: 100%;
+    flex: 1; padding: 30px; display: flex; flex-direction: column;
+    gap: 24px; max-width: calc(100% - 300px); width: 100%;
   }
-
-  .content-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 24px;
-  }
+  .content-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
   @media (max-width: 1024px) {
     body { flex-direction: column; }
     .sidebar { width: 100%; height: auto; position: relative; border-left: none; border-bottom: 1px solid var(--border-color); }
     .main-content { max-width: 100%; padding: 20px; }
     .content-grid { grid-template-columns: 1fr; }
   }
-
   .card {
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 24px;
-    transition: border-color 0.3s ease;
+    background: var(--card-bg); border: 1px solid var(--border-color);
+    border-radius: 12px; padding: 24px; transition: border-color 0.3s;
   }
   .card:hover { border-color: rgba(37, 211, 102, 0.4); }
   .card-header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
   .card-header i { font-size: 18px; color: var(--accent); }
   .card-header h2 { font-size: 16px; font-weight: 700; }
   .card-hint { color: var(--text-muted); font-size: 12px; margin-bottom: 16px; }
-
   textarea {
-    width: 100%;
-    min-height: 140px;
-    background: var(--input-bg);
-    color: var(--text-main);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 12px;
-    font-family: 'Consolas', monospace;
-    font-size: 13px;
-    resize: vertical;
-    direction: ltr; text-align: left;
+    width: 100%; min-height: 140px; background: var(--input-bg);
+    color: var(--text-main); border: 1px solid var(--border-color);
+    border-radius: 8px; padding: 12px; font-family: 'Consolas', monospace;
+    font-size: 13px; resize: vertical; direction: ltr; text-align: left;
   }
   textarea:focus { outline: none; border-color: var(--accent); }
-
   .btn-row { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
   .btn {
-    background: var(--input-bg);
-    color: var(--text-main);
-    border: 1px solid var(--border-color);
-    padding: 10px 16px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-family: 'Tajawal', sans-serif;
-    font-size: 13px;
-    font-weight: 500;
-    transition: all 0.2s;
+    background: var(--input-bg); color: var(--text-main);
+    border: 1px solid var(--border-color); padding: 10px 16px;
+    border-radius: 8px; cursor: pointer; font-family: 'Tajawal', sans-serif;
+    font-size: 13px; font-weight: 500; transition: all 0.2s;
     display: inline-flex; align-items: center; gap: 8px;
-    width: 100%;
-    justify-content: center;
+    width: 100%; justify-content: center;
   }
   .btn:hover { background: var(--border-color); }
   .btn:disabled { opacity: 0.4; cursor: not-allowed; }
@@ -158,24 +105,14 @@ export const HTML_PAGE = `<!DOCTYPE html>
   .btn-blue:hover { background: #3d8ec4; box-shadow: 0 4px 12px var(--blue-glow); }
   .btn-purple { background: var(--purple); border: none; color: #fff; font-weight: 700; }
   .btn-purple:hover { background: #8b5cc7; box-shadow: 0 4px 12px var(--purple-glow); }
-
+  .btn-orange { background: var(--orange); border: none; color: #111B21; font-weight: 700; }
+  .btn-sm { padding: 6px 10px; font-size: 12px; width: auto; }
   .status { margin-top: 10px; font-size: 12px; min-height: 18px; color: var(--text-muted); text-align: center; }
   .status.ok { color: var(--success); }
   .status.err { color: var(--danger); }
-
-  .section-label {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--text-muted);
-    margin-bottom: 8px;
-    font-weight: 700;
-  }
-
   .schedule-status { padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; display: inline-block; margin-bottom: 10px; }
   .schedule-status.active { background: rgba(37, 211, 102, 0.15); color: var(--success); border: 1px solid rgba(37, 211, 102, 0.3); }
   .schedule-status.inactive { background: rgba(241, 92, 109, 0.15); color: var(--danger); border: 1px solid rgba(241, 92, 109, 0.3); }
-
   .schedule-inputs { display: flex; gap: 12px; margin-bottom: 12px; justify-content: center; }
   .schedule-inputs label { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--text-muted); align-items: center; }
   .schedule-inputs input {
@@ -183,12 +120,10 @@ export const HTML_PAGE = `<!DOCTYPE html>
     border: 1px solid var(--border-color); border-radius: 6px; padding: 8px; text-align: center;
     font-family: 'Tajawal'; font-size: 16px;
   }
-
   .stats-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
   .stats-table th { text-align: right; padding: 12px; background: var(--input-bg); color: var(--text-muted); border-bottom: 1px solid var(--border-color); font-weight: 500; }
   .stats-table td { padding: 12px; border-bottom: 1px solid var(--border-color); color: var(--text-main); }
   .stats-table tr:last-child td { border-bottom: none; }
-
   .modal-overlay {
     display: none; position: fixed; inset: 0;
     background: rgba(0,0,0,0.85); backdrop-filter: blur(8px);
@@ -205,57 +140,80 @@ export const HTML_PAGE = `<!DOCTYPE html>
   .log-file-btn:hover { background: var(--border-color); }
   .log-file-btn.active { background: var(--accent); border-color: var(--accent); color: #111B21; font-weight: 700; }
   .log-content { background: var(--bg-main); border-radius: 8px; padding: 16px; overflow-y: auto; font-family: 'Consolas', monospace; font-size: 13px; flex-grow: 1; border: 1px solid var(--border-color); }
-
-  .image-item {
-    position: relative;
-    width: 90px; height: 90px;
-    border-radius: 8px;
-    overflow: hidden;
-    border: 1px solid var(--border-color);
-    flex-shrink: 0;
-  }
+  .image-item { position: relative; width: 90px; height: 90px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border-color); flex-shrink: 0; }
   .image-item img { width: 100%; height: 100%; object-fit: cover; }
   .image-item .delete-btn {
-    position: absolute; top: 4px; right: 4px;
-    background: var(--danger); border: none; color: white;
-    border-radius: 50%; width: 24px; height: 24px; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
+    position: absolute; top: 4px; right: 4px; background: var(--danger);
+    border: none; color: white; border-radius: 50%; width: 24px; height: 24px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
     font-size: 11px; box-shadow: 0 2px 8px rgba(0,0,0,0.5);
   }
   #imageGallery { margin-top: 16px; }
   #imageList { display: flex; flex-wrap: wrap; gap: 12px; }
-
-  .running-indicator {
-    display: inline-flex; align-items: center; gap: 6px;
-    font-size: 11px; font-weight: 700; padding: 3px 10px;
-    border-radius: 20px; margin-top: 8px;
-  }
+  .running-indicator { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; margin-top: 8px; }
   .running-indicator.active { background: rgba(37,211,102,0.15); color: var(--success); }
   .running-indicator.idle { background: rgba(134,150,160,0.15); color: var(--text-muted); }
-  .running-indicator .dot {
-    width: 7px; height: 7px; border-radius: 50%; background: currentColor;
+  .running-indicator .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .running-indicator.active .dot { animation: pulse 1.2s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.3; transform: scale(0.7); } }
+
+  /* ===== Mylist Styles ===== */
+  .mylist-add-row {
+    display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;
+    background: var(--bg-main); padding: 14px; border-radius: 8px;
+    border: 1px solid var(--border-color); margin-bottom: 14px;
   }
-  .running-indicator.active .dot {
-    animation: pulse 1.2s ease-in-out infinite;
+  .mylist-add-row label { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--text-muted); flex: 1; min-width: 100px; }
+  .mylist-add-row input, .mylist-add-row select {
+    background: var(--input-bg); color: var(--text-main);
+    border: 1px solid var(--border-color); border-radius: 6px;
+    padding: 8px 10px; font-family: 'Tajawal'; font-size: 13px; width: 100%;
   }
-  @keyframes pulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.3; transform: scale(0.7); }
+  .mylist-add-row input:focus, .mylist-add-row select:focus { outline: none; border-color: var(--accent); }
+  .mylist-filters {
+    display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 14px;
   }
+  .mylist-filters select, .mylist-filters input {
+    background: var(--input-bg); color: var(--text-main);
+    border: 1px solid var(--border-color); border-radius: 6px;
+    padding: 7px 10px; font-family: 'Tajawal'; font-size: 12px;
+  }
+  .mylist-filters select:focus, .mylist-filters input:focus { outline: none; border-color: var(--accent); }
+  .mylist-filters input { width: 65px; text-align: center; }
+  .mylist-table-wrapper { max-height: 350px; overflow-y: auto; border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 14px; }
+  .mylist-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .mylist-table th {
+    text-align: right; padding: 10px 12px; background: var(--input-bg);
+    color: var(--text-muted); border-bottom: 1px solid var(--border-color);
+    position: sticky; top: 0; z-index: 2; font-weight: 500; font-size: 12px;
+  }
+  .mylist-table td { padding: 8px 12px; border-bottom: 1px solid var(--border-color); }
+  .mylist-table tr:last-child td { border-bottom: none; }
+  .mylist-table tr:hover td { background: rgba(37, 211, 102, 0.05); }
+  .mylist-table .edit-input {
+    background: var(--bg-main); color: var(--text-main);
+    border: 1px solid var(--accent); border-radius: 4px;
+    padding: 4px 8px; font-family: 'Tajawal'; font-size: 12px; width: 100%;
+  }
+  .mylist-footer { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+  .mylist-footer span { font-size: 13px; color: var(--text-muted); }
+  .gender-badge {
+    display: inline-block; padding: 2px 10px; border-radius: 12px;
+    font-size: 11px; font-weight: 700;
+  }
+  .gender-badge.male { background: rgba(83,168,226,0.15); color: var(--blue); }
+  .gender-badge.female { background: rgba(163,113,224,0.15); color: var(--purple); }
+  .gender-badge.unknown { background: rgba(134,150,160,0.15); color: var(--text-muted); }
 </style>
 </head>
 <body>
 
-  <!-- ========= SIDEBAR ========= -->
   <aside class="sidebar">
     <div class="sidebar-header">
       <div class="logo-icon"><i class="fab fa-whatsapp"></i></div>
       <div class="logo-text">مدير <span>واتساب</span></div>
     </div>
-
     <div class="nav-cards">
-
-      <!-- Send Messages -->
       <div class="sidebar-card">
         <div class="card-header"><i class="fas fa-paper-plane" style="color:var(--blue)"></i><h2>إرسال الرسائل</h2></div>
         <div id="sendRunningIndicator" class="running-indicator idle"><span class="dot"></span> متوقف</div>
@@ -265,8 +223,6 @@ export const HTML_PAGE = `<!DOCTYPE html>
         </div>
         <div class="status" id="sendStatus"></div>
       </div>
-
-      <!-- AI Reply -->
       <div class="sidebar-card">
         <div class="card-header"><i class="fas fa-robot" style="color:var(--purple)"></i><h2>الرد الذكي</h2></div>
         <div id="replyRunningIndicator" class="running-indicator idle"><span class="dot"></span> متوقف</div>
@@ -276,8 +232,6 @@ export const HTML_PAGE = `<!DOCTYPE html>
         </div>
         <div class="status" id="replyStatus"></div>
       </div>
-
-      <!-- Logs -->
       <div class="sidebar-card">
         <div class="card-header"><i class="fas fa-terminal"></i><h2>السجلات</h2></div>
         <div class="btn-row" style="margin-top: 12px;">
@@ -285,8 +239,6 @@ export const HTML_PAGE = `<!DOCTYPE html>
         </div>
         <div class="status" id="logsStatus"></div>
       </div>
-
-      <!-- Schedule -->
       <div class="sidebar-card">
         <div class="card-header"><i class="fas fa-clock"></i><h2>الجدولة</h2></div>
         <div class="card-hint">وقت المغرب (-2 ساعة UTC)</div>
@@ -304,14 +256,76 @@ export const HTML_PAGE = `<!DOCTYPE html>
         </div>
         <div class="status" id="scheduleStatus"></div>
       </div>
-
     </div>
   </aside>
 
-  <!-- ========= MAIN CONTENT ========= -->
   <main class="main-content">
 
-    <!-- Statistics Card -->
+    <!-- ===== قائمة الأرقام التفصيلية ===== -->
+    <div class="card">
+      <div class="card-header"><i class="fas fa-list-ol" style="color:var(--orange)"></i><h2>قائمة الأرقام التفصيلية</h2></div>
+      <div class="card-hint">إدارة الأرقام مع العمر والجنس — data/mylist.json</div>
+
+      <div class="mylist-add-row">
+        <label>الرقم<input type="text" id="mylistNumber" placeholder="212600000000" /></label>
+        <label>العمر<input type="number" id="mylistAge" placeholder="25" min="0" max="120" /></label>
+        <label>الجنس
+          <select id="mylistGender">
+            <option value="ذكر">ذكر</option>
+            <option value="أنثى">أنثى</option>
+          </select>
+        </label>
+        <button class="btn btn-primary btn-sm" id="mylistAddBtn" style="width:auto;align-self:flex-end;margin-bottom:0;"><i class="fas fa-plus"></i> إضافة</button>
+      </div>
+
+      <div class="mylist-filters">
+        <select id="mylistFilterGender">
+          <option value="all">الجنس: الكل</option>
+          <option value="ذكر">ذكر</option>
+          <option value="أنثى">أنثى</option>
+        </select>
+        <select id="mylistFilterAge">
+          <option value="all">العمر: الكل</option>
+          <option value="0-17">أقل من 18</option>
+          <option value="18-25">18 - 25</option>
+          <option value="25-35">25 - 35</option>
+          <option value="35-45">35 - 45</option>
+          <option value="46-200">أكثر من 45</option>
+          <option value="custom">مخصص</option>
+        </select>
+        <span id="customAgeWrap" style="display:none;gap:4px;align-items:center;">
+          <input type="number" id="mylistMinAge" placeholder="من" min="0" />
+          <span style="color:var(--text-muted);">-</span>
+          <input type="number" id="mylistMaxAge" placeholder="إلى" min="0" />
+        </span>
+        <select id="mylistSort">
+          <option value="index-asc">ترتيب: الإضافة</option>
+          <option value="age-asc">العمر: تصاعدي</option>
+          <option value="age-desc">العمر: تنازلي</option>
+          <option value="number-asc">الرقم: تصاعدي</option>
+          <option value="number-desc">الرقم: تنازلي</option>
+        </select>
+        <button class="btn btn-sm" id="mylistFilterBtn" style="width:auto;background:var(--orange);color:#111B21;border:none;font-weight:700;"><i class="fas fa-filter"></i> فلتر</button>
+      </div>
+
+      <div class="mylist-table-wrapper">
+        <table class="mylist-table">
+          <thead><tr><th style="width:40px">#</th><th>الرقم</th><th>العمر</th><th>الجنس</th><th style="width:100px">إجراءات</th></tr></thead>
+          <tbody id="mylistBody"><tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:30px;">اضغط "تحميل" لجلب البيانات</td></tr></tbody>
+        </table>
+      </div>
+
+      <div class="mylist-footer">
+        <span id="mylistCount">المجموع: 0 | يعرض: 0</span>
+        <div class="btn-row" style="margin-top:0;">
+          <button class="btn btn-sm" id="mylistLoadBtn"><i class="fas fa-download"></i> تحميل</button>
+          <button class="btn btn-primary btn-sm" id="mylistSyncBtn"><i class="fas fa-exchange-alt"></i> نسخ إلى جهات الاتصال</button>
+        </div>
+      </div>
+      <div class="status" id="mylistStatus"></div>
+    </div>
+
+    <!-- الإحصائيات -->
     <div class="card">
       <div class="card-header"><i class="fas fa-chart-line"></i><h2>إحصائيات الإرسال</h2></div>
       <div class="btn-row" style="margin-top: 0; margin-bottom: 16px;">
@@ -331,7 +345,7 @@ export const HTML_PAGE = `<!DOCTYPE html>
       <div class="status" id="statsStatus"></div>
     </div>
 
-    <!-- WhatsApp Status & QR -->
+    <!-- حالة واتساب -->
     <div class="card">
       <div class="card-header"><i class="fab fa-whatsapp"></i><h2>حالة واتساب</h2></div>
       <div style="display:flex; flex-wrap:wrap; gap:20px; align-items:center;">
@@ -351,7 +365,6 @@ export const HTML_PAGE = `<!DOCTYPE html>
     </div>
 
     <div class="content-grid">
-      <!-- Messages Card -->
       <div class="card">
         <div class="card-header"><i class="fas fa-comment-dots"></i><h2>الرسائل</h2></div>
         <div class="card-hint">كل رسالة في سطر</div>
@@ -362,8 +375,6 @@ export const HTML_PAGE = `<!DOCTYPE html>
         </div>
         <div class="status" id="messagesStatus"></div>
       </div>
-
-      <!-- Contacts Card -->
       <div class="card">
         <div class="card-header"><i class="fas fa-address-book"></i><h2>جهات الاتصال</h2></div>
         <div class="card-hint">كل رقم في سطر</div>
@@ -376,7 +387,6 @@ export const HTML_PAGE = `<!DOCTYPE html>
       </div>
     </div>
 
-    <!-- Images Upload Card -->
     <div class="card">
       <div class="card-header"><i class="fas fa-images"></i><h2>رفع الصور</h2></div>
       <div class="card-hint">الحد الأقصى 3 صور</div>
@@ -389,15 +399,12 @@ export const HTML_PAGE = `<!DOCTYPE html>
         <button class="btn" id="refreshImagesBtn" style="width: auto;"><i class="fas fa-sync"></i> تحديث القائمة</button>
       </div>
       <div id="imageGallery" style="display: none; margin-top: 16px;">
-        <div style="margin-bottom:10px;">
-          <span style="font-size:14px; color:var(--text-muted);">الصور الموجودة (<span id="imageCount">0</span>/3)</span>
-        </div>
+        <div style="margin-bottom:10px;"><span style="font-size:14px; color:var(--text-muted);">الصور الموجودة (<span id="imageCount">0</span>/3)</span></div>
         <div id="imageList"></div>
       </div>
       <div class="status" id="imagesStatus"></div>
     </div>
 
-    <!-- Images List Card -->
     <div class="card">
       <div class="card-header"><i class="fas fa-file-image"></i><h2>قائمة الصور (images.json)</h2></div>
       <div class="card-hint">أسماء الصور المخزنة (كل مسار في سطر)</div>
@@ -408,10 +415,8 @@ export const HTML_PAGE = `<!DOCTYPE html>
       </div>
       <div class="status" id="imagesListStatus"></div>
     </div>
-
   </main>
 
-  <!-- ========= LOGS MODAL ========= -->
   <div class="modal-overlay" id="logsModal">
     <div class="modal">
       <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -424,22 +429,13 @@ export const HTML_PAGE = `<!DOCTYPE html>
   </div>
 
 <script>
-function setStatus(el, msg, type) {
-  el.textContent = msg;
-  el.className = "status" + (type ? " " + type : "");
+function setStatus(el, msg, type) { el.textContent = msg; el.className = "status" + (type ? " " + type : ""); }
+function setIndicator(el, active, onText, offText) {
+  el.className = "running-indicator " + (active ? "active" : "idle");
+  el.innerHTML = '<span class="dot"></span> ' + (active ? onText : offText);
 }
 
-function setIndicator(indicatorEl, isActive, activeText, idleText) {
-  if (isActive) {
-    indicatorEl.className = "running-indicator active";
-    indicatorEl.innerHTML = '<span class="dot"></span> ' + (activeText || 'يعمل');
-  } else {
-    indicatorEl.className = "running-indicator idle";
-    indicatorEl.innerHTML = '<span class="dot"></span> ' + (idleText || 'متوقف');
-  }
-}
-
-/* ========== أزرار تحميل وحفظ الملفات ========== */
+/* ========== ملفات عادية ========== */
 async function loadFile(type, areaEl, statusEl) {
   setStatus(statusEl, "جاري التحميل...", "");
   try {
@@ -448,7 +444,7 @@ async function loadFile(type, areaEl, statusEl) {
     if (!data.ok) throw new Error(data.error);
     areaEl.value = data.text;
     setStatus(statusEl, "تم التحميل \u2713", "ok");
-  } catch (err) { setStatus(statusEl, "\u062e\u0637\u0623: " + err.message, "err"); }
+  } catch (err) { setStatus(statusEl, "خطأ: " + err.message, "err"); }
 }
 async function saveFile(type, areaEl, statusEl) {
   setStatus(statusEl, "جاري الحفظ...", "");
@@ -457,9 +453,8 @@ async function saveFile(type, areaEl, statusEl) {
     const data = await res.json();
     if (!data.ok) throw new Error(data.error);
     setStatus(statusEl, "تم الحفظ \u2713", "ok");
-  } catch (err) { setStatus(statusEl, "\u062e\u0637\u0623: " + err.message, "err"); }
+  } catch (err) { setStatus(statusEl, "خطأ: " + err.message, "err"); }
 }
-
 document.getElementById("loadMessagesBtn").onclick = () => loadFile("messages", document.getElementById("messagesArea"), document.getElementById("messagesStatus"));
 document.getElementById("saveMessagesBtn").onclick = () => saveFile("messages", document.getElementById("messagesArea"), document.getElementById("messagesStatus"));
 document.getElementById("loadContactsBtn").onclick = () => loadFile("contacts", document.getElementById("contactsArea"), document.getElementById("contactsStatus"));
@@ -467,402 +462,458 @@ document.getElementById("saveContactsBtn").onclick = () => saveFile("contacts", 
 document.getElementById("loadImagesListBtn").onclick = () => loadFile("images", document.getElementById("imagesListArea"), document.getElementById("imagesListStatus"));
 document.getElementById("saveImagesListBtn").onclick = () => saveFile("images", document.getElementById("imagesListArea"), document.getElementById("imagesListStatus"));
 
-/* ========== إرسال الرسائل (send.yaml) ========== */
+/* ========== إرسال الرسائل ========== */
 const sendRunBtn = document.getElementById("sendRunBtn");
 const sendStopBtn = document.getElementById("sendStopBtn");
-const sendStatus = document.getElementById("sendStatus");
+const sendStatusEl = document.getElementById("sendStatus");
 const sendIndicator = document.getElementById("sendRunningIndicator");
-
 sendRunBtn.onclick = async function() {
-  setStatus(sendStatus, "جاري بدء الإرسال...", "");
-  sendRunBtn.disabled = true;
+  setStatus(sendStatusEl, "جاري بدء الإرسال...", ""); sendRunBtn.disabled = true;
   try {
     const res = await fetch("/api/send/run", { method: "POST" });
     const data = await res.json();
     if (!data.ok) throw new Error(data.error);
-    setStatus(sendStatus, "تم بدء الإرسال \u2713", "ok");
+    setStatus(sendStatusEl, "تم بدء الإرسال \u2713", "ok");
     setIndicator(sendIndicator, true, "جاري الإرسال...", "متوقف");
     sendStopBtn.disabled = false;
     setTimeout(checkSendStatus, 5000);
-  } catch (err) {
-    setStatus(sendStatus, "\u062e\u0637\u0623: " + err.message, "err");
-    sendRunBtn.disabled = false;
-  }
+  } catch (err) { setStatus(sendStatusEl, "خطأ: " + err.message, "err"); sendRunBtn.disabled = false; }
 };
-
 sendStopBtn.onclick = async function() {
-  setStatus(sendStatus, "جاري إيقاف الإرسال...", "");
-  sendStopBtn.disabled = true;
+  setStatus(sendStatusEl, "جاري الإيقاف...", ""); sendStopBtn.disabled = true;
   try {
     const res = await fetch("/api/send/stop", { method: "POST" });
     const data = await res.json();
     if (!data.ok) throw new Error(data.error);
-    setStatus(sendStatus, "تم إيقاف الإرسال \u2713", "ok");
+    setStatus(sendStatusEl, "تم الإيقاف \u2713", "ok");
     setIndicator(sendIndicator, false, "جاري الإرسال...", "متوقف");
     sendRunBtn.disabled = false;
-  } catch (err) {
-    setStatus(sendStatus, "\u062e\u0637\u0623: " + err.message, "err");
-    sendStopBtn.disabled = false;
-  }
+  } catch (err) { setStatus(sendStatusEl, "خطأ: " + err.message, "err"); sendStopBtn.disabled = false; }
 };
-
 async function checkSendStatus() {
   try {
-    const res = await fetch("/api/send/status");
-    const data = await res.json();
+    const res = await fetch("/api/send/status"); const data = await res.json();
     if (data.ok && data.running) {
       setIndicator(sendIndicator, true, "جاري الإرسال...", "متوقف");
-      sendStopBtn.disabled = false;
-      sendRunBtn.disabled = true;
+      sendStopBtn.disabled = false; sendRunBtn.disabled = true;
       setTimeout(checkSendStatus, 15000);
     } else {
       setIndicator(sendIndicator, false, "جاري الإرسال...", "متوقف");
-      sendStopBtn.disabled = true;
-      sendRunBtn.disabled = false;
+      sendStopBtn.disabled = true; sendRunBtn.disabled = false;
     }
-  } catch (e) {
-    sendRunBtn.disabled = false;
-  }
+  } catch (e) { sendRunBtn.disabled = false; }
 }
 
-/* ========== الرد الذكي (reply.yaml) ========== */
+/* ========== الرد الذكي ========== */
 const replyRunBtn = document.getElementById("replyRunBtn");
 const replyStopBtn = document.getElementById("replyStopBtn");
-const replyStatus = document.getElementById("replyStatus");
+const replyStatusEl = document.getElementById("replyStatus");
 const replyIndicator = document.getElementById("replyRunningIndicator");
-
 replyRunBtn.onclick = async function() {
-  setStatus(replyStatus, "جاري تفعيل الرد الذكي...", "");
-  replyRunBtn.disabled = true;
+  setStatus(replyStatusEl, "جاري التفعيل...", ""); replyRunBtn.disabled = true;
   try {
     const res = await fetch("/api/reply/run", { method: "POST" });
     const data = await res.json();
     if (!data.ok) throw new Error(data.error);
-    setStatus(replyStatus, "تم تفعيل الرد الذكي \u2713", "ok");
+    setStatus(replyStatusEl, "تم التفعيل \u2713", "ok");
     setIndicator(replyIndicator, true, "الرد الذكي يعمل", "متوقف");
     replyStopBtn.disabled = false;
     setTimeout(checkReplyStatus, 5000);
-  } catch (err) {
-    setStatus(replyStatus, "\u062e\u0637\u0623: " + err.message, "err");
-    replyRunBtn.disabled = false;
-  }
+  } catch (err) { setStatus(replyStatusEl, "خطأ: " + err.message, "err"); replyRunBtn.disabled = false; }
 };
-
 replyStopBtn.onclick = async function() {
-  setStatus(replyStatus, "جاري إيقاف الرد الذكي...", "");
-  replyStopBtn.disabled = true;
+  setStatus(replyStatusEl, "جاري الإيقاف...", ""); replyStopBtn.disabled = true;
   try {
     const res = await fetch("/api/reply/stop", { method: "POST" });
     const data = await res.json();
     if (!data.ok) throw new Error(data.error);
-    setStatus(replyStatus, "تم إيقاف الرد الذكي \u2713", "ok");
+    setStatus(replyStatusEl, "تم الإيقاف \u2713", "ok");
     setIndicator(replyIndicator, false, "الرد الذكي يعمل", "متوقف");
     replyRunBtn.disabled = false;
-  } catch (err) {
-    setStatus(replyStatus, "\u062e\u0637\u0623: " + err.message, "err");
-    replyStopBtn.disabled = false;
-  }
+  } catch (err) { setStatus(replyStatusEl, "خطأ: " + err.message, "err"); replyStopBtn.disabled = false; }
 };
-
 async function checkReplyStatus() {
   try {
-    const res = await fetch("/api/reply/status");
-    const data = await res.json();
+    const res = await fetch("/api/reply/status"); const data = await res.json();
     if (data.ok && data.running) {
       setIndicator(replyIndicator, true, "الرد الذكي يعمل", "متوقف");
-      replyStopBtn.disabled = false;
-      replyRunBtn.disabled = true;
+      replyStopBtn.disabled = false; replyRunBtn.disabled = true;
       setTimeout(checkReplyStatus, 15000);
     } else {
       setIndicator(replyIndicator, false, "الرد الذكي يعمل", "متوقف");
-      replyStopBtn.disabled = true;
-      replyRunBtn.disabled = false;
+      replyStopBtn.disabled = true; replyRunBtn.disabled = false;
     }
-  } catch (e) {
-    replyRunBtn.disabled = false;
-  }
+  } catch (e) { replyRunBtn.disabled = false; }
+}
+checkSendStatus(); checkReplyStatus();
+
+/* ========== قائمة الأرقام التفصيلية ========== */
+let mylistFullData = [];
+const mylistBody = document.getElementById("mylistBody");
+const mylistStatusEl = document.getElementById("mylistStatus");
+const mylistFilterAge = document.getElementById("mylistFilterAge");
+const customAgeWrap = document.getElementById("customAgeWrap");
+
+mylistFilterAge.onchange = function() {
+  customAgeWrap.style.display = this.value === "custom" ? "inline-flex" : "none";
+};
+
+function genderBadge(g) {
+  if (g === "ذكر") return '<span class="gender-badge male">\u0630\u0643\u0631</span>';
+  if (g === "أنثى") return '<span class="gender-badge female">\u0623\u0646\u062b\u0649</span>';
+  return '<span class="gender-badge unknown">' + (g || "غير محدد") + '</span>';
 }
 
-/* ========== فحص تلقائي عند فتح الصفحة ========== */
-checkSendStatus();
-checkReplyStatus();
+function getMylistParams() {
+  const params = new URLSearchParams();
+  const gender = document.getElementById("mylistFilterGender").value;
+  const ageVal = mylistFilterAge.value;
+  const sortVal = document.getElementById("mylistSort").value;
 
-/* ========== إدارة الصور ========== */
-const imagesInput = document.getElementById("imagesInput");
-const previewArea = document.getElementById("imagePreviewArea");
-let selectedFiles = [];
-imagesInput.addEventListener("change", function(e) {
-  selectedFiles = Array.from(this.files);
-  renderPreviews();
-});
+  params.set("gender", gender);
+
+  if (ageVal === "custom") {
+    const minA = document.getElementById("mylistMinAge").value;
+    const maxA = document.getElementById("mylistMaxAge").value;
+    if (minA !== "") params.set("minAge", minA);
+    if (maxA !== "") params.set("maxAge", maxA);
+  } else if (ageVal !== "all") {
+    var parts = ageVal.split("-");
+    params.set("minAge", parts[0]);
+    params.set("maxAge", parts[1]);
+  }
+
+  if (sortVal) {
+    var sp = sortVal.split("-");
+    params.set("sort", sp[0]);
+    params.set("order", sp[1]);
+  }
+  return params;
+}
+
+function renderMylist(data) {
+  if (!data || data.length === 0) {
+    mylistBody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:30px;">لا توجد بيانات</td></tr>';
+    return;
+  }
+  mylistBody.innerHTML = "";
+  data.forEach(function(item, i) {
+    var tr = document.createElement("tr");
+    tr.setAttribute("data-index", item._index);
+    tr.innerHTML =
+      '<td style="color:var(--text-muted)">' + (i + 1) + '</td>' +
+      '<td style="direction:ltr;text-align:right;font-family:Consolas,monospace;">' + (item.number || "") + '</td>' +
+      '<td>' + (item.age || 0) + '</td>' +
+      '<td>' + genderBadge(item.gender) + '</td>' +
+      '<td>' +
+        '<button class="btn btn-sm btn-blue mylist-edit-btn" data-idx="' + item._index + '"><i class="fas fa-pen"></i></button> ' +
+        '<button class="btn btn-sm btn-danger mylist-del-btn" data-idx="' + item._index + '"><i class="fas fa-trash"></i></button>' +
+      '</td>';
+    mylistBody.appendChild(tr);
+  });
+
+  mylistBody.querySelectorAll(".mylist-del-btn").forEach(function(btn) {
+    btn.onclick = async function() {
+      var idx = parseInt(this.getAttribute("data-idx"));
+      if (!confirm("حذف هذا الرقم؟")) return;
+      setStatus(mylistStatusEl, "جاري الحذف...", "");
+      try {
+        var res = await fetch("/api/mylist", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "delete", index: idx }) });
+        var data = await res.json();
+        if (!data.ok) throw new Error(data.error);
+        setStatus(mylistStatusEl, "تم الحذف \u2713", "ok");
+        loadMylist();
+      } catch (err) { setStatus(mylistStatusEl, "خطأ: " + err.message, "err"); }
+    };
+  });
+
+  mylistBody.querySelectorAll(".mylist-edit-btn").forEach(function(btn) {
+    btn.onclick = function() {
+      var idx = parseInt(this.getAttribute("data-idx"));
+      var item = mylistFullData[idx];
+      if (!item) return;
+      var tr = this.closest("tr");
+      tr.innerHTML =
+        '<td style="color:var(--text-muted)">' + (Array.from(mylistBody.children).indexOf(tr) + 1) + '</td>' +
+        '<td><input class="edit-input" id="editNum" value="' + (item.number || "") + '" /></td>' +
+        '<td><input class="edit-input" type="number" id="editAge" value="' + (item.age || 0) + '" min="0" max="120" style="width:70px" /></td>' +
+        '<td><select class="edit-input" id="editGender" style="width:90px"><option value="ذكر"' + (item.gender === "ذكر" ? " selected" : "") + '>\u0630\u0643\u0631</option><option value="أنثى"' + (item.gender === "أنثى" ? " selected" : "") + '>\u0623\u0646\u062b\u0649</option></select></td>' +
+        '<td>' +
+          '<button class="btn btn-sm btn-primary mylist-save-btn" data-idx="' + idx + '"><i class="fas fa-check"></i></button> ' +
+          '<button class="btn btn-sm mylist-cancel-btn"><i class="fas fa-times"></i></button>' +
+        '</td>';
+      tr.querySelector(".mylist-save-btn").onclick = async function() {
+        var num = document.getElementById("editNum").value;
+        var age = document.getElementById("editAge").value;
+        var gen = document.getElementById("editGender").value;
+        setStatus(mylistStatusEl, "جاري الحفظ...", "");
+        try {
+          var res = await fetch("/api/mylist", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update", index: idx, number: num, age: age, gender: gen }) });
+          var data = await res.json();
+          if (!data.ok) throw new Error(data.error);
+          setStatus(mylistStatusEl, "تم التعديل \u2713", "ok");
+          loadMylist();
+        } catch (err) { setStatus(mylistStatusEl, "خطأ: " + err.message, "err"); }
+      };
+      tr.querySelector(".mylist-cancel-btn").onclick = function() { loadMylist(); };
+    };
+  });
+}
+
+async function loadMylist() {
+  setStatus(mylistStatusEl, "جاري التحميل...", "");
+  try {
+    var params = getMylistParams();
+    var res = await fetch("/api/mylist?" + params.toString());
+    var data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+
+    // جلب الكل بدون فلتر لحفظ البيانات الكاملة
+    var resAll = await fetch("/api/mylist?sort=index&order=asc");
+    var dataAll = await resAll.json();
+    mylistFullData = dataAll.data || [];
+
+    document.getElementById("mylistCount").textContent = "المجموع: " + data.total + " | يعرض: " + data.filtered;
+    renderMylist(data.data);
+    setStatus(mylistStatusEl, "\u2713 تم التحميل", "ok");
+  } catch (err) { setStatus(mylistStatusEl, "خطأ: " + err.message, "err"); }
+}
+
+document.getElementById("mylistLoadBtn").onclick = loadMylist;
+document.getElementById("mylistFilterBtn").onclick = loadMylist;
+
+document.getElementById("mylistAddBtn").onclick = async function() {
+  var num = document.getElementById("mylistNumber").value.trim();
+  var age = document.getElementById("mylistAge").value;
+  var gen = document.getElementById("mylistGender").value;
+  if (!num) { setStatus(mylistStatusEl, "أدخل الرقم", "err"); return; }
+  setStatus(mylistStatusEl, "جاري الإضافة...", "");
+  try {
+    var res = await fetch("/api/mylist", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "add", number: num, age: age, gender: gen }) });
+    var data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+    setStatus(mylistStatusEl, "تمت الإضافة \u2713", "ok");
+    document.getElementById("mylistNumber").value = "";
+    document.getElementById("mylistAge").value = "";
+    loadMylist();
+  } catch (err) { setStatus(mylistStatusEl, "خطأ: " + err.message, "err"); }
+};
+
+document.getElementById("mylistSyncBtn").onclick = async function() {
+  if (!confirm("سيتم نسخ كل الأرقام من القائمة التفصيلية إلى ملف جهات الاتصال. متأكد؟")) return;
+  setStatus(mylistStatusEl, "جاري النسخ...", "");
+  try {
+    var res = await fetch("/api/mylist", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "sync-to-contacts" }) });
+    var data = await res.json();
+    if (!data.ok) throw new Error(data.error);
+    setStatus(mylistStatusEl, data.message + " \u2713", "ok");
+  } catch (err) { setStatus(mylistStatusEl, "خطأ: " + err.message, "err"); }
+};
+
+loadMylist();
+
+/* ========== الصور ========== */
+var imagesInput = document.getElementById("imagesInput");
+var previewArea = document.getElementById("imagePreviewArea");
+var selectedFiles = [];
+imagesInput.addEventListener("change", function() { selectedFiles = Array.from(this.files); renderPreviews(); });
 function renderPreviews() {
   previewArea.innerHTML = "";
-  selectedFiles.forEach((file, index) => {
-    const reader = new FileReader();
+  selectedFiles.forEach(function(file, index) {
+    var reader = new FileReader();
     reader.onload = function(ev) {
-      const div = document.createElement("div");
-      div.style.cssText = "width:80px; height:80px; border-radius:8px; overflow:hidden; position:relative; border:1px solid var(--border-color);";
-      div.innerHTML = '<img src="' + ev.target.result + '" style="width:100%; height:100%; object-fit:cover;" />' +
-                      '<button data-index="' + index + '" style="position:absolute; top:2px; right:2px; background:var(--danger); color:white; border:none; border-radius:50%; width:20px; height:20px; cursor:pointer; font-size:10px;">X</button>';
+      var div = document.createElement("div");
+      div.style.cssText = "width:80px;height:80px;border-radius:8px;overflow:hidden;position:relative;border:1px solid var(--border-color);";
+      div.innerHTML = '<img src="' + ev.target.result + '" style="width:100%;height:100%;object-fit:cover;" /><button data-index="' + index + '" style="position:absolute;top:2px;right:2px;background:var(--danger);color:white;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:10px;">X</button>';
       previewArea.appendChild(div);
-      div.querySelector("button").onclick = function() {
-        selectedFiles.splice(index, 1);
-        renderPreviews();
-      };
+      div.querySelector("button").onclick = function() { selectedFiles.splice(index, 1); renderPreviews(); };
     };
     reader.readAsDataURL(file);
   });
 }
-
 async function loadImages() {
-  const gallery = document.getElementById('imageGallery');
-  const list = document.getElementById('imageList');
-  const countSpan = document.getElementById('imageCount');
+  var gallery = document.getElementById("imageGallery"); var list = document.getElementById("imageList"); var countSpan = document.getElementById("imageCount");
   try {
-    const res = await fetch('/api/images');
-    const data = await res.json();
+    var res = await fetch("/api/images"); var data = await res.json();
     if (!data.ok) throw new Error(data.error);
-    const files = data.files || [];
-    countSpan.textContent = files.length;
-    if (files.length === 0) { gallery.style.display = 'none'; return; }
-    gallery.style.display = 'block';
-    list.innerHTML = '';
-    files.forEach(file => {
-      const div = document.createElement('div');
-      div.className = 'image-item';
-      const img = document.createElement('img');
-      img.src = file.download_url;
-      const deleteBtn = document.createElement('button');
-      deleteBtn.className = 'delete-btn';
-      deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
-      deleteBtn.onclick = async () => {
-        if (!confirm('تأكيد حذف الصورة "' + file.name + '"؟')) return;
+    var files = data.files || []; countSpan.textContent = files.length;
+    if (files.length === 0) { gallery.style.display = "none"; return; }
+    gallery.style.display = "block"; list.innerHTML = "";
+    files.forEach(function(file) {
+      var div = document.createElement("div"); div.className = "image-item";
+      var img = document.createElement("img"); img.src = file.download_url;
+      var delBtn = document.createElement("button"); delBtn.className = "delete-btn"; delBtn.innerHTML = '<i class="fas fa-trash"></i>';
+      delBtn.onclick = async function() {
+        if (!confirm("حذف الصورة؟")) return;
         try {
-          const resDel = await fetch('/api/delete-image', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ filename: file.name }) });
-          const dataDel = await resDel.json();
-          if (!dataDel.ok) throw new Error(dataDel.error);
-          div.remove();
-          const newCount = parseInt(countSpan.textContent) - 1;
-          countSpan.textContent = newCount;
-          if (newCount === 0) gallery.style.display = 'none';
-          setStatus(document.getElementById('imagesStatus'), 'تم حذف الصورة \u2713', 'ok');
-        } catch (err) { setStatus(document.getElementById('imagesStatus'), 'خطأ في الحذف: ' + err.message, 'err'); }
+          var r = await fetch("/api/delete-image", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ filename: file.name }) });
+          var d = await r.json(); if (!d.ok) throw new Error(d.error);
+          div.remove(); var nc = parseInt(countSpan.textContent) - 1; countSpan.textContent = nc;
+          if (nc === 0) gallery.style.display = "none";
+          setStatus(document.getElementById("imagesStatus"), "تم الحذف \u2713", "ok");
+        } catch (err) { setStatus(document.getElementById("imagesStatus"), "خطأ: " + err.message, "err"); }
       };
-      div.appendChild(img);
-      div.appendChild(deleteBtn);
-      list.appendChild(div);
+      div.appendChild(img); div.appendChild(delBtn); list.appendChild(div);
     });
-  } catch (err) { gallery.style.display = 'none'; }
+  } catch (err) { gallery.style.display = "none"; }
 }
-document.getElementById('refreshImagesBtn').onclick = loadImages;
-
-document.getElementById('uploadImagesBtn').onclick = async function() {
-  if (selectedFiles.length === 0) { setStatus(document.getElementById('imagesStatus'), 'اختر صورة أولاً', 'err'); return; }
+document.getElementById("refreshImagesBtn").onclick = loadImages;
+document.getElementById("uploadImagesBtn").onclick = async function() {
+  if (selectedFiles.length === 0) { setStatus(document.getElementById("imagesStatus"), "اختر صورة أولاً", "err"); return; }
   try {
-    const resCheck = await fetch('/api/images');
-    const dataCheck = await resCheck.json();
-    if (!dataCheck.ok) throw new Error(dataCheck.error);
-    const currentCount = dataCheck.files ? dataCheck.files.length : 0;
-    if (currentCount >= 3) { setStatus(document.getElementById('imagesStatus'), 'لا يمكن رفع أكثر من 3 صور. قم بحذف بعض الصور أولاً.', 'err'); return; }
-    const remaining = 3 - currentCount;
-    if (selectedFiles.length > remaining) { setStatus(document.getElementById('imagesStatus'), 'يمكنك رفع ' + remaining + ' صورة فقط (الحد الأقصى 3)', 'err'); return; }
-  } catch (err) { setStatus(document.getElementById('imagesStatus'), 'خطأ في التحقق: ' + err.message, 'err'); return; }
-  let success = 0;
-  for (const file of selectedFiles) {
+    var rc = await fetch("/api/images"); var dc = await rc.json();
+    if (!dc.ok) throw new Error(dc.error);
+    var cc = dc.files ? dc.files.length : 0;
+    if (cc >= 3) { setStatus(document.getElementById("imagesStatus"), "الحد الأقصى 3 صور", "err"); return; }
+    var rem = 3 - cc;
+    if (selectedFiles.length > rem) { setStatus(document.getElementById("imagesStatus"), "يمكنك رفع " + rem + " صورة فقط", "err"); return; }
+  } catch (err) { setStatus(document.getElementById("imagesStatus"), "خطأ: " + err.message, "err"); return; }
+  var success = 0;
+  for (var i = 0; i < selectedFiles.length; i++) {
     try {
-      const base64 = await new Promise((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(r.result.split(",")[1]); r.onerror = reject; r.readAsDataURL(file); });
-      const res = await fetch("/api/upload-image", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ filename: file.name, dataBase64: base64 }) });
-      const data = await res.json();
-      if (data.ok) success++;
-    } catch (err) {}
+      var b64 = await new Promise(function(resolve, reject) { var r = new FileReader(); r.onload = function() { resolve(r.result.split(",")[1]); }; r.onerror = reject; r.readAsDataURL(selectedFiles[i]); });
+      var r = await fetch("/api/upload-image", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ filename: selectedFiles[i].name, dataBase64: b64 }) });
+      var d = await r.json(); if (d.ok) success++;
+    } catch (e) {}
   }
-  setStatus(document.getElementById('imagesStatus'), success + "/" + selectedFiles.length + " تم رفعها", success === selectedFiles.length ? "ok" : "err");
+  setStatus(document.getElementById("imagesStatus"), success + "/" + selectedFiles.length + " تم رفعها", success === selectedFiles.length ? "ok" : "err");
   if (success === selectedFiles.length) { selectedFiles = []; imagesInput.value = ""; renderPreviews(); }
   loadImages();
 };
 loadImages();
 
 /* ========== السجلات ========== */
-const logsModal = document.getElementById("logsModal");
+var logsModal = document.getElementById("logsModal");
 document.getElementById("viewLogsBtn").onclick = async function() {
   logsModal.classList.add("active");
-  const list = document.getElementById("logFilesList");
+  var list = document.getElementById("logFilesList");
   list.innerHTML = "<span style='color:var(--text-muted)'>جاري التحميل...</span>";
   try {
-    const res = await fetch("/api/logs");
-    const data = await res.json();
+    var res = await fetch("/api/logs"); var data = await res.json();
     if (!data.ok) throw new Error(data.error);
     list.innerHTML = "";
     if (data.files.length === 0) { list.innerHTML = "<span style='color:var(--text-muted)'>لا توجد سجلات</span>"; return; }
-    data.files.forEach(file => {
-      const btn = document.createElement("button");
-      btn.className = "log-file-btn";
-      btn.textContent = file.name;
-      btn.onclick = async () => {
-        document.querySelectorAll(".log-file-btn").forEach(b => b.classList.remove("active"));
+    data.files.forEach(function(file) {
+      var btn = document.createElement("button"); btn.className = "log-file-btn"; btn.textContent = file.name;
+      btn.onclick = async function() {
+        document.querySelectorAll(".log-file-btn").forEach(function(b) { b.classList.remove("active"); });
         btn.classList.add("active");
-        const contentEl = document.getElementById("logContent");
-        contentEl.textContent = "جاري التحميل...";
-        try {
-          const r = await fetch("/api/log-content?file=" + encodeURIComponent(file.name));
-          const d = await r.json();
-          if (!d.ok) throw new Error(d.error);
-          contentEl.textContent = d.content || " فارغ ";
-        } catch (err) { contentEl.textContent = "خطأ: " + err.message; }
+        var ce = document.getElementById("logContent"); ce.textContent = "جاري التحميل...";
+        try { var r = await fetch("/api/log-content?file=" + encodeURIComponent(file.name)); var d = await r.json(); if (!d.ok) throw new Error(d.error); ce.textContent = d.content || " فارغ "; }
+        catch (err) { ce.textContent = "خطأ: " + err.message; }
       };
       list.appendChild(btn);
     });
   } catch (err) { list.innerHTML = "<span style='color:var(--danger)'>خطأ: " + err.message + "</span>"; }
 };
-document.getElementById("closeLogsModal").onclick = () => logsModal.classList.remove("active");
-logsModal.addEventListener("click", e => { if (e.target === logsModal) logsModal.classList.remove("active"); });
+document.getElementById("closeLogsModal").onclick = function() { logsModal.classList.remove("active"); };
+logsModal.addEventListener("click", function(e) { if (e.target === logsModal) logsModal.classList.remove("active"); });
 
 /* ========== الجدولة ========== */
-const scheduleStatus = document.getElementById("scheduleStatus");
-const hourInput = document.getElementById("hourInput");
-const minuteInput = document.getElementById("minuteInput");
-
+var scheduleStatusEl = document.getElementById("scheduleStatus");
+var hourInput = document.getElementById("hourInput");
+var minuteInput = document.getElementById("minuteInput");
 async function loadSchedule() {
-  setStatus(scheduleStatus, "جاري التحميل...", "");
+  setStatus(scheduleStatusEl, "جاري التحميل...", "");
   try {
-    const res = await fetch("/api/schedule");
-    const data = await res.json();
+    var res = await fetch("/api/schedule"); var data = await res.json();
     if (!data.ok) throw new Error(data.error);
-    const ind = document.getElementById("scheduleIndicator");
-    const disp = document.getElementById("currentCronDisplay");
+    var ind = document.getElementById("scheduleIndicator"); var disp = document.getElementById("currentCronDisplay");
     if (data.hasSchedule && data.cron) {
-      ind.textContent = "مفعل"; ind.className = "schedule-status active";
-      disp.textContent = "التوقيت (المغرب): " + data.cron;
-      const parts = data.cron.trim().split(/\s+/);
-      if (parts.length >= 2) { minuteInput.value = parts[0]; hourInput.value = parts[1]; }
-      setStatus(scheduleStatus, "تم التحميل \u2713", "ok");
-    } else {
-      ind.textContent = "غير مفعل"; ind.className = "schedule-status inactive";
-      disp.textContent = "(لا توجد جدولة)";
-      setStatus(scheduleStatus, "الجدولة غير مفعلة", "");
-    }
-  } catch (err) { setStatus(scheduleStatus, "خطأ: " + err.message, "err"); }
-}
-async function saveSchedule(cron) {
-  setStatus(scheduleStatus, "جاري الحفظ...", "");
-  try {
-    const res = await fetch("/api/schedule", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "add", cron: cron }) });
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error);
-    setStatus(scheduleStatus, "تم التحديث \u2713", "ok");
-    loadSchedule();
-  } catch (err) { setStatus(scheduleStatus, "خطأ: " + err.message, "err"); }
+      ind.textContent = "مفعل"; ind.className = "schedule-status active"; disp.textContent = "التوقيت: " + data.cron;
+      var p = data.cron.trim().split(/\\s+/); if (p.length >= 2) { minuteInput.value = p[0]; hourInput.value = p[1]; }
+      setStatus(scheduleStatusEl, "تم التحميل \u2713", "ok");
+    } else { ind.textContent = "غير مفعل"; ind.className = "schedule-status inactive"; disp.textContent = "(لا توجد جدولة)"; setStatus(scheduleStatusEl, "غير مفعلة", ""); }
+  } catch (err) { setStatus(scheduleStatusEl, "خطأ: " + err.message, "err"); }
 }
 document.getElementById("loadScheduleBtn").onclick = loadSchedule;
 document.getElementById("updateScheduleBtn").onclick = function() {
-  const h = parseInt(hourInput.value, 10);
-  const m = parseInt(minuteInput.value, 10);
-  if (isNaN(h) || h < 0 || h > 23 || isNaN(m) || m < 0 || m > 59) {
-    setStatus(scheduleStatus, "أدخل قيم صحيحة", "err"); return;
-  }
-  saveSchedule(m + " " + h + " * * *");
+  var h = parseInt(hourInput.value, 10); var m = parseInt(minuteInput.value, 10);
+  if (isNaN(h) || h < 0 || h > 23 || isNaN(m) || m < 0 || m > 59) { setStatus(scheduleStatusEl, "أدخل قيم صحيحة", "err"); return; }
+  setStatus(scheduleStatusEl, "جاري الحفظ...", "");
+  fetch("/api/schedule", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "add", cron: m + " " + h + " * * *" }) })
+    .then(function(r) { return r.json(); }).then(function(data) {
+      if (!data.ok) throw new Error(data.error);
+      setStatus(scheduleStatusEl, "تم التحديث \u2713", "ok"); loadSchedule();
+    }).catch(function(err) { setStatus(scheduleStatusEl, "خطأ: " + err.message, "err"); });
 };
 loadSchedule();
 
 /* ========== الإحصائيات ========== */
-let statsChartInstance = null;
+var statsChartInstance = null;
 document.getElementById("loadStatsBtn").onclick = async function() {
-  const st = document.getElementById("statsStatus");
-  setStatus(st, "جاري تحميل البيانات...", "");
+  var st = document.getElementById("statsStatus"); setStatus(st, "جاري التحميل...", "");
   try {
-    const res = await fetch("/api/stats");
-    const data = await res.json();
+    var res = await fetch("/api/stats"); var data = await res.json();
     if (!data.ok) throw new Error(data.error);
     if (data.data.length === 0) { setStatus(st, "لا توجد إحصائيات", "err"); return; }
-    document.getElementById("statsContainer").style.display = "block";
-    setStatus(st, "\u2713 تم التحميل", "ok");
-    const tbody = document.getElementById("statsBody");
-    tbody.innerHTML = "";
-    let totalAtt = 0, totalSuc = 0, totalFail = 0;
-    data.data.forEach(row => {
-      totalAtt += row.attempted || 0; totalSuc += row.success || 0; totalFail += row.failed || 0;
-      const tr = document.createElement("tr");
+    document.getElementById("statsContainer").style.display = "block"; setStatus(st, "\u2713 تم التحميل", "ok");
+    var tbody = document.getElementById("statsBody"); tbody.innerHTML = "";
+    var tA = 0, tS = 0, tF = 0;
+    data.data.forEach(function(row) {
+      tA += row.attempted || 0; tS += row.success || 0; tF += row.failed || 0;
+      var tr = document.createElement("tr");
       tr.innerHTML = "<td>" + row.date + "</td><td>" + (row.attempted||0) + "</td><td style='color:var(--success)'>" + (row.success||0) + "</td><td style='color:var(--danger)'>" + (row.failed||0) + "</td>";
       tbody.appendChild(tr);
     });
-    const trTotal = document.createElement("tr");
-    trTotal.style.fontWeight = "bold"; trTotal.style.borderTop = "2px solid var(--accent)";
-    trTotal.innerHTML = "<td>المجموع</td><td>" + totalAtt + "</td><td style='color:var(--success)'>" + totalSuc + "</td><td style='color:var(--danger)'>" + totalFail + "</td>";
-    tbody.appendChild(trTotal);
-    const ctx = document.getElementById('statsChart').getContext('2d');
+    var trT = document.createElement("tr"); trT.style.fontWeight = "bold"; trT.style.borderTop = "2px solid var(--accent)";
+    trT.innerHTML = "<td>المجموع</td><td>" + tA + "</td><td style='color:var(--success)'>" + tS + "</td><td style='color:var(--danger)'>" + tF + "</td>";
+    tbody.appendChild(trT);
+    var ctx = document.getElementById("statsChart").getContext("2d");
     if (statsChartInstance) statsChartInstance.destroy();
     statsChartInstance = new Chart(ctx, {
-      type: 'bar',
+      type: "bar",
       data: {
-        labels: data.data.map(r => r.date),
+        labels: data.data.map(function(r) { return r.date; }),
         datasets: [
-          { label: 'محاولات', data: data.data.map(r => r.attempted||0), backgroundColor: 'rgba(53, 114, 238, 0.6)', borderColor: 'rgba(53, 114, 238, 1)', borderWidth: 1, borderRadius: 4 },
-          { label: 'نجاح', data: data.data.map(r => r.success||0), backgroundColor: 'rgba(37, 211, 102, 0.6)', borderColor: 'rgba(37, 211, 102, 1)', borderWidth: 1, borderRadius: 4 },
-          { label: 'فشل', data: data.data.map(r => r.failed||0), backgroundColor: 'rgba(241, 92, 109, 0.6)', borderColor: 'rgba(241, 92, 109, 1)', borderWidth: 1, borderRadius: 4 }
+          { label: "محاولات", data: data.data.map(function(r) { return r.attempted||0; }), backgroundColor: "rgba(53,114,238,0.6)", borderColor: "rgba(53,114,238,1)", borderWidth: 1, borderRadius: 4 },
+          { label: "نجاح", data: data.data.map(function(r) { return r.success||0; }), backgroundColor: "rgba(37,211,102,0.6)", borderColor: "rgba(37,211,102,1)", borderWidth: 1, borderRadius: 4 },
+          { label: "فشل", data: data.data.map(function(r) { return r.failed||0; }), backgroundColor: "rgba(241,92,109,0.6)", borderColor: "rgba(241,92,109,1)", borderWidth: 1, borderRadius: 4 }
         ]
       },
       options: {
         responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { labels: { color: '#E9EDEF', font: { family: 'Tajawal', size: 14 } } } },
+        plugins: { legend: { labels: { color: "#E9EDEF", font: { family: "Tajawal", size: 14 } } } },
         scales: {
-          y: { beginAtZero: true, ticks: { color: '#8696A0', font: { family: 'Tajawal' } }, grid: { color: 'rgba(255,255,255,0.05)' } },
-          x: { ticks: { color: '#8696A0', font: { family: 'Tajawal' } }, grid: { display: false } }
+          y: { beginAtZero: true, ticks: { color: "#8696A0", font: { family: "Tajawal" } }, grid: { color: "rgba(255,255,255,0.05)" } },
+          x: { ticks: { color: "#8696A0", font: { family: "Tajawal" } }, grid: { display: false } }
         }
       }
     });
   } catch (err) { setStatus(st, "خطأ: " + err.message, "err"); }
 };
 
-/* ========== حالة واتساب و QR ========== */
-const sessionStatusEl = document.getElementById('sessionStatus');
-const sessionStatusText = document.getElementById('sessionStatusText');
-const qrImage = document.getElementById('qrImage');
-
+/* ========== حالة واتساب ========== */
+var sessionStatusEl = document.getElementById("sessionStatus");
+var sessionStatusText = document.getElementById("sessionStatusText");
+var qrImage = document.getElementById("qrImage");
 async function refreshSession() {
-  setStatus(sessionStatusEl, 'جاري التحديث...', '');
+  setStatus(sessionStatusEl, "جاري التحديث...", "");
   try {
-    const resStatus = await fetch('/api/session/status');
-    const dataStatus = await resStatus.json();
-    if (dataStatus.ok) {
-      const status = dataStatus.status || 'غير معروف';
-      sessionStatusText.textContent = status;
-      if (status === 'connected') sessionStatusText.style.color = 'var(--success)';
-      else if (status === 'waiting_scan') sessionStatusText.style.color = 'var(--warning)';
-      else sessionStatusText.style.color = 'var(--text-muted)';
-    } else { throw new Error(dataStatus.error); }
-    const resQR = await fetch('/api/session/qr');
-    const dataQR = await resQR.json();
-    if (dataQR.ok && dataQR.qr) { qrImage.src = dataQR.qr; qrImage.style.display = 'block'; }
-    else { qrImage.style.display = 'none'; }
-    setStatus(sessionStatusEl, '\u2713 تم التحديث', 'ok');
-  } catch (err) { setStatus(sessionStatusEl, 'خطأ: ' + err.message, 'err'); }
+    var rs = await fetch("/api/session/status"); var ds = await rs.json();
+    if (ds.ok) {
+      var s = ds.status || "غير معروف"; sessionStatusText.textContent = s;
+      if (s === "connected") sessionStatusText.style.color = "var(--success)";
+      else if (s === "waiting_scan") sessionStatusText.style.color = "var(--warning)";
+      else sessionStatusText.style.color = "var(--text-muted)";
+    } else throw new Error(ds.error);
+    var rq = await fetch("/api/session/qr"); var dq = await rq.json();
+    if (dq.ok && dq.qr) { qrImage.src = dq.qr; qrImage.style.display = "block"; } else { qrImage.style.display = "none"; }
+    setStatus(sessionStatusEl, "\u2713 تم التحديث", "ok");
+  } catch (err) { setStatus(sessionStatusEl, "خطأ: " + err.message, "err"); }
 }
-
-document.getElementById('refreshSessionBtn').addEventListener('click', refreshSession);
-document.getElementById('runQRBtn').addEventListener('click', async function() {
-  setStatus(sessionStatusEl, 'جاري تشغيل QR...', '');
-  try {
-    const res = await fetch('/api/qr/run', { method: 'POST' });
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error);
-    setStatus(sessionStatusEl, 'تم تشغيل QR workflow \u2713', 'ok');
-    setTimeout(refreshSession, 3000);
-  } catch (err) { setStatus(sessionStatusEl, 'خطأ: ' + err.message, 'err'); }
+document.getElementById("refreshSessionBtn").addEventListener("click", refreshSession);
+document.getElementById("runQRBtn").addEventListener("click", async function() {
+  setStatus(sessionStatusEl, "جاري تشغيل QR...", "");
+  try { var r = await fetch("/api/qr/run", { method: "POST" }); var d = await r.json(); if (!d.ok) throw new Error(d.error); setStatus(sessionStatusEl, "تم التشغيل \u2713", "ok"); setTimeout(refreshSession, 3000); }
+  catch (err) { setStatus(sessionStatusEl, "خطأ: " + err.message, "err"); }
 });
-document.getElementById('stopQRBtn').addEventListener('click', async function() {
-  setStatus(sessionStatusEl, 'جاري إيقاف QR...', '');
-  try {
-    const res = await fetch('/api/qr/stop', { method: 'POST' });
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error);
-    setStatus(sessionStatusEl, 'تم إيقاف QR workflow \u2713', 'ok');
-    setTimeout(refreshSession, 2000);
-  } catch (err) { setStatus(sessionStatusEl, 'خطأ: ' + err.message, 'err'); }
+document.getElementById("stopQRBtn").addEventListener("click", async function() {
+  setStatus(sessionStatusEl, "جاري الإيقاف...", "");
+  try { var r = await fetch("/api/qr/stop", { method: "POST" }); var d = await r.json(); if (!d.ok) throw new Error(d.error); setStatus(sessionStatusEl, "تم الإيقاف \u2713", "ok"); setTimeout(refreshSession, 2000); }
+  catch (err) { setStatus(sessionStatusEl, "خطأ: " + err.message, "err"); }
 });
-
-refreshSession();
-setInterval(refreshSession, 30000);
-
+refreshSession(); setInterval(refreshSession, 30000);
 </script>
 </body>
 </html>
