@@ -153,6 +153,7 @@ jobs:
           if-no-files-found: ignore
 
       # ===== دفع الملفات إلى المستودع =====
+       # ===== دفع الملفات إلى المستودع =====
       - name: Commit and push logs, dashboard, and aggregate
         if: always()
         run: |
@@ -163,6 +164,8 @@ jobs:
             echo "📭 No changes to commit"
           else
             git commit -m "Update logs, dashboard, and aggregate [skip ci]"
+            # سحب أحدث التحديثات من المستودع قبل الرفع لتجنب خطأ [rejected]
+            git pull --rebase origin main || true
             git push
             echo "✅ Changes pushed to repository"
           fi
