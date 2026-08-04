@@ -1,4 +1,4 @@
-// worker.js - المدخل الرئيسي (مُحدّث)
+// worker.js - المدخل الرئيسي
 import { HTML_PAGE } from './src/html.js';
 
 import {
@@ -20,15 +20,13 @@ import {
   handleGetStatus,
   handleSetStatus,
   handleGetQR,
-  handleSetQR
-} from './src/handlers.js';
-
-// دوال الـ live من handlers.js (تعمل على KV)
-import {
+  handleSetQR,
   handleAddLog,
   handleGetLogs as handleGetSessionLogs,
   handleAddMessage,
-  handleGetMessages
+  handleGetMessages,
+  handleRunReplyWorkflow,   // ← جديد
+  handleStopReplyWorkflow   // ← جديد
 } from './src/handlers.js';
 
 export default {
@@ -57,15 +55,23 @@ export default {
     if (url.pathname === "/api/delete-image" && method === "POST")
       return handleDeleteImage(request, env);
 
-    // ==================== API: قائمة الصور (images.json) ====================
+    // ==================== API: قائمة الصور ====================
     if (url.pathname === "/api/images-list" && method === "GET")
       return handleLoadImagesList(request, env);
     if (url.pathname === "/api/images-list" && method === "POST")
       return handleSaveImagesList(request, env);
 
-    // ==================== API: الـ Workflow ====================
+    // ==================== API: Send Workflow ====================
     if (url.pathname === "/api/run-workflow" && method === "POST")
       return handleRunWorkflow(request, env);
+    if (url.pathname === "/api/stop-workflow" && method === "POST")
+      return handleStopQRWorkflow(request, env);
+
+    // ==================== API: Reply AI Workflow ====================
+    if (url.pathname === "/api/reply/run" && method === "POST")
+      return handleRunReplyWorkflow(request, env);
+    if (url.pathname === "/api/reply/stop" && method === "POST")
+      return handleStopReplyWorkflow(request, env);
 
     // ==================== API: السجلات ====================
     if (url.pathname === "/api/logs" && method === "GET")
@@ -83,7 +89,7 @@ export default {
     if (url.pathname === "/api/stats" && method === "GET")
       return handleGetStats(request, env);
 
-    // ==================== API: Session (الداشبورد) ====================
+    // ==================== API: Session ====================
     if (url.pathname === "/api/session/status" && method === "GET")
       return handleGetStatus(request, env);
     if (url.pathname === "/api/session/status" && method === "POST")
@@ -93,13 +99,13 @@ export default {
     if (url.pathname === "/api/session/qr" && method === "POST")
       return handleSetQR(request, env);
 
-    // ==================== API: QR Workflow Control ====================
+    // ==================== API: QR Workflow ====================
     if (url.pathname === "/api/qr/run" && method === "POST")
       return handleRunQRWorkflow(request, env);
     if (url.pathname === "/api/qr/stop" && method === "POST")
       return handleStopQRWorkflow(request, env);
 
-    // ==================== API: Live (يستخدمها send.js من GitHub Actions) ====================
+    // ==================== API: Live (من GitHub Actions) ====================
     if (url.pathname === "/api/live/status" && method === "POST")
       return handleSetStatus(request, env);
     if (url.pathname === "/api/live/status" && method === "GET")
