@@ -11,11 +11,13 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // =================== Constants ===================
 const SESSION_DIR = path.join(__dirname, "session");
 const PROMPT_FILE = path.join(__dirname, "data", "prompt.json");
-const ANSWER_LIST_FILE = path.join(__dirname, "data", "answer.json"); // ملف الأرقام المسموح بها
+const ANSWER_LIST_FILE = path.join(__dirname, "data", "answer.json");
+const TELEGRAM_ID_FILE = path.join(__dirname, "data", "telegram-id.json");
 const LOGS_DIR = path.join(__dirname, "logs");
 
 const SESSION_NAME = "main";
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY; 
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const BOT_UPTIME_MS = 9 * 60 * 1000; 
 const MESSAGE_DELAY_MS = 10000; 
 
@@ -29,6 +31,33 @@ function log(msg) {
     const line = `[${timestamp}] ${msg}`;
     console.log(msg);
     if (logStream) logStream.write(line + "\n");
+}
+
+// =================== Telegram Alert System ===================
+async function sendTelegramAlert(message) {
+    if (!TELEGRAM_BOT_TOKEN) return log("⚠️ Telegram token missing, skipping alert.");
+    
+    let chatId = "5798206513"; // الافتراضي
+    if (await fs.pathExists(TELEGRAM_ID_FILE)) {
+        const data = await fs.readJson(TELEGRAM_ID_FILE).catch(() => ({}));
+        if (data.chat_id) chatId = data.chat_id;
+    }
+
+    try {
+        const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+        await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                chat_id: chatId,
+                text: message,
+                parse_mode: "HTML"
+            })
+        });
+        log(`📨 Telegram alert sent.`);
+    } catch (err) {
+        log(`❌ Telegram alert failed: ${err.message}`);
+    }
 }
 
 // =================== AI Integration ===================
@@ -133,7 +162,6 @@ async function runBot() {
         process.exit(1);
     }
 
-    // Load System Prompt
     let systemPrompt = "You are a helpful assistant.";
     if (await fs.pathExists(PROMPT_FILE)) {
         const promptData = await fs.readJson(PROMPT_FILE).catch(() => ({}));
@@ -141,21 +169,15 @@ async function runBot() {
         log(`📝 Loaded prompt.`);
     }
 
-    // Load Allowed Numbers (Whitelist)
     let allowedNumbers = [];
     if (await fs.pathExists(ANSWER_LIST_FILE)) {
         try {
             const data = await fs.readJson(ANSWER_LIST_FILE);
             if (Array.isArray(data)) {
-                // تنظيف الأرقام (إزالة المسافات والرموز)
                 allowedNumbers = data.map(n => String(n).replace(/\D/g, ''));
-                log(`✅ Loaded ${allowedNumbers.length} allowed numbers from answer.json`);
+                log(`✅ Loaded ${allowedNumbers.length} allowed numbers.`);
             }
-        } catch (err) {
-            log(`⚠️ Failed to load answer.json: ${err.message}`);
-        }
-    } else {
-        log(`⚠️ answer.json not found. Bot will ignore ALL messages.`);
+        } catch (err) {}
     }
 
     const client = new Client({
@@ -172,13 +194,17 @@ async function runBot() {
         },
     });
 
-    client.on("qr", (qr) => {
-        log("📲 Scan QR");
+    client.on("qr", async (qr) => {
+        log("📲 QR code generated - scan now");
         qrcode.generate(qr, { small: true });
+        // 🚨 تنبيه تيليجرام للـ QR
+        await sendTelegramAlert("🚨 <b>تنبيه: البوت يحتاج إلى مسح QR Code!</b>\n\nالجلسة انتهت أو غير موجودة. يرجى الدخول إلى GitHub Actions لعرض الـ QR ومسحه.");
     });
 
     client.on("ready", async () => {
         log("✅ Bot Ready (Live Mode - 9 minutes)");
+        // ✅ تنبيه تيليجرام بنجاح الاتصال
+        await sendTelegramAlert("✅ <b>البوت متصل ويعمل الآن!</b>\n\nتم تشغيل نظام الرد التلقائي بالـ AI بنجاح لمدة 9 دقائق.");
         
         setTimeout(async () => {
             log("⏰ 9 mins over. Shutting down...");
@@ -188,17 +214,13 @@ async function runBot() {
         }, BOT_UPTIME_MS);
     });
 
-    // الاستماع المباشر للرسائل
     client.on("message", async (msg) => {
         if (msg.fromMe || msg.type !== 'chat' || msg.isStatus) return;
 
-        // استخراج الرقم (إزالة @c.us)
         const senderNumber = msg.from.split('@')[0];
 
-        // فحص القائمة البيضاء
         if (allowedNumbers.length > 0 && !allowedNumbers.includes(senderNumber)) {
-            //log(`🚫 Ignored message from ${senderNumber} (Not in answer.json)`);
-            return; // تجاهل الرسالة فوراً إذا الرقم مسجلش
+            return; 
         }
 
         log(`📩 Message chunk received from ${senderNumber}: "${msg.body}"`);
@@ -218,8 +240,6 @@ async function runBot() {
             const combinedText = messageBuffers[msg.from].messages.join(' ');
             const msgToReply = messageBuffers[msg.from].lastMsg;
             
-            log(`✅ User ${msg.from} stopped typing. Combined text: "${combinedText.substring(0, 50)}..."`);
-            
             delete messageBuffers[msg.from];
             
             messageQueue.push({ msg: msgToReply, combinedText: combinedText });
@@ -229,7 +249,16 @@ async function runBot() {
 
     client.on("auth_failure", async (msg) => {
         log(`🔐 Auth failed: ${msg}`);
+        // 🚨 تنبيه تيليجرام بفشل الاتصال
+        await sendTelegramAlert(`❌ <b>فشل تسجيل الدخول!</b>\n\nالسبب: ${msg}\nتم حذف الجلسة. يرجى إعادة تشغيل الـ Workflow لمسح QR جديد.`);
         await fs.rm(SESSION_DIR, { force: true, recursive: true }).catch(() => {});
+        process.exit(1);
+    });
+
+    client.on("disconnected", async (reason) => {
+        log(`⚠️ Disconnected: ${reason}`);
+        // 🚨 تنبيه تيليجرام بالانقطاع
+        await sendTelegramAlert(`⚠️ <b>انقطع اتصال البوت!</b>\n\nالسبب: ${reason}\nسيحاول النظام إعادة التشغيل في الدورة القادمة.`);
         process.exit(1);
     });
 
@@ -238,6 +267,7 @@ async function runBot() {
         await client.initialize();
     } catch (err) {
         log(`❌ Init failed: ${err.message}`);
+        await sendTelegramAlert(`❌ <b>خطأ في تشغيل البوت!</b>\n\n${err.message}`);
         process.exit(1);
     }
 }
