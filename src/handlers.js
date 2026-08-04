@@ -229,8 +229,19 @@ export async function handleStopQRWorkflow(request, env) {
   }
 }
 
-// إعادة تصدير دوال الـ session لتكون متاحة في worker.js
-export { handleSetStatus, handleGetStatus, handleSetQR, handleGetQR };
+// ===== إعادة تصدير كل دوال live.js لتكون متاحة في worker.js =====
+// send.js في GitHub Actions يرسل إلى /api/live/* وهذه المسارات
+// تحتاج هذه الدوال بالتحديد:
+export {
+  handleSetStatus,
+  handleGetStatus,
+  handleSetQR,
+  handleGetQR,
+  handleAddLog,
+  handleGetSessionLogs,
+  handleAddMessage,
+  handleGetMessages
+};
 
 // إعادة تصدير معالجات الجدولة
 export { handleLoadSchedule, handleSaveSchedule };
