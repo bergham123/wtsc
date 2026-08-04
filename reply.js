@@ -37,7 +37,7 @@ function log(msg) {
 async function sendTelegramAlert(message) {
     if (!TELEGRAM_BOT_TOKEN) return log("⚠️ Telegram token missing, skipping alert.");
     
-    let chatId = "5798206513"; // الافتراضي
+    let chatId = "5798206513"; 
     if (await fs.pathExists(TELEGRAM_ID_FILE)) {
         const data = await fs.readJson(TELEGRAM_ID_FILE).catch(() => ({}));
         if (data.chat_id) chatId = data.chat_id;
@@ -197,13 +197,11 @@ async function runBot() {
     client.on("qr", async (qr) => {
         log("📲 QR code generated - scan now");
         qrcode.generate(qr, { small: true });
-        // 🚨 تنبيه تيليجرام للـ QR
         await sendTelegramAlert("🚨 <b>تنبيه: البوت يحتاج إلى مسح QR Code!</b>\n\nالجلسة انتهت أو غير موجودة. يرجى الدخول إلى GitHub Actions لعرض الـ QR ومسحه.");
     });
 
     client.on("ready", async () => {
         log("✅ Bot Ready (Live Mode - 9 minutes)");
-        // ✅ تنبيه تيليجرام بنجاح الاتصال
         await sendTelegramAlert("✅ <b>البوت متصل ويعمل الآن!</b>\n\nتم تشغيل نظام الرد التلقائي بالـ AI بنجاح لمدة 9 دقائق.");
         
         setTimeout(async () => {
@@ -214,12 +212,23 @@ async function runBot() {
         }, BOT_UPTIME_MS);
     });
 
+    // =================== المستمع للرسائل (محدث بطريقة مرنة) ===================
     client.on("message", async (msg) => {
         if (msg.fromMe || msg.type !== 'chat' || msg.isStatus) return;
 
         const senderNumber = msg.from.split('@')[0];
 
-        if (allowedNumbers.length > 0 && !allowedNumbers.includes(senderNumber)) {
+        // فحص القائمة البيضاء بطريقة مرنة (includes)
+        let isAllowed = false;
+        if (allowedNumbers.length === 0) {
+            isAllowed = true; // إذا اللائحة فارغة، سمح للجميع
+        } else {
+            // نبحث إذا كان الرقم يحتوي على أحد الأرقام المسموح بها (أو العكس)
+            isAllowed = allowedNumbers.some(allowed => senderNumber.includes(allowed) || allowed.includes(senderNumber));
+        }
+
+        if (!isAllowed) {
+            log(`🚫 Ignored message from ${senderNumber} (Not in whitelist)`);
             return; 
         }
 
@@ -240,6 +249,8 @@ async function runBot() {
             const combinedText = messageBuffers[msg.from].messages.join(' ');
             const msgToReply = messageBuffers[msg.from].lastMsg;
             
+            log(`✅ User ${msg.from} stopped typing. Combined text: "${combinedText.substring(0, 50)}..."`);
+            
             delete messageBuffers[msg.from];
             
             messageQueue.push({ msg: msgToReply, combinedText: combinedText });
@@ -249,7 +260,6 @@ async function runBot() {
 
     client.on("auth_failure", async (msg) => {
         log(`🔐 Auth failed: ${msg}`);
-        // 🚨 تنبيه تيليجرام بفشل الاتصال
         await sendTelegramAlert(`❌ <b>فشل تسجيل الدخول!</b>\n\nالسبب: ${msg}\nتم حذف الجلسة. يرجى إعادة تشغيل الـ Workflow لمسح QR جديد.`);
         await fs.rm(SESSION_DIR, { force: true, recursive: true }).catch(() => {});
         process.exit(1);
@@ -257,7 +267,6 @@ async function runBot() {
 
     client.on("disconnected", async (reason) => {
         log(`⚠️ Disconnected: ${reason}`);
-        // 🚨 تنبيه تيليجرام بالانقطاع
         await sendTelegramAlert(`⚠️ <b>انقطع اتصال البوت!</b>\n\nالسبب: ${reason}\nسيحاول النظام إعادة التشغيل في الدورة القادمة.`);
         process.exit(1);
     });
