@@ -108,7 +108,7 @@ jobs:
             done
           fi
 
-      # ===== حفظ السجلات =====
+          # ===== حفظ السجلات =====
       - name: Commit and push logs
         if: always()
         run: |
@@ -119,5 +119,8 @@ jobs:
             echo "📭 No changes to commit"
           else
             git commit -m "Update AI Reply logs [skip ci]"
+            # سحب أحدث التحديثات من المستودع قبل الرفع لتجنب خطأ [rejected]
+            git pull --rebase origin main || true
             git push
+            echo "✅ Logs pushed to repository"
           fi
