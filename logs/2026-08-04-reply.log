@@ -10,3 +10,11 @@
     at async CdpPage.evaluate (/app/node_modules/puppeteer-core/lib/cjs/puppeteer/api/Page.js:830:20)
     at async Client.getChats (/app/node_modules/whatsapp-web.js/src/Client.js:1669:23)
     at async Client.<anonymous> (file:///app/reply.js:164:27)
+[2026-08-04T00:15:28.663Z] 📝 Loaded system prompt.
+[2026-08-04T00:15:28.665Z] 🔧 Initializing WhatsApp Client...
+[2026-08-04T00:15:32.343Z] ✅ WhatsApp client ready for AUTO-REPLY (Live Mode)
+[2026-08-04T00:15:32.343Z] ⏳ Bot will stay active for 9 minutes and listen for incoming messages...
+[2026-08-04T00:15:50.706Z] 📩 New live message received from 85001798438961@lid
+[2026-08-04T00:15:50.720Z] ⚠️ Error processing message in queue: r
+[2026-08-04T00:16:14.255Z] 📩 New live message received from 85001798438961@lid
+[2026-08-04T00:16:14.272Z] ⚠️ Error processing message in queue: r
