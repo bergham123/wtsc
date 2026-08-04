@@ -15,7 +15,7 @@ const LOGS_DIR = path.join(__dirname, "logs");
 
 const SESSION_NAME = "main";
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY; 
-const BOT_UPTIME_MS = 9 * 60 * 1000; // 9 دقائق تشغيل ثم إغلاق تلقائي
+const BOT_UPTIME_MS = 9 * 60 * 1000; // 9 دقائق تشغيل
 
 // =================== Helpers ===================
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -29,12 +29,11 @@ function log(msg) {
     if (logStream) logStream.write(line + "\n");
 }
 
-// =================== AI Integration (OpenRouter) ===================
+// =================== AI Integration (Simplified) ===================
 async function askAI(userMessage, systemPrompt) {
     try {
-        log(`🧠 جاري معالجة الرسالة عبر AI: "${userMessage.substring(0, 30)}..."`);
+        log(`🧠 AI thinking: "${userMessage.substring(0, 30)}..."`);
 
-        // First API call with reasoning
         let response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
             method: "POST",
             headers: {
@@ -53,8 +52,7 @@ async function askAI(userMessage, systemPrompt) {
 
         const result = await response.json();
         if (!result.choices || !result.choices[0]) {
-            log(`⚠️ AI API Response (First Call): ${JSON.stringify(result)}`);
-            return "عذراً، لم أتمكن من توليد رد حالياً.";
+            return "عذراً، لم أتمكن من توليد رد.";
         }
 
         const assistantMsg = result.choices[0].message;
@@ -69,11 +67,10 @@ async function askAI(userMessage, systemPrompt) {
             },
             {
                 role: 'user',
-                content: "Based on your reasoning, provide the final concise answer to reply to the user on WhatsApp.",
+                content: "Provide the final concise answer to reply on WhatsApp.",
             }
         ];
 
-        // Second API call
         const response2 = await fetch("https://openrouter.ai/api/v1/chat/completions", {
             method: "POST",
             headers: {
@@ -88,46 +85,45 @@ async function askAI(userMessage, systemPrompt) {
 
         const result2 = await response2.json();
         if (!result2.choices || !result2.choices[0]) {
-            return assistantMsg.content || "عذراً، حدث خطأ في الاستجابة.";
+            return assistantMsg.content || "عذراً، حدث خطأ.";
         }
         
         return result2.choices[0].message.content;
 
     } catch (error) {
         log(`❌ AI Error: ${error.message}`);
-        return "عذراً، حدث خطأ أثناء معالجة رسالتك. حاول مرة أخرى لاحقاً.";
+        return "عذراً، حدث خطأ أثناء المعالجة.";
     }
 }
 
-// =================== Message Queue System ===================
+// =================== Simple Queue ===================
 const messageQueue = [];
 let isProcessing = false;
 
-async function processQueue(systemPrompt, client) {
+async function processQueue(systemPrompt) {
     if (isProcessing || messageQueue.length === 0) return;
     
     isProcessing = true;
-    const msg = messageQueue.shift(); // أخذ أول رسالة في الطابور
+    const msg = messageQueue.shift(); 
 
     try {
-        const chat = await msg.getChat();
-        await chat.sendSeen();
-        
-        log(`💬 Processing message from ${chat.id.user}: "${msg.body.substring(0, 40)}..."`);
+        log(`💬 Replying to ${msg.from}: "${msg.body.substring(0, 40)}..."`);
         const aiReply = await askAI(msg.body, systemPrompt);
-        await client.sendMessage(chat.id._serialized, aiReply);
-        log(`✔ Replied to ${chat.id.user}.`);
         
-        await wait(2000); // مهلة 2 ثانية بين كل رد
+        // أسهل طريقة للرد بدون أخطاء المتصفح
+        await msg.reply(aiReply); 
+        log(`✔ Replied successfully.`);
+        
+        await wait(2000); 
     } catch (err) {
-        log(`⚠️ Error processing message in queue: ${err.message}`);
+        log(`⚠️ Queue Error: ${err.message}`);
     } finally {
         isProcessing = false;
-        processQueue(systemPrompt, client); // معالجة الرسالة التالية إذا وجدت
+        processQueue(systemPrompt); 
     }
 }
 
-// =================== Main Bot Logic ===================
+// =================== Main Bot ===================
 async function runBot() {
     fs.ensureDirSync(LOGS_DIR);
     fs.ensureDirSync(SESSION_DIR);
@@ -136,19 +132,15 @@ async function runBot() {
     logStream = fs.createWriteStream(path.join(LOGS_DIR, `${today}-reply.log`), { flags: "a" });
 
     if (!OPENROUTER_API_KEY) {
-        log("❌ OPENROUTER_API_KEY not set in environment variables.");
+        log("❌ OPENROUTER_API_KEY missing.");
         process.exit(1);
     }
 
     let systemPrompt = "You are a helpful assistant.";
     if (await fs.pathExists(PROMPT_FILE)) {
-        try {
-            const promptData = await fs.readJson(PROMPT_FILE);
-            if (promptData.system_prompt) systemPrompt = promptData.system_prompt;
-            log(`📝 Loaded system prompt.`);
-        } catch (err) {
-            log(`⚠️ Failed to load prompt.json, using default.`);
-        }
+        const promptData = await fs.readJson(PROMPT_FILE).catch(() => ({}));
+        if (promptData.system_prompt) systemPrompt = promptData.system_prompt;
+        log(`📝 Loaded prompt.`);
     }
 
     const client = new Client({
@@ -159,41 +151,37 @@ async function runBot() {
             args: [
                 "--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage",
                 "--disable-gpu", "--disable-extensions", "--no-first-run",
-                "--disable-blink-features=AutomationControlled", "--aggressive-cache-discard"
+                "--aggressive-cache-discard"
             ],
             timeout: 120000,
         },
     });
 
     client.on("qr", (qr) => {
-        log("📲 QR code generated - scan now");
+        log("📲 Scan QR");
         qrcode.generate(qr, { small: true });
     });
 
     client.on("ready", async () => {
-        log("✅ WhatsApp client ready for AUTO-REPLY (Live Mode)");
-        log(`⏳ Bot will stay active for 9 minutes and listen for incoming messages...`);
+        log("✅ Bot Ready (Live Mode - 9 minutes)");
         
-        // إعطاء المتصفح 5 ثواني فقط ليستقر قبل الاستماع للرسائل الحية
-        await wait(5000);
-
-        // ضبط مؤقت لإغلاق البوت بعد 9 دقائق تلقائياً
+        // إغلاق آمن بعد 9 دقائق
         setTimeout(async () => {
-            log("⏰ 9 minutes elapsed. Shutting down gracefully to wait for next workflow...");
+            log("⏰ 9 mins over. Shutting down...");
             try { await client.destroy(); } catch {}
             logStream.end();
             process.exit(0);
         }, BOT_UPTIME_MS);
     });
 
-    // الاستماع للرسائل الحية الجديدة
+    // الاستماع المباشر للرسائل
     client.on("message", async (msg) => {
-        // تجاهل الرسائل القديمة، رسائل الحالة، أو الرسائل المرسلة من البوت
+        // تجاهل رسائل البوت، رسائل الحالة، والقنوات
         if (msg.fromMe || msg.type !== 'chat' || msg.isStatus) return;
 
-        log(`📩 New live message received from ${msg.from}`);
-        messageQueue.push(msg); // إضافة الرسالة إلى الطابور
-        processQueue(systemPrompt, client); // بدء معالجة الطابور
+        log(`📩 New message from ${msg.from}`);
+        messageQueue.push(msg); 
+        processQueue(systemPrompt); 
     });
 
     client.on("auth_failure", async (msg) => {
@@ -202,16 +190,11 @@ async function runBot() {
         process.exit(1);
     });
 
-    client.on("disconnected", async (reason) => {
-        log(`⚠️ Disconnected: ${reason}`);
-        process.exit(1);
-    });
-
     try {
-        log("🔧 Initializing WhatsApp Client...");
+        log("🔧 Initializing...");
         await client.initialize();
     } catch (err) {
-        log(`❌ Initialization failed: ${err.message}`);
+        log(`❌ Init failed: ${err.message}`);
         process.exit(1);
     }
 }
