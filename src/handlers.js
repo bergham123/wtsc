@@ -229,6 +229,74 @@ export async function handleStopQRWorkflow(request, env) {
   }
 }
 
+// ===== دوال إرسال الرسائل (send.yaml) =====
+export async function handleSendRun(request, env) {
+  try {
+    await githubRunWorkflowByName(env, "send.yaml");
+    return jsonResponse({ ok: true, message: "تم تشغيل send.yaml" });
+  } catch (err) {
+    return jsonResponse({ ok: false, error: String(err.message || err) }, 500);
+  }
+}
+
+export async function handleSendStop(request, env) {
+  try {
+    const runs = await githubListWorkflowRunsByName(env, "send.yaml", "in_progress");
+    if (runs.length === 0) {
+      return jsonResponse({ ok: false, error: "لا يوجد إرسال قيد التنفيذ" }, 404);
+    }
+    for (const run of runs) {
+      await githubCancelWorkflowRun(env, run.id);
+    }
+    return jsonResponse({ ok: true, message: "تم إيقاف " + runs.length + " تشغيل" });
+  } catch (err) {
+    return jsonResponse({ ok: false, error: String(err.message || err) }, 500);
+  }
+}
+
+export async function handleSendStatus(request, env) {
+  try {
+    const runs = await githubListWorkflowRunsByName(env, "send.yaml", "in_progress");
+    return jsonResponse({ ok: true, running: runs.length > 0, count: runs.length });
+  } catch (err) {
+    return jsonResponse({ ok: false, error: String(err.message || err) }, 500);
+  }
+}
+
+// ===== دوال الرد الذكي (reply.yaml) =====
+export async function handleReplyRun(request, env) {
+  try {
+    await githubRunWorkflowByName(env, "reply.yaml");
+    return jsonResponse({ ok: true, message: "تم تشغيل reply.yaml" });
+  } catch (err) {
+    return jsonResponse({ ok: false, error: String(err.message || err) }, 500);
+  }
+}
+
+export async function handleReplyStop(request, env) {
+  try {
+    const runs = await githubListWorkflowRunsByName(env, "reply.yaml", "in_progress");
+    if (runs.length === 0) {
+      return jsonResponse({ ok: false, error: "لا يوجد رد ذكي قيد التنفيذ" }, 404);
+    }
+    for (const run of runs) {
+      await githubCancelWorkflowRun(env, run.id);
+    }
+    return jsonResponse({ ok: true, message: "تم إيقاف " + runs.length + " تشغيل" });
+  } catch (err) {
+    return jsonResponse({ ok: false, error: String(err.message || err) }, 500);
+  }
+}
+
+export async function handleReplyStatus(request, env) {
+  try {
+    const runs = await githubListWorkflowRunsByName(env, "reply.yaml", "in_progress");
+    return jsonResponse({ ok: true, running: runs.length > 0, count: runs.length });
+  } catch (err) {
+    return jsonResponse({ ok: false, error: String(err.message || err) }, 500);
+  }
+}
+
 // ===== إعادة تصدير كل دوال live.js لتكون متاحة في worker.js =====
 // send.js في GitHub Actions يرسل إلى /api/live/* وهذه المسارات
 // تحتاج هذه الدوال بالتحديد:
