@@ -213,17 +213,21 @@ async function runBot() {
     });
 
     // =================== المستمع للرسائل (محدث بطريقة مرنة) ===================
+    // =================== المستمع للرسائل (محدث لدعم المجموعات والـ LID) ===================
     client.on("message", async (msg) => {
         if (msg.fromMe || msg.type !== 'chat' || msg.isStatus) return;
 
-        const senderNumber = msg.from.split('@')[0];
+        // في الرسائل الجماعية، msg.from هو ID المجموعة، و msg.author هو رقم المرسل الحقيقي
+        const senderId = msg.author || msg.from; 
+        const senderNumber = senderId.split('@')[0];
+
+        log(`🔍 Received message. Chat: ${msg.from} | Sender: ${senderNumber}`);
 
         // فحص القائمة البيضاء بطريقة مرنة (includes)
         let isAllowed = false;
         if (allowedNumbers.length === 0) {
             isAllowed = true; // إذا اللائحة فارغة، سمح للجميع
         } else {
-            // نبحث إذا كان الرقم يحتوي على أحد الأرقام المسموح بها (أو العكس)
             isAllowed = allowedNumbers.some(allowed => senderNumber.includes(allowed) || allowed.includes(senderNumber));
         }
 
@@ -234,24 +238,24 @@ async function runBot() {
 
         log(`📩 Message chunk received from ${senderNumber}: "${msg.body}"`);
 
-        if (!messageBuffers[msg.from]) {
-            messageBuffers[msg.from] = { messages: [], lastMsg: msg, timer: null };
+        if (!messageBuffers[senderId]) {
+            messageBuffers[senderId] = { messages: [], lastMsg: msg, timer: null };
         }
 
-        messageBuffers[msg.from].messages.push(msg.body);
-        messageBuffers[msg.from].lastMsg = msg;
+        messageBuffers[senderId].messages.push(msg.body);
+        messageBuffers[senderId].lastMsg = msg;
 
-        if (messageBuffers[msg.from].timer) {
-            clearTimeout(messageBuffers[msg.from].timer);
+        if (messageBuffers[senderId].timer) {
+            clearTimeout(messageBuffers[senderId].timer);
         }
 
-        messageBuffers[msg.from].timer = setTimeout(() => {
-            const combinedText = messageBuffers[msg.from].messages.join(' ');
-            const msgToReply = messageBuffers[msg.from].lastMsg;
+        messageBuffers[senderId].timer = setTimeout(() => {
+            const combinedText = messageBuffers[senderId].messages.join(' ');
+            const msgToReply = messageBuffers[senderId].lastMsg;
             
-            log(`✅ User ${msg.from} stopped typing. Combined text: "${combinedText.substring(0, 50)}..."`);
+            log(`✅ User ${senderNumber} stopped typing. Combined text: "${combinedText.substring(0, 50)}..."`);
             
-            delete messageBuffers[msg.from];
+            delete messageBuffers[senderId];
             
             messageQueue.push({ msg: msgToReply, combinedText: combinedText });
             processQueue(systemPrompt); 
