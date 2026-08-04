@@ -18,3 +18,35 @@
 [2026-08-04T00:15:50.720Z] ⚠️ Error processing message in queue: r
 [2026-08-04T00:16:14.255Z] 📩 New live message received from 85001798438961@lid
 [2026-08-04T00:16:14.272Z] ⚠️ Error processing message in queue: r
+[2026-08-04T00:22:28.535Z] 📝 Loaded prompt.
+[2026-08-04T00:22:28.537Z] 🔧 Initializing...
+[2026-08-04T00:22:32.799Z] ✅ Bot Ready (Live Mode - 9 minutes)
+[2026-08-04T00:23:04.094Z] 📩 New message from 85001798438961@lid
+[2026-08-04T00:23:04.094Z] 💬 Replying to 85001798438961@lid: "Salam..."
+[2026-08-04T00:23:04.095Z] 🧠 AI thinking: "Salam..."
+[2026-08-04T00:23:09.220Z] ✔ Replied successfully.
+[2026-08-04T00:23:14.280Z] 📩 New message from 85001798438961@lid
+[2026-08-04T00:23:14.280Z] 💬 Replying to 85001798438961@lid: "Hdhd..."
+[2026-08-04T00:23:14.280Z] 🧠 AI thinking: "Hdhd..."
+[2026-08-04T00:23:15.276Z] 📩 New message from 85001798438961@lid
+[2026-08-04T00:23:16.296Z] 📩 New message from 85001798438961@lid
+[2026-08-04T00:23:28.682Z] ✔ Replied successfully.
+[2026-08-04T00:23:30.683Z] 💬 Replying to 85001798438961@lid: "Jfufyf..."
+[2026-08-04T00:23:30.683Z] 🧠 AI thinking: "Jfufyf..."
+[2026-08-04T00:23:44.589Z] ✔ Replied successfully.
+[2026-08-04T00:23:46.591Z] 💬 Replying to 85001798438961@lid: "Hrvfuf..."
+[2026-08-04T00:23:46.592Z] 🧠 AI thinking: "Hrvfuf..."
+[2026-08-04T00:23:51.081Z] ✔ Replied successfully.
+[2026-08-04T00:27:28.719Z] 📩 New message from 85001798438961@lid
+[2026-08-04T00:27:28.719Z] 💬 Replying to 85001798438961@lid: "Send pe a message contains 100 word..."
+[2026-08-04T00:27:28.719Z] 🧠 AI thinking: "Send pe a message contains 100..."
+[2026-08-04T00:27:42.776Z] ✔ Replied successfully.
+[2026-08-04T00:27:56.904Z] 📩 New message from 85001798438961@lid
+[2026-08-04T00:27:56.904Z] 💬 Replying to 85001798438961@lid: "Send me a message contains 100 word..."
+[2026-08-04T00:27:56.904Z] 🧠 AI thinking: "Send me a message contains 100..."
+[2026-08-04T00:28:13.947Z] ✔ Replied successfully.
+[2026-08-04T00:28:37.077Z] 📩 New message from 85001798438961@lid
+[2026-08-04T00:28:37.077Z] 💬 Replying to 85001798438961@lid: "Salam..."
+[2026-08-04T00:28:37.077Z] 🧠 AI thinking: "Salam..."
+[2026-08-04T00:28:41.774Z] ✔ Replied successfully.
+[2026-08-04T00:31:32.807Z] ⏰ 9 mins over. Shutting down...
