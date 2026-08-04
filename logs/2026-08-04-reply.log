@@ -101,3 +101,12 @@
 [2026-08-04T02:16:13.301Z] 📨 Telegram alert sent.
 [2026-08-04T02:17:20.867Z] 🚫 Ignored message from 85001798438961 (Not in whitelist)
 [2026-08-04T02:17:22.059Z] 🚫 Ignored message from 85001798438961 (Not in whitelist)
+[2026-08-04T02:24:41.371Z] 📝 Loaded prompt.
+[2026-08-04T02:24:41.373Z] ✅ Loaded 1 allowed numbers.
+[2026-08-04T02:24:41.374Z] 🔧 Initializing...
+[2026-08-04T02:24:46.651Z] ✅ Bot Ready (Live Mode - 9 minutes)
+[2026-08-04T02:24:47.240Z] 📨 Telegram alert sent.
+[2026-08-04T02:24:52.328Z] 🔍 Received message. Chat: 85001798438961@lid | Sender: 85001798438961
+[2026-08-04T02:24:52.329Z] 🚫 Ignored message from 85001798438961 (Not in whitelist)
+[2026-08-04T02:24:56.035Z] 🔍 Received message. Chat: 85001798438961@lid | Sender: 85001798438961
+[2026-08-04T02:24:56.035Z] 🚫 Ignored message from 85001798438961 (Not in whitelist)
