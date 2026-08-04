@@ -1,10 +1,8 @@
-// worker.js - المدخل الرئيسي
 import { HTML_PAGE } from './src/html.js';
 
 import {
   handleLoad,
   handleSave,
-  handleRunWorkflow,
   handleUploadImage,
   handleGetLogs,
   handleGetLogContent,
@@ -25,8 +23,12 @@ import {
   handleGetLogs as handleGetSessionLogs,
   handleAddMessage,
   handleGetMessages,
-  handleRunReplyWorkflow,   // ← جديد
-  handleStopReplyWorkflow   // ← جديد
+  handleSendRun,
+  handleSendStop,
+  handleSendStatus,
+  handleReplyRun,
+  handleReplyStop,
+  handleReplyStatus
 } from './src/handlers.js';
 
 export default {
@@ -34,62 +36,70 @@ export default {
     const url = new URL(request.url);
     const method = request.method;
 
-    // ==================== الصفحة الرئيسية ====================
+    // الصفحة الرئيسية
     if (url.pathname === "/" && method === "GET") {
       return new Response(HTML_PAGE, {
         headers: { "Content-Type": "text/html; charset=utf-8" }
       });
     }
 
-    // ==================== API: تحميل وحفظ الملفات ====================
+    // تحميل وحفظ الملفات
     if (url.pathname === "/api/load" && method === "GET")
       return handleLoad(request, env);
     if (url.pathname === "/api/save" && method === "POST")
       return handleSave(request, env);
 
-    // ==================== API: الصور ====================
+    // الصور
     if (url.pathname === "/api/upload-image" && method === "POST")
       return handleUploadImage(request, env);
     if (url.pathname === "/api/images" && method === "GET")
       return handleListImages(request, env);
     if (url.pathname === "/api/delete-image" && method === "POST")
       return handleDeleteImage(request, env);
-
-    // ==================== API: قائمة الصور ====================
     if (url.pathname === "/api/images-list" && method === "GET")
       return handleLoadImagesList(request, env);
     if (url.pathname === "/api/images-list" && method === "POST")
       return handleSaveImagesList(request, env);
 
-    // ==================== API: Send Workflow ====================
-    if (url.pathname === "/api/run-workflow" && method === "POST")
-      return handleRunWorkflow(request, env);
-    if (url.pathname === "/api/stop-workflow" && method === "POST")
+    // إرسال الرسائل (send.yaml)
+    if (url.pathname === "/api/send/run" && method === "POST")
+      return handleSendRun(request, env);
+    if (url.pathname === "/api/send/stop" && method === "POST")
+      return handleSendStop(request, env);
+    if (url.pathname === "/api/send/status" && method === "GET")
+      return handleSendStatus(request, env);
+
+    // الرد الذكي (reply.yaml)
+    if (url.pathname === "/api/reply/run" && method === "POST")
+      return handleReplyRun(request, env);
+    if (url.pathname === "/api/reply/stop" && method === "POST")
+      return handleReplyStop(request, env);
+    if (url.pathname === "/api/reply/status" && method === "GET")
+      return handleReplyStatus(request, env);
+
+    // QR workflow
+    if (url.pathname === "/api/qr/run" && method === "POST")
+      return handleRunQRWorkflow(request, env);
+    if (url.pathname === "/api/qr/stop" && method === "POST")
       return handleStopQRWorkflow(request, env);
 
-    // ==================== API: Reply AI Workflow ====================
-    if (url.pathname === "/api/reply/run" && method === "POST")
-      return handleRunReplyWorkflow(request, env);
-    if (url.pathname === "/api/reply/stop" && method === "POST")
-      return handleStopReplyWorkflow(request, env);
-
-    // ==================== API: السجلات ====================
+    // السجلات
     if (url.pathname === "/api/logs" && method === "GET")
       return handleGetLogs(request, env);
     if (url.pathname === "/api/log-content" && method === "GET")
       return handleGetLogContent(request, env);
 
-    // ==================== API: الجدولة ====================
+    // الجدولة
     if (url.pathname === "/api/schedule" && method === "GET")
       return handleLoadSchedule(request, env);
     if (url.pathname === "/api/schedule" && method === "POST")
       return handleSaveSchedule(request, env);
 
-    // ==================== API: الإحصائيات ====================
+    // الإحصائيات
     if (url.pathname === "/api/stats" && method === "GET")
       return handleGetStats(request, env);
 
-    // ==================== API: Session ====================
+    // Session (الداشبورد)
     if (url.pathname === "/api/session/status" && method === "GET")
       return handleGetStatus(request, env);
     if (url.pathname === "/api/session/status" && method === "POST")
@@ -99,13 +109,7 @@ export default {
     if (url.pathname === "/api/session/qr" && method === "POST")
       return handleSetQR(request, env);
 
-    // ==================== API: QR Workflow ====================
-    if (url.pathname === "/api/qr/run" && method === "POST")
-      return handleRunQRWorkflow(request, env);
-    if (url.pathname === "/api/qr/stop" && method === "POST")
-      return handleStopQRWorkflow(request, env);
-
-    // ==================== API: Live (من GitHub Actions) ====================
+    // Live (يستخدمها send.js من GitHub Actions)
     if (url.pathname === "/api/live/status" && method === "POST")
       return handleSetStatus(request, env);
     if (url.pathname === "/api/live/status" && method === "GET")
