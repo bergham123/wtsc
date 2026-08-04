@@ -1,0 +1,12 @@
+[2026-08-04T00:07:05.829Z] 📝 Loaded system prompt.
+[2026-08-04T00:07:05.831Z] 🔧 Initializing WhatsApp Client...
+[2026-08-04T00:07:10.639Z] ✅ WhatsApp client ready for AUTO-REPLY
+[2026-08-04T00:07:10.641Z] ⏳ Stabilizing connection for 10 seconds to load messages...
+[2026-08-04T00:07:20.721Z] 💥 Error during auto-reply process: r: r
+    at #evaluate (/app/node_modules/puppeteer-core/lib/cjs/puppeteer/cdp/ExecutionContext.js:391:56)
+    at async ExecutionContext.evaluate (/app/node_modules/puppeteer-core/lib/cjs/puppeteer/cdp/ExecutionContext.js:277:16)
+    at async IsolatedWorld.evaluate (/app/node_modules/puppeteer-core/lib/cjs/puppeteer/cdp/IsolatedWorld.js:100:16)
+    at async CdpFrame.evaluate (/app/node_modules/puppeteer-core/lib/cjs/puppeteer/api/Frame.js:362:20)
+    at async CdpPage.evaluate (/app/node_modules/puppeteer-core/lib/cjs/puppeteer/api/Page.js:830:20)
+    at async Client.getChats (/app/node_modules/whatsapp-web.js/src/Client.js:1669:23)
+    at async Client.<anonymous> (file:///app/reply.js:164:27)
