@@ -1,4 +1,4 @@
-// worker.js - المدخل الرئيسي
+// worker.js - المدخل الرئيسي (مُحدّث)
 import { HTML_PAGE } from './src/html.js';
 
 import {
@@ -13,7 +13,8 @@ import {
   handleSaveSchedule,
   handleListImages,
   handleDeleteImage,
-  // استيرادات جديدة للـ session و QR workflow
+  handleLoadImagesList,
+  handleSaveImagesList,
   handleRunQRWorkflow,
   handleStopQRWorkflow,
   handleGetStatus,
@@ -22,38 +23,97 @@ import {
   handleSetQR
 } from './src/handlers.js';
 
+// دوال الـ live من handlers.js (تعمل على KV)
+import {
+  handleAddLog,
+  handleGetLogs as handleGetSessionLogs,
+  handleAddMessage,
+  handleGetMessages
+} from './src/handlers.js';
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    const method = request.method;
 
-    // الصفحة الرئيسية
-    if (url.pathname === "/" && request.method === "GET") {
-      return new Response(HTML_PAGE, { headers: { "Content-Type": "text/html; charset=utf-8" } });
+    // ==================== الصفحة الرئيسية ====================
+    if (url.pathname === "/" && method === "GET") {
+      return new Response(HTML_PAGE, {
+        headers: { "Content-Type": "text/html; charset=utf-8" }
+      });
     }
 
-    // API endpoints الحالية
-    if (url.pathname === "/api/load" && request.method === "GET") return handleLoad(request, env);
-    if (url.pathname === "/api/save" && request.method === "POST") return handleSave(request, env);
-    if (url.pathname === "/api/run-workflow" && request.method === "POST") return handleRunWorkflow(request, env);
-    if (url.pathname === "/api/upload-image" && request.method === "POST") return handleUploadImage(request, env);
-    if (url.pathname === "/api/logs" && request.method === "GET") return handleGetLogs(request, env);
-    if (url.pathname === "/api/log-content" && request.method === "GET") return handleGetLogContent(request, env);
-    if (url.pathname === "/api/schedule" && request.method === "GET") return handleLoadSchedule(request, env);
-    if (url.pathname === "/api/schedule" && request.method === "POST") return handleSaveSchedule(request, env);
-    if (url.pathname === "/api/stats" && request.method === "GET") return handleGetStats(request, env);
-    if (url.pathname === "/api/images" && request.method === "GET") return handleListImages(request, env);
-    if (url.pathname === "/api/delete-image" && request.method === "POST") return handleDeleteImage(request, env);
+    // ==================== API: تحميل وحفظ الملفات ====================
+    if (url.pathname === "/api/load" && method === "GET")
+      return handleLoad(request, env);
+    if (url.pathname === "/api/save" && method === "POST")
+      return handleSave(request, env);
 
-    // ===== مسارات جديدة للـ Session و QR =====
-    // حالة الجلسة
-    if (url.pathname === "/api/session/status" && request.method === "GET") return handleGetStatus(request, env);
-    if (url.pathname === "/api/session/status" && request.method === "POST") return handleSetStatus(request, env);
-    // QR code
-    if (url.pathname === "/api/session/qr" && request.method === "GET") return handleGetQR(request, env);
-    if (url.pathname === "/api/session/qr" && request.method === "POST") return handleSetQR(request, env);
-    // التحكم في QR workflow
-    if (url.pathname === "/api/qr/run" && request.method === "POST") return handleRunQRWorkflow(request, env);
-    if (url.pathname === "/api/qr/stop" && request.method === "POST") return handleStopQRWorkflow(request, env);
+    // ==================== API: الصور ====================
+    if (url.pathname === "/api/upload-image" && method === "POST")
+      return handleUploadImage(request, env);
+    if (url.pathname === "/api/images" && method === "GET")
+      return handleListImages(request, env);
+    if (url.pathname === "/api/delete-image" && method === "POST")
+      return handleDeleteImage(request, env);
+
+    // ==================== API: قائمة الصور (images.json) ====================
+    if (url.pathname === "/api/images-list" && method === "GET")
+      return handleLoadImagesList(request, env);
+    if (url.pathname === "/api/images-list" && method === "POST")
+      return handleSaveImagesList(request, env);
+
+    // ==================== API: الـ Workflow ====================
+    if (url.pathname === "/api/run-workflow" && method === "POST")
+      return handleRunWorkflow(request, env);
+
+    // ==================== API: السجلات ====================
+    if (url.pathname === "/api/logs" && method === "GET")
+      return handleGetLogs(request, env);
+    if (url.pathname === "/api/log-content" && method === "GET")
+      return handleGetLogContent(request, env);
+
+    // ==================== API: الجدولة ====================
+    if (url.pathname === "/api/schedule" && method === "GET")
+      return handleLoadSchedule(request, env);
+    if (url.pathname === "/api/schedule" && method === "POST")
+      return handleSaveSchedule(request, env);
+
+    // ==================== API: الإحصائيات ====================
+    if (url.pathname === "/api/stats" && method === "GET")
+      return handleGetStats(request, env);
+
+    // ==================== API: Session (الداشبورد) ====================
+    if (url.pathname === "/api/session/status" && method === "GET")
+      return handleGetStatus(request, env);
+    if (url.pathname === "/api/session/status" && method === "POST")
+      return handleSetStatus(request, env);
+    if (url.pathname === "/api/session/qr" && method === "GET")
+      return handleGetQR(request, env);
+    if (url.pathname === "/api/session/qr" && method === "POST")
+      return handleSetQR(request, env);
+
+    // ==================== API: QR Workflow Control ====================
+    if (url.pathname === "/api/qr/run" && method === "POST")
+      return handleRunQRWorkflow(request, env);
+    if (url.pathname === "/api/qr/stop" && method === "POST")
+      return handleStopQRWorkflow(request, env);
+
+    // ==================== API: Live (يستخدمها send.js من GitHub Actions) ====================
+    if (url.pathname === "/api/live/status" && method === "POST")
+      return handleSetStatus(request, env);
+    if (url.pathname === "/api/live/status" && method === "GET")
+      return handleGetStatus(request, env);
+    if (url.pathname === "/api/live/qr" && method === "POST")
+      return handleSetQR(request, env);
+    if (url.pathname === "/api/live/message" && method === "POST")
+      return handleAddMessage(request, env);
+    if (url.pathname === "/api/live/logs" && method === "GET")
+      return handleGetSessionLogs(request, env);
+    if (url.pathname === "/api/live/log" && method === "POST")
+      return handleAddLog(request, env);
+    if (url.pathname === "/api/live/messages" && method === "GET")
+      return handleGetMessages(request, env);
 
     return new Response("Not found", { status: 404 });
   }
