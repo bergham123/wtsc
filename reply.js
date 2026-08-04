@@ -16,6 +16,7 @@ const LOGS_DIR = path.join(__dirname, "logs");
 const SESSION_NAME = "main";
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY; 
 const BOT_UPTIME_MS = 9 * 60 * 1000; // 9 دقائق تشغيل
+const MESSAGE_DELAY_MS = 10000; // الانتظار 10 ثواني لتجميع رسائل المستخدم
 
 // =================== Helpers ===================
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -29,7 +30,7 @@ function log(msg) {
     if (logStream) logStream.write(line + "\n");
 }
 
-// =================== AI Integration (Simplified) ===================
+// =================== AI Integration ===================
 async function askAI(userMessage, systemPrompt) {
     try {
         log(`🧠 AI thinking: "${userMessage.substring(0, 30)}..."`);
@@ -51,9 +52,7 @@ async function askAI(userMessage, systemPrompt) {
         });
 
         const result = await response.json();
-        if (!result.choices || !result.choices[0]) {
-            return "عذراً، لم أتمكن من توليد رد.";
-        }
+        if (!result.choices || !result.choices[0]) return "عذراً، لم أتمكن من توليد رد.";
 
         const assistantMsg = result.choices[0].message;
 
@@ -84,9 +83,7 @@ async function askAI(userMessage, systemPrompt) {
         });
 
         const result2 = await response2.json();
-        if (!result2.choices || !result2.choices[0]) {
-            return assistantMsg.content || "عذراً، حدث خطأ.";
-        }
+        if (!result2.choices || !result2.choices[0]) return assistantMsg.content || "عذراً، حدث خطأ.";
         
         return result2.choices[0].message.content;
 
@@ -96,22 +93,21 @@ async function askAI(userMessage, systemPrompt) {
     }
 }
 
-// =================== Simple Queue ===================
+// =================== Message Queue & Buffer ===================
 const messageQueue = [];
 let isProcessing = false;
+const messageBuffers = {}; // لتخزين الرسائل المؤقتة لكل مستخدم
 
 async function processQueue(systemPrompt) {
     if (isProcessing || messageQueue.length === 0) return;
     
     isProcessing = true;
-    const msg = messageQueue.shift(); 
+    const item = messageQueue.shift(); 
 
     try {
-        log(`💬 Replying to ${msg.from}: "${msg.body.substring(0, 40)}..."`);
-        const aiReply = await askAI(msg.body, systemPrompt);
-        
-        // أسهل طريقة للرد بدون أخطاء المتصفح
-        await msg.reply(aiReply); 
+        log(`💬 Replying to ${item.msg.from}: "${item.combinedText.substring(0, 40)}..."`);
+        const aiReply = await askAI(item.combinedText, systemPrompt);
+        await item.msg.reply(aiReply); 
         log(`✔ Replied successfully.`);
         
         await wait(2000); 
@@ -165,7 +161,6 @@ async function runBot() {
     client.on("ready", async () => {
         log("✅ Bot Ready (Live Mode - 9 minutes)");
         
-        // إغلاق آمن بعد 9 دقائق
         setTimeout(async () => {
             log("⏰ 9 mins over. Shutting down...");
             try { await client.destroy(); } catch {}
@@ -176,12 +171,39 @@ async function runBot() {
 
     // الاستماع المباشر للرسائل
     client.on("message", async (msg) => {
-        // تجاهل رسائل البوت، رسائل الحالة، والقنوات
         if (msg.fromMe || msg.type !== 'chat' || msg.isStatus) return;
 
-        log(`📩 New message from ${msg.from}`);
-        messageQueue.push(msg); 
-        processQueue(systemPrompt); 
+        const sender = msg.from;
+        log(`📩 Message chunk received from ${sender}: "${msg.body}"`);
+
+        // إذا لم يكن لدى المستخدم مؤقت سابق، أنشئ واحداً
+        if (!messageBuffers[sender]) {
+            messageBuffers[sender] = { messages: [], lastMsg: msg, timer: null };
+        }
+
+        // إضافة الرسالة إلى مجموعة المستخدم
+        messageBuffers[sender].messages.push(msg.body);
+        messageBuffers[sender].lastMsg = msg; // تحديث آخر رسالة ليرد عليها لاحقاً
+
+        // إلغاء المؤقت السابق وإعداد مؤقت جديد (10 ثواني)
+        if (messageBuffers[sender].timer) {
+            clearTimeout(messageBuffers[sender].timer);
+        }
+
+        messageBuffers[sender].timer = setTimeout(() => {
+            // بعد 10 ثواني من الصمت، ندمج الرسائل ونرسلها للطابور
+            const combinedText = messageBuffers[sender].messages.join(' ');
+            const msgToReply = messageBuffers[sender].lastMsg;
+            
+            log(`✅ User ${sender} stopped typing. Combined text: "${combinedText.substring(0, 50)}..."`);
+            
+            // مسح البيانات المؤقتة لهذا المستخدم
+            delete messageBuffers[sender];
+            
+            // إضافة للطابور
+            messageQueue.push({ msg: msgToReply, combinedText: combinedText });
+            processQueue(systemPrompt); 
+        }, MESSAGE_DELAY_MS);
     });
 
     client.on("auth_failure", async (msg) => {
