@@ -46,21 +46,12 @@ jobs:
       - name: Build Docker Image
         run: docker build -t wa-bot .
 
-      # ===== تشغيل سكريبت الرد التلقائي =====
+            # ===== تشغيل سكريبت الرد التلقائي =====
       - name: Run WhatsApp AI Reply in Docker
         env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }} # ضع المفتاح الجديد في GitHub Secrets
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }} # <--- أضف هذا السطر
-
-        run: |
-          docker run --rm \
-            -v $(pwd)/session:/app/session \
-            -v $(pwd)/data:/app/data \
-            -v $(pwd)/logs:/app/logs \
-            -e OPENROUTER_API_KEY="$OPENROUTER_API_KEY" \
-            -e TELEGRAM_BOT_TOKEN="$TELEGRAM_BOT_TOKEN" \ 
-            -e TASK="reply" \
-            wa-bot node reply.js
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        run: docker run --rm -v $(pwd)/session:/app/session -v $(pwd)/data:/app/data -v $(pwd)/logs:/app/logs -e OPENROUTER_API_KEY="$OPENROUTER_API_KEY" -e TELEGRAM_BOT_TOKEN="$TELEGRAM_BOT_TOKEN" wa-bot node reply.js
 
       # ===== إصلاح الصلاحيات والتنظيف =====
       - name: Fix permissions for caching
