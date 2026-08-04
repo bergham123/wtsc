@@ -94,3 +94,10 @@
 [2026-08-04T02:00:43.764Z] 🔧 Initializing...
 [2026-08-04T02:00:47.191Z] ✅ Bot Ready (Live Mode - 9 minutes)
 [2026-08-04T02:00:50.671Z] 📨 Telegram alert sent.
+[2026-08-04T02:16:07.436Z] 📝 Loaded prompt.
+[2026-08-04T02:16:07.437Z] ✅ Loaded 1 allowed numbers.
+[2026-08-04T02:16:07.438Z] 🔧 Initializing...
+[2026-08-04T02:16:12.776Z] ✅ Bot Ready (Live Mode - 9 minutes)
+[2026-08-04T02:16:13.301Z] 📨 Telegram alert sent.
+[2026-08-04T02:17:20.867Z] 🚫 Ignored message from 85001798438961 (Not in whitelist)
+[2026-08-04T02:17:22.059Z] 🚫 Ignored message from 85001798438961 (Not in whitelist)
