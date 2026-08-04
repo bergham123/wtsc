@@ -11,12 +11,13 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // =================== Constants ===================
 const SESSION_DIR = path.join(__dirname, "session");
 const PROMPT_FILE = path.join(__dirname, "data", "prompt.json");
+const ANSWER_LIST_FILE = path.join(__dirname, "data", "answer.json"); // ملف الأرقام المسموح بها
 const LOGS_DIR = path.join(__dirname, "logs");
 
 const SESSION_NAME = "main";
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY; 
-const BOT_UPTIME_MS = 9 * 60 * 1000; // 9 دقائق تشغيل
-const MESSAGE_DELAY_MS = 10000; // الانتظار 10 ثواني لتجميع رسائل المستخدم
+const BOT_UPTIME_MS = 9 * 60 * 1000; 
+const MESSAGE_DELAY_MS = 10000; 
 
 // =================== Helpers ===================
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -96,7 +97,7 @@ async function askAI(userMessage, systemPrompt) {
 // =================== Message Queue & Buffer ===================
 const messageQueue = [];
 let isProcessing = false;
-const messageBuffers = {}; // لتخزين الرسائل المؤقتة لكل مستخدم
+const messageBuffers = {}; 
 
 async function processQueue(systemPrompt) {
     if (isProcessing || messageQueue.length === 0) return;
@@ -132,11 +133,29 @@ async function runBot() {
         process.exit(1);
     }
 
+    // Load System Prompt
     let systemPrompt = "You are a helpful assistant.";
     if (await fs.pathExists(PROMPT_FILE)) {
         const promptData = await fs.readJson(PROMPT_FILE).catch(() => ({}));
         if (promptData.system_prompt) systemPrompt = promptData.system_prompt;
         log(`📝 Loaded prompt.`);
+    }
+
+    // Load Allowed Numbers (Whitelist)
+    let allowedNumbers = [];
+    if (await fs.pathExists(ANSWER_LIST_FILE)) {
+        try {
+            const data = await fs.readJson(ANSWER_LIST_FILE);
+            if (Array.isArray(data)) {
+                // تنظيف الأرقام (إزالة المسافات والرموز)
+                allowedNumbers = data.map(n => String(n).replace(/\D/g, ''));
+                log(`✅ Loaded ${allowedNumbers.length} allowed numbers from answer.json`);
+            }
+        } catch (err) {
+            log(`⚠️ Failed to load answer.json: ${err.message}`);
+        }
+    } else {
+        log(`⚠️ answer.json not found. Bot will ignore ALL messages.`);
     }
 
     const client = new Client({
@@ -173,34 +192,36 @@ async function runBot() {
     client.on("message", async (msg) => {
         if (msg.fromMe || msg.type !== 'chat' || msg.isStatus) return;
 
-        const sender = msg.from;
-        log(`📩 Message chunk received from ${sender}: "${msg.body}"`);
+        // استخراج الرقم (إزالة @c.us)
+        const senderNumber = msg.from.split('@')[0];
 
-        // إذا لم يكن لدى المستخدم مؤقت سابق، أنشئ واحداً
-        if (!messageBuffers[sender]) {
-            messageBuffers[sender] = { messages: [], lastMsg: msg, timer: null };
+        // فحص القائمة البيضاء
+        if (allowedNumbers.length > 0 && !allowedNumbers.includes(senderNumber)) {
+            //log(`🚫 Ignored message from ${senderNumber} (Not in answer.json)`);
+            return; // تجاهل الرسالة فوراً إذا الرقم مسجلش
         }
 
-        // إضافة الرسالة إلى مجموعة المستخدم
-        messageBuffers[sender].messages.push(msg.body);
-        messageBuffers[sender].lastMsg = msg; // تحديث آخر رسالة ليرد عليها لاحقاً
+        log(`📩 Message chunk received from ${senderNumber}: "${msg.body}"`);
 
-        // إلغاء المؤقت السابق وإعداد مؤقت جديد (10 ثواني)
-        if (messageBuffers[sender].timer) {
-            clearTimeout(messageBuffers[sender].timer);
+        if (!messageBuffers[msg.from]) {
+            messageBuffers[msg.from] = { messages: [], lastMsg: msg, timer: null };
         }
 
-        messageBuffers[sender].timer = setTimeout(() => {
-            // بعد 10 ثواني من الصمت، ندمج الرسائل ونرسلها للطابور
-            const combinedText = messageBuffers[sender].messages.join(' ');
-            const msgToReply = messageBuffers[sender].lastMsg;
+        messageBuffers[msg.from].messages.push(msg.body);
+        messageBuffers[msg.from].lastMsg = msg;
+
+        if (messageBuffers[msg.from].timer) {
+            clearTimeout(messageBuffers[msg.from].timer);
+        }
+
+        messageBuffers[msg.from].timer = setTimeout(() => {
+            const combinedText = messageBuffers[msg.from].messages.join(' ');
+            const msgToReply = messageBuffers[msg.from].lastMsg;
             
-            log(`✅ User ${sender} stopped typing. Combined text: "${combinedText.substring(0, 50)}..."`);
+            log(`✅ User ${msg.from} stopped typing. Combined text: "${combinedText.substring(0, 50)}..."`);
             
-            // مسح البيانات المؤقتة لهذا المستخدم
-            delete messageBuffers[sender];
+            delete messageBuffers[msg.from];
             
-            // إضافة للطابور
             messageQueue.push({ msg: msgToReply, combinedText: combinedText });
             processQueue(systemPrompt); 
         }, MESSAGE_DELAY_MS);
