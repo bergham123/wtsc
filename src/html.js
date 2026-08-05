@@ -61,12 +61,20 @@ h1,h2,h3,.font-orb{font-family:'Orbitron',sans-serif}
 #mainApp{display:none;height:100vh}
 #mainApp.show{display:flex}
 
-/* SIDEBAR OVERLAY (mobile) */
-#sidebarOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:90;backdrop-filter:blur(4px)}
-#sidebarOverlay.show{display:block}
+/* SIDEBAR OVERLAY (mobile only) */
+#sidebarOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:90;backdrop-filter:blur(4px);opacity:0;transition:opacity .3s}
+#sidebarOverlay.show{display:block;opacity:1}
 
-.sidebar{width:var(--sidebar-w);background:var(--bg-card);backdrop-filter:blur(var(--glass-blur));border-left:1px solid var(--glass-border);height:100vh;position:fixed;left:0;top:0;z-index:100;display:flex;flex-direction:column;transition:transform .3s cubic-bezier(.4,0,.2,1)}
-.sidebar.hidden{transform:translateX(-100%)}
+/* SIDEBAR — desktop: always visible, mobile: off-screen by default */
+.sidebar{
+  width:var(--sidebar-w);background:var(--bg-card);backdrop-filter:blur(var(--glass-blur));
+  border-right:1px solid var(--glass-border);height:100vh;position:fixed;left:0;top:0;
+  z-index:100;display:flex;flex-direction:column;
+  transform:translateX(0);
+  transition:transform .3s cubic-bezier(.4,0,.2,1);
+}
+.sidebar.open{transform:translateX(0)!important}
+
 .sb-head{padding:18px;border-bottom:1px solid var(--glass-border);display:flex;align-items:center;gap:10px}
 .sb-logo{width:34px;height:34px;background:linear-gradient(135deg,var(--cyan),var(--purple));border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;color:#fff}
 .sb-title{font-size:12px;font-weight:900;background:linear-gradient(90deg,var(--cyan),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
@@ -76,8 +84,7 @@ h1,h2,h3,.font-orb{font-family:'Orbitron',sans-serif}
 .nav-i.active{background:rgba(0,240,255,0.1);color:var(--cyan);box-shadow:inset 3px 0 0 var(--cyan)}
 .nav-i i{width:18px;text-align:center;font-size:14px;flex-shrink:0}
 
-.content-area{flex:1;margin-left:var(--sidebar-w);display:flex;flex-direction:column;height:100vh;transition:margin .3s}
-.content-area.full{margin-left:0}
+.content-area{flex:1;margin-left:var(--sidebar-w);display:flex;flex-direction:column;height:100vh;transition:margin-left .3s}
 
 .top-hdr{height:var(--header-h);background:var(--bg-card);backdrop-filter:blur(var(--glass-blur));border-bottom:1px solid var(--glass-border);display:flex;align-items:center;justify-content:space-between;padding:0 16px;position:sticky;top:0;z-index:50;gap:8px}
 .hdr-l,.hdr-r{display:flex;align-items:center;gap:8px}
@@ -190,7 +197,13 @@ select.ci{cursor:pointer}
 /* 2-COL GRID */
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 
-/* RESPONSIVE */
+/* ==============================
+   RESPONSIVE — SIDEBAR LOGIC
+   Desktop (>900px): sidebar always visible, hamburger hidden
+   Mobile (<=900px): sidebar hidden off-screen, hamburger shown, overlay on open
+   ============================== */
+
+/* Mobile: push sidebar off-screen, remove content margin */
 @media(max-width:900px){
   .sidebar{transform:translateX(-100%)}
   .sidebar.open{transform:translateX(0)}
@@ -199,6 +212,12 @@ select.ci{cursor:pointer}
   .hdr-search{width:120px}
   .hdr-search:focus{width:160px}
 }
+
+/* Desktop: hide the hamburger button entirely */
+@media(min-width:901px){
+  #menuBtn{display:none!important}
+}
+
 @media(max-width:500px){
   .sg{grid-template-columns:1fr 1fr}
   .ml-add{flex-direction:column}
@@ -229,7 +248,7 @@ select.ci{cursor:pointer}
 
 <div id="mainApp">
   <div id="sidebarOverlay"></div>
-  <aside class="sidebar hidden" id="sidebar">
+  <aside class="sidebar" id="sidebar">
     <div class="sb-head">
       <div class="sb-logo"><i class="fab fa-whatsapp"></i></div>
       <div class="sb-title font-orb">NEXUS AI</div>
@@ -272,7 +291,7 @@ select.ci{cursor:pointer}
       <div class="cs active" id="sec-dash">
         <div class="glass" style="margin-bottom:18px;background:linear-gradient(135deg,rgba(0,240,255,.05),rgba(184,41,255,.05))">
           <h2 class="font-orb" style="font-size:16px;background:linear-gradient(90deg,var(--cyan),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:3px">WHATSAPP NEXUS AI</h2>
-          <p style="color:var(--text-2);font-size:12px">Control center — manage and track everything</p>
+          <p style="color:var(--text-2);font-size:12px">Control center \\u2014 manage and track everything</p>
         </div>
         <div class="sg">
           <div class="sc c1"><div class="si c1"><i class="fas fa-paper-plane"></i></div><div class="sv" id="dSent">0</div><div class="sl">Sent</div></div>
@@ -367,8 +386,8 @@ select.ci{cursor:pointer}
       <!-- DATA CENTER -->
       <div class="cs" id="sec-data">
         <div class="glass">
-          <div class="g-hdr"><i class="fas fa-database" style="color:var(--orange)"></i><h2>Data Center — Mylist</h2></div>
-          <div class="g-hint">Manage numbers with age/gender filters — data/mylist.json</div>
+          <div class="g-hdr"><i class="fas fa-database" style="color:var(--orange)"></i><h2>Data Center \\u2014 Mylist</h2></div>
+          <div class="g-hint">Manage numbers with age/gender filters \\u2014 data/mylist.json</div>
           <div class="ml-add">
             <label>Number<input type="text" class="ci" id="mlNum" placeholder="212600000000"></label>
             <label>Age<input type="number" class="ci" id="mlAge" placeholder="25" min="0" max="120"></label>
@@ -456,7 +475,7 @@ function toast(m,t){
   Toastify({text:m,duration:2500,gravity:"top",position:"center",style:{background:bg,borderRadius:"9px",fontFamily:"'Plus Jakarta Sans'",fontSize:"12px",fontWeight:"600",padding:"9px 18px",boxShadow:"0 4px 20px rgba(0,0,0,0.3)"}}).showToast();
 }
 function setRD(el,on,ot,ft){el.className="rd "+(on?"on":"off");el.innerHTML='<span class="d"></span> '+(on?ot:ft);}
-function gB(g){return g==="Male"?'<span class="gb m">Male</span>':g==="Female"?'<span class="gb f">Female</span>':'<span class="gb u">'+(g||"—")+'</span>';}
+function gB(g){return g==="Male"?'<span class="gb m">Male</span>':g==="Female"?'<span class="gb f">Female</span>':'<span class="gb u">'+(g||"\\u2014")+'</span>';}
 
 /* LOADER */
 setTimeout(function(){document.getElementById("cyberLoader").classList.add("hide");setTimeout(function(){document.getElementById("authScreen").classList.add("show");},500);},1800);
@@ -475,36 +494,57 @@ document.getElementById("authBtn").onclick=function(){
 };
 document.getElementById("authKey").addEventListener("keydown",function(e){if(e.key==="Enter")document.getElementById("authBtn").click();});
 
+/* ================================================
+   SIDEBAR — clean responsive logic
+   Desktop (>900px): always visible, hamburger hidden by CSS
+   Mobile (<=900px): hidden by CSS, toggled via .open class
+   ================================================ */
+var sb=document.getElementById("sidebar");
+var ov=document.getElementById("sidebarOverlay");
 
-/* SIDEBAR */
-var sb=document.getElementById("sidebar"),ov=document.getElementById("sidebarOverlay"),ca=document.getElementById("cArea");
+function isMobile(){return window.innerWidth<=900;}
+
 function openSB(){
-  if(window.innerWidth<=900){sb.classList.add("open");ov.classList.add("show");}
-  else{sb.classList.remove("hidden");}
+  sb.classList.add("open");
+  ov.classList.add("show");
 }
+
 function closeSB(){
-  if(window.innerWidth<=900){sb.classList.remove("open");ov.classList.remove("show");}
-  else{sb.classList.add("hidden");}
+  sb.classList.remove("open");
+  ov.classList.remove("show");
 }
+
+/* Hamburger button: toggle sidebar on mobile */
 document.getElementById("menuBtn").onclick=function(){
-  if(window.innerWidth<=900){sb.classList.contains("open")?closeSB():openSB();}
-  else{sb.classList.contains("hidden")?openSB():closeSB();}
+  if(sb.classList.contains("open")){closeSB();}
+  else{openSB();}
 };
+
+/* Click overlay to close sidebar */
 ov.onclick=closeSB;
-if(window.innerWidth>900)sb.classList.remove("hidden");
+
+/* On resize: clean up state so CSS takes over correctly */
 window.addEventListener("resize",function(){
-  if(window.innerWidth>900){sb.classList.remove("open");ov.classList.remove("show");}
-  else{sb.classList.remove("hidden");sb.classList.remove("open");ov.classList.remove("show");}
+  if(!isMobile()){
+    /* Went to desktop: remove mobile-only classes, CSS shows sidebar */
+    closeSB();
+  }else{
+    /* Went to mobile: ensure sidebar is hidden unless overlay is open */
+    if(!ov.classList.contains("show")){
+      sb.classList.remove("open");
+    }
+  }
 });
 
-
+/* Navigation clicks */
 document.querySelectorAll(".nav-i").forEach(function(n){
   n.onclick=function(){
     document.querySelectorAll(".nav-i").forEach(function(x){x.classList.remove("active");});
     this.classList.add("active");
     document.querySelectorAll(".cs").forEach(function(x){x.classList.remove("active");});
     document.getElementById(this.getAttribute("data-s")).classList.add("active");
-    closeSB();
+    /* On mobile, close sidebar after navigation */
+    if(isMobile()){closeSB();}
   };
 });
 document.getElementById("hdrSearch").oninput=function(){var q=this.value.toLowerCase();document.querySelectorAll(".nav-i").forEach(function(n){n.style.display=n.textContent.toLowerCase().includes(q)?"flex":"none";});};
@@ -567,24 +607,23 @@ var mlFull=[],mlFilt=[],mlBody=document.getElementById("mlBody");
 document.getElementById("mlFA").onchange=function(){document.getElementById("cAgeW").style.display=this.value==="custom"?"inline-flex":"none";};
 function getMLP(){var p=new URLSearchParams();p.set("gender",document.getElementById("mlFG").value);var av=document.getElementById("mlFA").value;if(av==="custom"){var mn=document.getElementById("mlMinA").value,mx=document.getElementById("mlMaxA").value;if(mn!=="")p.set("minAge",mn);if(mx!=="")p.set("maxAge",mx);}else if(av!=="all"){var pts=av.split("-");p.set("minAge",pts[0]);p.set("maxAge",pts[1]);}var sv=document.getElementById("mlSort").value,sp=sv.split("-");p.set("sort",sp[0]);p.set("order",sp[1]);return p;}
 function renderML(data){if(!data||!data.length){mlBody.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--text-3);padding:24px">No data</td></tr>';return;}mlBody.innerHTML="";data.forEach(function(it,i){var tr=document.createElement("tr");tr.setAttribute("data-index",it._index);tr.innerHTML='<td style="color:var(--text-3)">'+(i+1)+'</td><td style="direction:ltr;text-align:left;font-family:Consolas,monospace;font-size:11px">'+(it.number||"")+'</td><td>'+(it.age||0)+'</td><td>'+gB(it.gender)+'</td><td><button class="btn btn-c btn-sm me" data-idx="'+it._index+'"><i class="fas fa-pen"></i></button> <button class="btn btn-r btn-sm md" data-idx="'+it._index+'"><i class="fas fa-trash"></i></button></td>';mlBody.appendChild(tr);});mlBody.querySelectorAll(".md").forEach(function(b){b.onclick=function(){var idx=parseInt(this.getAttribute("data-idx"));Swal.fire({title:"Delete this number?",icon:"warning",showCancelButton:true,confirmButtonText:"Delete",cancelButtonText:"Cancel",confirmButtonColor:"#ff3860",background:"var(--bg-card)",color:"var(--text-1)"}).then(function(res){if(!res.isConfirmed)return;fetch("/api/mylist",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"delete",index:idx})}).then(function(r){return r.json();}).then(function(d){if(!d.ok)throw new Error(d.error);toast("Deleted","ok");loadML();}).catch(function(e){toast("Error: "+e.message,"err");});});};});mlBody.querySelectorAll(".me").forEach(function(b){b.onclick=function(){var idx=parseInt(this.getAttribute("data-idx")),it=mlFull[idx];if(!it)return;var tr=this.closest("tr");tr.innerHTML='<td style="color:var(--text-3)">'+(Array.from(mlBody.children).indexOf(tr)+1)+'</td><td><input class="edt" id="eN" value="'+(it.number||"")+'"></td><td><input class="edt" type="number" id="eA" value="'+(it.age||0)+'" min="0" max="120" style="width:65px"></td><td><select class="edt" id="eG" style="width:75px"><option value="Male"'+(it.gender==="Male"?" selected":"")+'>Male</option><option value="Female"'+(it.gender==="Female"?" selected":"")+'>Female</option></select></td><td><button class="btn btn-g btn-sm ms" data-idx="'+idx+'"><i class="fas fa-check"></i></button> <button class="btn btn-sm mc"><i class="fas fa-times"></i></button></td>';tr.querySelector(".ms").onclick=function(){fetch("/api/mylist",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"update",index:idx,number:document.getElementById("eN").value,age:document.getElementById("eA").value,gender:document.getElementById("eG").value})}).then(function(r){return r.json();}).then(function(d){if(!d.ok)throw new Error(d.error);toast("Updated","ok");loadML();}).catch(function(e){toast("Error: "+e.message,"err");});};tr.querySelector(".mc").onclick=function(){loadML();};};});}
-function loadML(){var params=getMLP();fetch("/api/mylist?"+params.toString()).then(function(r){return r.json();}).then(function(d){if(!d.ok)throw new Error(d.error);return fetch("/api/mylist?sort=index&order=asc").then(function(r2){return r2.json();}).then(function(d2){mlFull=d2.data||[];mlFilt=d.data||[];document.getElementById("mlCnt").textContent="Total: "+d.total+" | Showing: "+d.filtered;renderML(d.data);});}).catch(function(e){toast("Error: "+e.message,"err");});}
-document.getElementById("mlLoadBtn").onclick=loadML;
+function loadML(){var params=getMLP();fetch("/api/mylist?"+params.toString()).then(function(r){return r.json();}).then(function(d){if(!d.ok)throw new Error(d.error);mlFilt=d.data||[];return fetch("/api/mylist?sort=index&order=asc").then(function(r2){return r2.json();});}).then(function(d2){mlFull=d2.data||[];renderML(mlFilt);document.getElementById("mlCnt").textContent="Total: "+mlFull.length+" | Showing: "+mlFilt.length;}).catch(function(e){toast("Error: "+e.message,"err");});}
+document.getElementById("mlAddBtn").onclick=function(){var num=document.getElementById("mlNum").value.trim();var age=parseInt(document.getElementById("mlAge").value)||0;var gen=document.getElementById("mlGen").value;if(!num){toast("Enter a number","err");return;}toast("Adding...","info");fetch("/api/mylist",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"add",number:num,age:age,gender:gen})}).then(function(r){return r.json();}).then(function(d){if(!d.ok)throw new Error(d.error);toast("Added","ok");document.getElementById("mlNum").value="";document.getElementById("mlAge").value="";loadML();}).catch(function(e){toast("Error: "+e.message,"err");});};
 document.getElementById("mlFiltBtn").onclick=loadML;
-document.getElementById("mlAddBtn").onclick=function(){var num=document.getElementById("mlNum").value.trim(),age=document.getElementById("mlAge").value,gen=document.getElementById("mlGen").value;if(!num){toast("Enter a number","err");return;}fetch("/api/mylist",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"add",number:num,age:age,gender:gen})}).then(function(r){return r.json();}).then(function(d){if(!d.ok)throw new Error(d.error);toast("Added","ok");document.getElementById("mlNum").value="";document.getElementById("mlAge").value="";loadML();}).catch(function(e){toast("Error: "+e.message,"err");});};
-document.getElementById("mlCopyBtn").onclick=function(){if(!mlFilt.length){toast("No numbers shown","err");return;}var nums=mlFilt.map(function(i){return i.number;}).filter(function(n){return n;});var txt=nums.join("\\n");navigator.clipboard.writeText(txt).then(function(){toast("Copied "+nums.length+" numbers","ok");}).catch(function(){var ta=document.createElement("textarea");ta.value=txt;ta.style.cssText="position:fixed;opacity:0";document.body.appendChild(ta);ta.select();document.execCommand("copy");document.body.removeChild(ta);toast("Copied "+nums.length+" numbers","ok");});};
-
-/* LOGS */
-function loadLogF(){var list=document.getElementById("logFiles");list.innerHTML='<span style="color:var(--text-3);font-size:11px">Loading...</span>';fetch("/api/logs").then(function(r){return r.json();}).then(function(d){if(!d.ok)throw new Error(d.error);list.innerHTML="";if(!d.files.length){list.innerHTML='<span style="color:var(--text-3);font-size:11px">No logs</span>';return;}d.files.forEach(function(f){var btn=document.createElement("button");btn.className="lfb";btn.textContent=f.name;btn.onclick=function(){document.querySelectorAll(".lfb").forEach(function(b){b.classList.remove("active");});btn.classList.add("active");var el=document.getElementById("logView");el.textContent="Loading...";fetch("/api/log-content?file="+encodeURIComponent(f.name)).then(function(r){return r.json();}).then(function(dd){if(!dd.ok)throw new Error(dd.error);el.textContent=dd.content||"Empty";}).catch(function(e){el.textContent="Error: "+e.message;});};list.appendChild(btn);});}).catch(function(e){list.innerHTML='<span style="color:var(--red);font-size:11px">Error: '+e.message+'</span>';});}
+document.getElementById("mlLoadBtn").onclick=loadML;
+document.getElementById("mlCopyBtn").onclick=function(){if(!mlFilt.length){toast("No numbers to copy","err");return;}var nums=mlFilt.map(function(it){return it.number;}).join(String.fromCharCode(10));navigator.clipboard.writeText(nums).then(function(){toast("Copied "+mlFilt.length+" numbers","ok");}).catch(function(){toast("Copy failed","err");});};
 
 /* SCHEDULE */
-function loadSch(){fetch("/api/schedule").then(function(r){return r.json();}).then(function(d){if(!d.ok)throw new Error(d.error);var ind=document.getElementById("schInd"),disp=document.getElementById("cronDisp");if(d.hasSchedule&&d.cron){ind.textContent="Active";ind.className="ss on";disp.textContent="Cron: "+d.cron;var p=d.cron.trim().split(/\\s+/);if(p.length>=2){document.getElementById("mIn").value=p[0];document.getElementById("hIn").value=p[1];}toast("Schedule loaded","ok");}else{ind.textContent="Inactive";ind.className="ss off";disp.textContent="(No schedule)";}}).catch(function(e){toast("Error: "+e.message,"err");});}
+function loadSch(){fetch("/api/schedule").then(function(r){return r.json();}).then(function(d){if(d.ok){document.getElementById("hIn").value=d.hour||10;document.getElementById("mIn").value=d.minute||0;document.getElementById("schInd").className="ss "+(d.active?"on":"off");document.getElementById("schInd").textContent=d.active?"Active":"Inactive";document.getElementById("cronDisp").textContent=d.cron||"";}}).catch(function(){});}
 document.getElementById("loadSchBtn").onclick=loadSch;
-document.getElementById("updSchBtn").onclick=function(){var h=parseInt(document.getElementById("hIn").value,10),m=parseInt(document.getElementById("mIn").value,10);if(isNaN(h)||h<0||h>23||isNaN(m)||m<0||m>59){toast("Invalid values","err");return;}fetch("/api/schedule",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"add",cron:m+" "+h+" * * *"})}).then(function(r){return r.json();}).then(function(d){if(!d.ok)throw new Error(d.error);toast("Schedule updated","ok");loadSch();}).catch(function(e){toast("Error: "+e.message,"err");});};
+document.getElementById("updSchBtn").onclick=function(){var h=parseInt(document.getElementById("hIn").value)||0;var m=parseInt(document.getElementById("mIn").value)||0;toast("Updating schedule...","info");fetch("/api/schedule",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({hour:h,minute:m})}).then(function(r){return r.json();}).then(function(d){if(!d.ok)throw new Error(d.error);toast("Schedule updated","ok");loadSch();}).catch(function(e){toast("Error: "+e.message,"err");});};
 
-/* ANALYTICS */
+/* LOG FILES */
+function loadLogF(){fetch("/api/logs").then(function(r){return r.json();}).then(function(d){if(!d.ok||!d.files||!d.files.length){document.getElementById("logFiles").innerHTML='<span style="color:var(--text-3);font-size:11px">No log files found</span>';return;}var cont=document.getElementById("logFiles");cont.innerHTML="";d.files.forEach(function(f){var btn=document.createElement("button");btn.className="lfb";btn.textContent=f;btn.onclick=function(){cont.querySelectorAll(".lfb").forEach(function(b){b.classList.remove("active");});this.classList.add("active");toast("Loading log...","info");fetch("/api/logs?file="+encodeURIComponent(f)).then(function(r){return r.json();}).then(function(d2){if(!d2.ok)throw new Error(d2.error);document.getElementById("logView").textContent=d2.content||"(empty)";toast("Log loaded","ok");}).catch(function(e){toast("Error: "+e.message,"err");});};cont.appendChild(btn);});}).catch(function(){document.getElementById("logFiles").innerHTML='<span style="color:var(--text-3);font-size:11px">Failed to load log files</span>';});}
+
+/* ANALYTICS / CHART */
 var stCI=null;
-document.getElementById("loadStBtn").onclick=function(){toast("Loading stats...","info");fetch("/api/stats").then(function(r){return r.json();}).then(function(d){if(!d.ok)throw new Error(d.error);if(!d.data.length){toast("No statistics","err");return;}document.getElementById("stCon").style.display="block";toast("Loaded","ok");var tb=document.getElementById("stBody");tb.innerHTML="";var tA=0,tS=0,tF=0;d.data.forEach(function(r){tA+=r.attempted||0;tS+=r.success||0;tF+=r.failed||0;var tr=document.createElement("tr");tr.innerHTML="<td>"+r.date+"</td><td>"+(r.attempted||0)+"</td><td style='color:var(--green)'>"+(r.success||0)+"</td><td style='color:var(--red)'>"+(r.failed||0)+"</td>";tb.appendChild(tr);});var trT=document.createElement("tr");trT.style.fontWeight="bold";trT.style.borderTop="2px solid var(--cyan)";trT.innerHTML="<td>Total</td><td>"+tA+"</td><td style='color:var(--green)'>"+tS+"</td><td style='color:var(--red)'>"+tF+"</td>";tb.appendChild(trT);document.getElementById("dSent").textContent=tA;document.getElementById("dOk").textContent=tS;document.getElementById("dFail").textContent=tF;var ctx=document.getElementById("stChart").getContext("2d");if(stCI)stCI.destroy();var gc=isDk?"rgba(255,255,255,0.04)":"rgba(0,0,0,0.06)",tc=isDk?"#7878aa":"#555580";stCI=new Chart(ctx,{type:"bar",data:{labels:d.data.map(function(r){return r.date;}),datasets:[{label:"Attempted",data:d.data.map(function(r){return r.attempted||0;}),backgroundColor:"rgba(0,240,255,0.5)",borderColor:"#00f0ff",borderWidth:1,borderRadius:4},{label:"Success",data:d.data.map(function(r){return r.success||0;}),backgroundColor:"rgba(0,255,136,0.5)",borderColor:"#00ff88",borderWidth:1,borderRadius:4},{label:"Failed",data:d.data.map(function(r){return r.failed||0;}),backgroundColor:"rgba(255,56,96,0.5)",borderColor:"#ff3860",borderWidth:1,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:tc,font:{family:"'Plus Jakarta Sans'",size:12}}}},scales:{y:{beginAtZero:true,ticks:{color:tc},grid:{color:gc}},x:{ticks:{color:tc},grid:{display:false}}}}});}).catch(function(e){toast("Error: "+e.message,"err");});};
+document.getElementById("loadStBtn").onclick=function(){toast("Loading statistics...","info");fetch("/api/stats").then(function(r){return r.json();}).then(function(d){if(!d.ok)throw new Error(d.error);var data=d.data||[];if(!data.length){toast("No data","err");return;}document.getElementById("stCon").style.display="block";var tbody=document.getElementById("stBody");tbody.innerHTML="";data.forEach(function(r){var tr=document.createElement("tr");tr.innerHTML="<td>"+(r.date||"")+"</td><td>"+(r.attempted||0)+"</td><td style='color:var(--green)'>"+(r.success||0)+"</td><td style='color:var(--red)'>"+(r.failed||0)+"</td>";tbody.appendChild(tr);});if(stCI){stCI.destroy();stCI=null;}var ctx=document.getElementById("stChart").getContext("2d");var textColor=getComputedStyle(document.body).getPropertyValue("--text-2").trim()||"#7878aa";var gridColor=getComputedStyle(document.body).getPropertyValue("--glass-border").trim()||"rgba(0,240,255,0.12)";stCI=new Chart(ctx,{type:"line",data:{labels:data.map(function(r){return r.date||"";}),datasets:[{label:"Attempted",data:data.map(function(r){return r.attempted||0;}),borderColor:"#00f0ff",backgroundColor:"rgba(0,240,255,0.1)",tension:0.3,fill:true},{label:"Success",data:data.map(function(r){return r.success||0;}),borderColor:"#00ff88",backgroundColor:"rgba(0,255,136,0.1)",tension:0.3,fill:true},{label:"Failed",data:data.map(function(r){return r.failed||0;}),borderColor:"#ff3860",backgroundColor:"rgba(255,56,96,0.1)",tension:0.3,fill:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:textColor,font:{size:10}}}},scales:{x:{ticks:{color:textColor,font:{size:9}},grid:{color:gridColor}},y:{ticks:{color:textColor,font:{size:9}},grid:{color:gridColor},beginAtZero:true}}}});toast("Statistics loaded","ok");}).catch(function(e){toast("Error: "+e.message,"err");});};
 </script>
 </body>
-</html>
-`;
+</html>`;
