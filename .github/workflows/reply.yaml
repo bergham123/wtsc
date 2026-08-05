@@ -1,8 +1,8 @@
 name: WhatsApp AI Auto-Reply
 
 on:
-  schedule:
-    - cron: '*/10 * * * *' # يشتغل كل 10 دقائق
+  # schedule:
+    # - cron: '*/10 * * * *' # يشتغل كل 10 دقائق
   workflow_dispatch:
 
 permissions:
