@@ -12,6 +12,11 @@ import {
   handleGetMylist, handleSaveMylist
 } from './src/handlers.js';
 
+import {
+  handleAuthStatus, handleAuthCheck, handleAuthLogin,
+  handleResetRequest, handleResetVerify
+} from './src/auth.js';
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -65,7 +70,19 @@ export default {
     if (url.pathname === "/api/live/logs" && method === "GET") return handleGetSessionLogs(request, env);
     if (url.pathname === "/api/live/log" && method === "POST") return handleAddLog(request, env);
     if (url.pathname === "/api/live/messages" && method === "GET") return handleGetMessages(request, env);
+    // Auth API
+    if (url.pathname === "/api/auth/status" && method === "GET")
+      return handleAuthStatus(request, env);
+    if (url.pathname === "/api/auth/check" && method === "GET")
+      return handleAuthCheck(request, env);
+    if (url.pathname === "/api/auth/login" && method === "POST")
+      return handleAuthLogin(request, env);
+    if (url.pathname === "/api/auth/reset-request" && method === "POST")
+      return handleResetRequest(request, env);
+    if (url.pathname === "/api/auth/reset-verify" && method === "POST")
+      return handleResetVerify(request, env);
 
+   
     return new Response("Not found", { status: 404 });
   }
 };
