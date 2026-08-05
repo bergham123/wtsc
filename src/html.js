@@ -22,6 +22,15 @@ export const HTML_PAGE = `<!DOCTYPE html>
   --glow-green:0 0 15px rgba(0,255,136,0.3);--glow-red:0 0 15px rgba(255,56,96,0.3);
   --sidebar-w:260px;--header-h:56px;
 }
+.auth-step{display:none}
+.auth-step.active{display:block}
+.auth-link{color:var(--cyan);font-size:11px;cursor:pointer;background:none;border:none;font-family:inherit;margin-top:12px;transition:opacity .2s}
+.auth-link:hover{opacity:.7}
+.auth-back{color:var(--text-3);font-size:11px;cursor:pointer;background:none;border:none;font-family:inherit;margin-top:10px;display:inline-flex;align-items:center;gap:4px}
+.auth-back:hover{color:var(--text-1)}
+.auth-success-icon{font-size:48px;color:var(--green);margin-bottom:10px;animation:popIn .4s ease}
+@keyframes popIn{0%{transform:scale(0);opacity:0}100%{transform:scale(1);opacity:1}}
+.auth-loader{display:inline-block;width:16px;height:16px;border:2px solid var(--glass-border);border-top-color:var(--cyan);border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:6px}
 .light-mode{
   --bg-deep:#e4e4ee;--bg-primary:#eeeef6;--bg-card:rgba(255,255,255,0.8);
   --bg-input:rgba(230,230,250,0.8);--text-1:#1a1a2e;--text-2:#555580;--text-3:#9999bb;
@@ -237,12 +246,59 @@ select.ci{cursor:pointer}
 
 <div id="authScreen">
   <div class="auth-card">
-    <div style="font-size:36px;margin-bottom:14px"><i class="fas fa-shield-halved" style="color:var(--cyan)"></i></div>
-    <h2 class="font-orb">QUANTUM GATEWAY</h2>
-    <p>Enter your secret key to proceed</p>
-    <input type="password" class="auth-input" id="authKey" placeholder="XXXX-XXXX-XXXXXX" autocomplete="off">
-    <button class="auth-btn" id="authBtn"><i class="fas fa-key"></i> UNLOCK</button>
-    <div class="auth-err" id="authErr"></div>
+
+    <!-- STEP: LOGIN -->
+    <div class="auth-step active" id="authLogin">
+      <div style="font-size:36px;margin-bottom:14px"><i class="fas fa-shield-halved" style="color:var(--cyan)"></i></div>
+      <h2 class="font-orb">QUANTUM GATEWAY</h2>
+      <p>Enter your password to proceed</p>
+      <input type="password" class="auth-input" id="authPwd" placeholder="Password" autocomplete="off">
+      <button class="auth-btn" id="authLoginBtn"><i class="fas fa-key"></i> UNLOCK</button>
+      <div class="auth-err" id="authErr"></div>
+      <button class="auth-link" id="authForgotBtn">Forgot password?</button>
+    </div>
+
+    <!-- STEP: SETUP (first time) -->
+    <div class="auth-step" id="authSetup">
+      <div style="font-size:36px;margin-bottom:14px"><i class="fas fa-user-shield" style="color:var(--purple)"></i></div>
+      <h2 class="font-orb">INITIAL SETUP</h2>
+      <p>Set your access password for the first time</p>
+      <input type="password" class="auth-input" id="setupPwd" placeholder="Create password" autocomplete="off">
+      <input type="password" class="auth-input" id="setupPwd2" placeholder="Confirm password" autocomplete="off" style="margin-top:10px">
+      <button class="auth-btn" id="authSetupBtn"><i class="fas fa-lock"></i> SET PASSWORD</button>
+      <div class="auth-err" id="setupErr"></div>
+    </div>
+
+    <!-- STEP: RESET REQUEST -->
+    <div class="auth-step" id="authResetReq">
+      <div style="font-size:36px;margin-bottom:14px"><i class="fas fa-paper-plane" style="color:var(--orange)"></i></div>
+      <h2 class="font-orb">RESET PASSWORD</h2>
+      <p>A 6-digit code will be sent to your Telegram</p>
+      <button class="auth-btn" id="sendCodeBtn"><i class="fab fa-telegram"></i> SEND CODE TO TELEGRAM</button>
+      <div class="auth-err" id="resetReqErr"></div>
+      <button class="auth-back" id="backToLogin1"><i class="fas fa-arrow-left"></i> Back to login</button>
+    </div>
+
+    <!-- STEP: RESET VERIFY -->
+    <div class="auth-step" id="authResetVerify">
+      <div style="font-size:36px;margin-bottom:14px"><i class="fas fa-check-double" style="color:var(--yellow)"></i></div>
+      <h2 class="font-orb">VERIFY CODE</h2>
+      <p>Enter the code sent to Telegram + your new password</p>
+      <input type="text" class="auth-input" id="resetCode" placeholder="6-digit code" maxlength="6" autocomplete="off" style="letter-spacing:8px;font-size:18px">
+      <input type="password" class="auth-input" id="newPwd" placeholder="New password" autocomplete="off" style="margin-top:10px">
+      <input type="password" class="auth-input" id="newPwd2" placeholder="Confirm new password" autocomplete="off" style="margin-top:10px">
+      <button class="auth-btn" id="verifyCodeBtn"><i class="fas fa-check"></i> VERIFY & RESET</button>
+      <div class="auth-err" id="resetVerErr"></div>
+      <button class="auth-back" id="backToResetReq"><i class="fas fa-arrow-left"></i> Back</button>
+    </div>
+
+    <!-- STEP: SUCCESS -->
+    <div class="auth-step" id="authSuccess">
+      <div class="auth-success-icon"><i class="fas fa-check-circle"></i></div>
+      <h2 class="font-orb" style="color:var(--green)">ACCESS GRANTED</h2>
+      <p style="margin-top:8px">Redirecting to dashboard...</p>
+    </div>
+
   </div>
 </div>
 
@@ -493,6 +549,92 @@ document.getElementById("authBtn").onclick=function(){
   }
 };
 document.getElementById("authKey").addEventListener("keydown",function(e){if(e.key==="Enter")document.getElementById("authBtn").click();});
+
+/* LOADER */
+setTimeout(function(){document.getElementById("cyberLoader").classList.add("hide");setTimeout(function(){document.getElementById("authScreen").classList.add("show");checkSession();},500);},1800);
+
+/* AUTH HELPERS */
+function showStep(id){document.querySelectorAll(".auth-step").forEach(function(s){s.classList.remove("active");});document.getElementById(id).classList.add("active");}
+function authErr(el,msg){el.textContent=msg;el.style.color="var(--red)";setTimeout(function(){el.textContent="";},3000);}
+function enterApp(token){localStorage.setItem("nexus_token",token);showStep("authSuccess");setTimeout(function(){document.getElementById("authScreen").classList.remove("show");document.getElementById("mainApp").classList.add("show");initApp();},800);}
+
+/* CHECK SESSION ON LOAD */
+function checkSession(){
+  var token=localStorage.getItem("nexus_token");
+  if(!token){fetchAuthStatus();return;}
+  fetch("/api/auth/check?token="+token).then(function(r){return r.json();}).then(function(d){
+    if(d.ok&&d.valid){enterApp(token);}
+    else{localStorage.removeItem("nexus_token");fetchAuthStatus();}
+  }).catch(function(){fetchAuthStatus();});
+}
+
+/* FETCH AUTH STATUS (setup needed?) */
+function fetchAuthStatus(){
+  fetch("/api/auth/status").then(function(r){return r.json();}).then(function(d){
+    if(d.ok&&d.setup){showStep("authLogin");}
+    else{showStep("authSetup");}
+  }).catch(function(){showStep("authLogin");});
+}
+
+/* LOGIN */
+document.getElementById("authLoginBtn").onclick=function(){
+  var pwd=document.getElementById("authPwd").value;
+  if(!pwd){authErr(document.getElementById("authErr"),"Enter your password");return;}
+  var btn=this;btn.disabled=true;btn.innerHTML='<span class="auth-loader"></span> VERIFYING';
+  fetch("/api/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({password:pwd})}).then(function(r){return r.json();}).then(function(d){
+    if(d.ok){enterApp(d.token);}
+    else{authErr(document.getElementById("authErr"),d.error||"Invalid password");document.getElementById("authPwd").style.borderColor="var(--red)";setTimeout(function(){document.getElementById("authPwd").style.borderColor="";},2000);}
+    btn.disabled=false;btn.innerHTML='<i class="fas fa-key"></i> UNLOCK';
+  }).catch(function(e){authErr(document.getElementById("authErr"),"Error: "+e.message);btn.disabled=false;btn.innerHTML='<i class="fas fa-key"></i> UNLOCK';});
+};
+document.getElementById("authPwd").addEventListener("keydown",function(e){if(e.key==="Enter")document.getElementById("authLoginBtn").click();});
+
+/* SETUP */
+document.getElementById("authSetupBtn").onclick=function(){
+  var p1=document.getElementById("setupPwd").value,p2=document.getElementById("setupPwd2").value;
+  if(!p1){authErr(document.getElementById("setupErr"),"Enter a password");return;}
+  if(p1.length<4){authErr(document.getElementById("setupErr"),"Minimum 4 characters");return;}
+  if(p1!==p2){authErr(document.getElementById("setupErr"),"Passwords do not match");return;}
+  var btn=this;btn.disabled=true;btn.innerHTML='<span class="auth-loader"></span> SETTING UP';
+  fetch("/api/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({password:p1})}).then(function(r){return r.json();}).then(function(d){
+    if(d.ok){enterApp(d.token);}
+    else{authErr(document.getElementById("setupErr"),d.error);}
+    btn.disabled=false;btn.innerHTML='<i class="fas fa-lock"></i> SET PASSWORD';
+  }).catch(function(e){authErr(document.getElementById("setupErr"),"Error: "+e.message);btn.disabled=false;btn.innerHTML='<i class="fas fa-lock"></i> SET PASSWORD';});
+};
+
+/* FORGOT -> RESET REQUEST */
+document.getElementById("authForgotBtn").onclick=function(){showStep("authResetReq");};
+document.getElementById("backToLogin1").onclick=function(){showStep("authLogin");};
+document.getElementById("sendCodeBtn").onclick=function(){
+  var btn=this;btn.disabled=true;btn.innerHTML='<span class="auth-loader"></span> SENDING';
+  fetch("/api/auth/reset-request",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({})}).then(function(r){return r.json();}).then(function(d){
+    if(d.ok){showStep("authResetVerify");}
+    else{authErr(document.getElementById("resetReqErr"),d.error);}
+    btn.disabled=false;btn.innerHTML='<i class="fab fa-telegram"></i> SEND CODE TO TELEGRAM';
+  }).catch(function(e){authErr(document.getElementById("resetReqErr"),"Error: "+e.message);btn.disabled=false;btn.innerHTML='<i class="fab fa-telegram"></i> SEND CODE TO TELEGRAM';});
+};
+
+/* RESET VERIFY */
+document.getElementById("verifyCodeBtn").onclick=function(){
+  var code=document.getElementById("resetCode").value.trim();
+  var p1=document.getElementById("newPwd").value,p2=document.getElementById("newPwd2").value;
+  if(!code){authErr(document.getElementById("resetVerErr"),"Enter the code");return;}
+  if(!p1){authErr(document.getElementById("resetVerErr"),"Enter new password");return;}
+  if(p1.length<4){authErr(document.getElementById("resetVerErr"),"Minimum 4 characters");return;}
+  if(p1!==p2){authErr(document.getElementById("resetVerErr"),"Passwords do not match");return;}
+  var btn=this;btn.disabled=true;btn.innerHTML='<span class="auth-loader"></span> VERIFYING';
+  fetch("/api/auth/reset-verify",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code:code,newPassword:p1})}).then(function(r){return r.json();}).then(function(d){
+    if(d.ok){
+      showStep("authLogin");
+      document.getElementById("authPwd").value="";
+      toast("Password reset successfully! Login with your new password.","ok");
+    }else{authErr(document.getElementById("resetVerErr"),d.error);}
+    btn.disabled=false;btn.innerHTML='<i class="fas fa-check"></i> VERIFY & RESET';
+  }).catch(function(e){authErr(document.getElementById("resetVerErr"),"Error: "+e.message);btn.disabled=false;btn.innerHTML='<i class="fas fa-check"></i> VERIFY & RESET';});
+};
+document.getElementById("backToResetReq").onclick=function(){showStep("authResetReq");};
+
 
 /* ================================================
    SIDEBAR — clean responsive logic
