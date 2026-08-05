@@ -533,22 +533,6 @@ function toast(m,t){
 function setRD(el,on,ot,ft){el.className="rd "+(on?"on":"off");el.innerHTML='<span class="d"></span> '+(on?ot:ft);}
 function gB(g){return g==="Male"?'<span class="gb m">Male</span>':g==="Female"?'<span class="gb f">Female</span>':'<span class="gb u">'+(g||"\\u2014")+'</span>';}
 
-/* LOADER */
-setTimeout(function(){document.getElementById("cyberLoader").classList.add("hide");setTimeout(function(){document.getElementById("authScreen").classList.add("show");},500);},1800);
-
-/* AUTH */
-document.getElementById("authBtn").onclick=function(){
-  if(document.getElementById("authKey").value.trim()==="AI-2026-WHATSAPP"){
-    document.getElementById("authScreen").classList.remove("show");
-    document.getElementById("mainApp").classList.add("show");
-    initApp();
-  }else{
-    document.getElementById("authErr").textContent="Invalid key!";
-    document.getElementById("authKey").style.borderColor="var(--red)";
-    setTimeout(function(){document.getElementById("authErr").textContent="";document.getElementById("authKey").style.borderColor="";},2000);
-  }
-};
-document.getElementById("authKey").addEventListener("keydown",function(e){if(e.key==="Enter")document.getElementById("authBtn").click();});
 
 /* LOADER */
 setTimeout(function(){document.getElementById("cyberLoader").classList.add("hide");setTimeout(function(){document.getElementById("authScreen").classList.add("show");checkSession();},500);},1800);
